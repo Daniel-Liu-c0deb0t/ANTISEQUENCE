@@ -15,32 +15,38 @@ impl Mappings {
         Self { mappings: vec![Mapping::new(string.len())], string }
     }
 
-    pub fn get(&self, label: &str) -> Option<&Mapping> {
+    pub fn get_mapping(&self, label: &str) -> Option<&Mapping> {
         self.mappings.iter().find(|&m| m.label == label)
     }
 
-    pub fn trim(&mut self, label: &str) {
-        let mapping = self.get(label).unwrap_or_else(|| panic!("Label not found in string: {}", label)).clone();
+    pub fn get_region(&self, mapping: &Mapping) -> &[u8] {
+        &self.string[mapping.start..mapping.start + mapping.len]
+    }
 
-        self.mappings.retain_mut(|m| {
+    pub fn trim(&mut self, label: &str) {
+        let mapping = self.get_mapping(label).unwrap_or_else(|| panic!("Label not found in string: {}", label)).clone();
+
+        self.mappings.iter_mut().for_each(|m| {
             use Intersection::*;
             match mapping.intersect(m) {
                 BStart(len) => {
                     m.start += len;
                     m.len -= len;
-                    true
                 }
                 BEnd(len) => {
                     m.len -= len;
-                    true
                 }
                 AInsideB => {
                     m.len -= mapping.len;
-                    true
                 }
-                BInsideA => false,
-                Equal => false,
-                None => true,
+                BInsideA => {
+                    m.start = mapping.start;
+                    m.len = 0;
+                }
+                Equal => {
+                    m.len = 0;
+                }
+                None => (),
             }
         });
 
@@ -50,9 +56,10 @@ impl Mappings {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mapping {
-    label: String,
-    start: usize,
-    len: usize,
+    pub label: String,
+    pub start: usize,
+    pub len: usize,
+    pub data: Option<Vec<u8>>,
 }
 
 pub enum Intersection {
@@ -65,11 +72,12 @@ pub enum Intersection {
 }
 
 impl Mapping {
-    pub fn new(len: usize) -> Self {
+    pub fn new(label: &str, len: usize) -> Self {
         Self {
-            label: "*".to_owned(),
+            label: label.to_owned(),
             start: 0,
             len,
+            data: None,
         }
     }
 
@@ -97,13 +105,17 @@ impl Mapping {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+
+    pub fn set_data(data: Vec<u8>) {
+        self.data = Some(data);
+    }
 }
 
 impl Read {
     pub fn from_fastq(name: &[u8], seq: &[u8], qual: &[u8]) -> Self {
-        let name = Mappings::new(name.to_owned());
-        let seq = Mappings::new(seq.to_owned());
-        let qual = Mappings::new(qual.to_owned());
+        let name = Mappings::new("name", name.to_owned());
+        let seq = Mappings::new("*", seq.to_owned());
+        let qual = Mappings::new("*", qual.to_owned());
 
         Self {
             name,
@@ -116,29 +128,33 @@ impl Read {
         (&self.name.string, &self.seq.string, &self.qual.string)
     }
 
-    pub fn trim_seq(&mut self, label: &str) {
+    pub fn trim(&mut self, label: &str) {
+        self.name.trim(label);
         self.seq.trim(label);
         self.qual.trim(label);
-    }
-
-    pub fn trim_name(&mut self, label: &str) {
-        self.name.trim(label);
     }
 }
 
 impl fmt::Display for Mappings {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let len = self.mappings.iter().map(|m| m.label.len()).max().unwrap();
+        let len_label = self.mappings.iter().map(|m| m.label.len()).max().unwrap();
+        let len_data = self.mappings.iter().map(|m| m.data.map(|d| d.len()).unwrap_or(0)).max().unwrap();
 
         for m in &self.mappings {
-            let mut curr = " ".repeat(self.string.len() + 1);
-            curr[m.start] = '|';
-            curr[m.start + m.len] = '|';
-            curr[m.start + 1..m.start + m.len] = '-';
-            writeln!(f, "{: <len}{}", m.label, curr)?;
+            let curr = if m.is_empty() {
+                String::new()
+            } else {
+                let mut c = " ".repeat(self.string.len());
+                c[m.start] = '|';
+                c[m.start + m.len - 1] = '|';
+                c[m.start + 1..m.start + m.len - 1] = '-';
+                c
+            };
+            writeln!(f, "{: <len_label} {: <len_data} {}", m.label, m.data.as_ref().unwrap_or(""), curr)?;
         }
 
-        writeln!(f, "{: <len}{}", "str", self.string)
+        let len = len_label + len_data + 2;
+        writeln!(f, "{: <len}{}", "", self.string)
     }
 }
 

@@ -23,15 +23,9 @@ pub trait Reads {
     }
 
     #[must_use]
-    fn trim_seq(&self, selector_expr: &str, labels: &[&str]) -> TrimReads {
+    fn trim(&self, selector_expr: &str, labels: &[&str]) -> TrimReads {
         let labels = labels.iter().cloned().collect::<Vec<_>>();
-        TrimReads::new(self, SelectorExpr::new(selector_expr), labels, true)
-    }
-
-    #[must_use]
-    fn trim_name(&self, selector_expr: &str, labels: &[&str]) -> TrimReads {
-        let labels = labels.iter().cloned().collect::<Vec<_>>();
-        TrimReads::new(self, SelectorExpr::new(selector_expr), labels, false)
+        TrimReads::new(self, SelectorExpr::new(selector_expr), labels)
     }
 
     #[must_use]
