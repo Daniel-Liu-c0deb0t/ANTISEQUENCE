@@ -59,7 +59,13 @@ pub struct Mapping {
     pub label: String,
     pub start: usize,
     pub len: usize,
-    pub data: Option<Vec<u8>>,
+    pub data: FxHashMap<String, Data>,
+}
+
+pub enum Data {
+    Int(usize),
+    Bytes(Vec<u8>),
+    String(String),
 }
 
 pub enum Intersection {
@@ -77,7 +83,7 @@ impl Mapping {
             label: label.to_owned(),
             start: 0,
             len,
-            data: None,
+            data: FxHashMap::default(),
         }
     }
 
@@ -104,10 +110,6 @@ impl Mapping {
 
     pub fn is_empty(&self) -> bool {
         self.len == 0
-    }
-
-    pub fn set_data(data: Vec<u8>) {
-        self.data = Some(data);
     }
 }
 
@@ -137,12 +139,11 @@ impl Read {
 
 impl fmt::Display for Mappings {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let len_label = self.mappings.iter().map(|m| m.label.len()).max().unwrap();
-        let len_data = self.mappings.iter().map(|m| m.data.map(|d| d.len()).unwrap_or(0)).max().unwrap();
+        let len = self.mappings.iter().map(|m| m.label.len()).max().unwrap();
 
         for m in &self.mappings {
             let curr = if m.is_empty() {
-                String::new()
+                "(empty)".to_owned()
             } else {
                 let mut c = " ".repeat(self.string.len());
                 c[m.start] = '|';
@@ -150,11 +151,15 @@ impl fmt::Display for Mappings {
                 c[m.start + 1..m.start + m.len - 1] = '-';
                 c
             };
-            writeln!(f, "{: <len_label} {: <len_data} {}", m.label, m.data.as_ref().unwrap_or(""), curr)?;
+            write!(f, "{: <len} {}", m.label, curr)?;
+
+            for (k, v) in &m.data {
+                write!(f, " {}:{}", k, v)?;
+            }
+            writeln!(f);
         }
 
-        let len = len_label + len_data + 2;
-        writeln!(f, "{: <len}{}", "", self.string)
+        writeln!(f, "{: <len} {}", "", self.string)
     }
 }
 
@@ -163,5 +168,15 @@ impl fmt::Display for Read {
         writeln!(f, "name\n{}", self.name)?;
         writeln!(f, "seq \n{}", self.seq)?;
         writeln!(f, "qual\n{}", self.qual)
+    }
+}
+
+impl fmt::Display for Data {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Int(x) => write!(f, "{}", x),
+            Bytes(x) => write!(f, "{}", std::str::from_utf8(x).unwrap()),
+            String(x) => write!(f, "{}", x),
+        }
     }
 }

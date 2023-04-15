@@ -80,7 +80,8 @@ fn lex(expr_str: &str) -> Vec<Item> {
                 res.push(Not);
             }
             'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '.' => curr.push(c),
-            _ => panic!("The character '{}' is not allowed!", c);
+            ' ' | '\t' | '\n' | '\r' => (),
+            _ => panic!("The character '{}' is not allowed!", c),
         }
     }
 
