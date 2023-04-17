@@ -17,7 +17,7 @@ impl<'r, R: Reads> TrimReads<'r, R> {
 }
 
 impl<'r, R: Reads> Reads for TrimReads<'r, R> {
-    fn next_chunk() -> Read {
+    fn next_chunk(&self) -> Vec<Read> {
         let mut reads = self.reads.next_chunk();
 
         for read in &mut reads {

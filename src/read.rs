@@ -15,6 +15,10 @@ impl Mappings {
         Self { mappings: vec![Mapping::new(string.len())], string }
     }
 
+    pub fn get_data(&self, label: &str, attr: &str) -> Option<&Data> {
+        self.get_mapping(label).and_then(|m| m.get_data(attr))
+    }
+
     pub fn get_mapping(&self, label: &str) -> Option<&Mapping> {
         self.mappings.iter().find(|&m| m.label == label)
     }
@@ -62,12 +66,15 @@ pub struct Mapping {
     pub data: FxHashMap<String, Data>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Data {
+    Bool(bool),
     Int(usize),
     Bytes(Vec<u8>),
     String(String),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum Intersection {
     BStart(usize),
     BEnd(usize),
@@ -111,6 +118,10 @@ impl Mapping {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+
+    pub fn get_data(attr: &str) -> Option<&Data> {
+        self.data.get(attr)
+    }
 }
 
 impl Read {
@@ -137,13 +148,25 @@ impl Read {
     }
 }
 
+impl Data {
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Bool(x) => x,
+            Int(x) => x > 0,
+            Bytes(x) => !x.is_empty(),
+            String(x) => !x.is_empty(),
+        }
+    }
+}
+
 impl fmt::Display for Mappings {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self.mappings.iter().map(|m| m.label.len()).max().unwrap();
 
         for m in &self.mappings {
             let curr = if m.is_empty() {
-                "(empty)".to_owned()
+                let str_len = self.string.len();
+                format!("{: <str_len}", "(empty)")
             } else {
                 let mut c = " ".repeat(self.string.len());
                 c[m.start] = '|';
@@ -154,7 +177,7 @@ impl fmt::Display for Mappings {
             write!(f, "{: <len} {}", m.label, curr)?;
 
             for (k, v) in &m.data {
-                write!(f, " {}:{}", k, v)?;
+                write!(f, " {}={}", k, v)?;
             }
             writeln!(f);
         }
@@ -174,6 +197,7 @@ impl fmt::Display for Read {
 impl fmt::Display for Data {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Bool(x) => write!(f, "{}", x),
             Int(x) => write!(f, "{}", x),
             Bytes(x) => write!(f, "{}", std::str::from_utf8(x).unwrap()),
             String(x) => write!(f, "{}", x),

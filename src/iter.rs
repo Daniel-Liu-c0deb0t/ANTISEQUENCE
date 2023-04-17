@@ -7,7 +7,7 @@ pub mod collect_fastq_reads;
 pub use collect_fastq_reads::*;
 
 pub trait Reads {
-    fn run(&self, threads: usize) {
+    fn run(self, threads: usize) {
         assert!(threads >= 1);
         let mut handles = Vec::with_capacity(threads);
 

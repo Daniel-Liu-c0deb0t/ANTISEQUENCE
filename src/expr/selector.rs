@@ -21,7 +21,8 @@ enum Item {
     And,
     Or,
     Not,
-    Literal(String),
+    Dot,
+    Label(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -29,7 +30,8 @@ enum Expr {
     And(Vec<Expr>),
     Or(Vec<Expr>),
     Not(Expr),
-    Literal(String),
+    Label(String),
+    Data(String, String),
 }
 
 fn matches_rec(expr: &Expr, read: &Read) -> bool {
@@ -38,7 +40,8 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
         And(v) => v.iter().fold(true, |a, b| a & matches_rec(b, read)),
         Or(v) => v.iter().fold(false, |a, b| a | matches_rec(b, read)),
         Not(e) => !matches_rec(&e, read),
-        Literal(label) => !read.get(label).unwrap().is_empty(),
+        Label(label) => !read.get_mapping(label).unwrap().is_empty(),
+        Data(label, attr) => read.get_data(label, attr).unwrap().as_bool(),
     }
 }
 
@@ -52,7 +55,7 @@ fn lex(expr_str: &str) -> Vec<Item> {
         assert!((expect_empty && curr.is_empty()) || (!expect_empty && !curr.is_empty()));
 
         if !curr.is_empty() {
-            res.push(Literal(curr.clone()));
+            res.push(Label(curr.clone()));
             curr.clear();
         }
     };
@@ -79,14 +82,18 @@ fn lex(expr_str: &str) -> Vec<Item> {
                 write_curr(true);
                 res.push(Not);
             }
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '.' => curr.push(c),
+            '.' => {
+                write_curr(false);
+                res.push(Dot);
+            }
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => curr.push(c),
             ' ' | '\t' | '\n' | '\r' => (),
             _ => panic!("The character '{}' is not allowed!", c),
         }
     }
 
     if !curr.is_empty() {
-        res.push(Literal(curr.clone()));
+        res.push(Label(curr.clone()));
     }
 
     res
@@ -98,10 +105,19 @@ fn parse(items: &[Item]) -> Expr {
     assert!(!items.is_empty(), "Expected non-empty expression!");
 
     if items.len() == 1 {
-        if let Literal(label) = items[0] {
-            return Expr::Literal(label.clone());
+        if let Label(label) = items[0] {
+            return Expr::Label(label.clone());
         } else {
-            panic!("Expected literal label!");
+            panic!("Expected label!");
+        }
+    }
+
+    if items.len() == 3 {
+        match (items[0], items[1], items[2]) {
+            (Label(label), Dot, Label(attr)) => {
+                return Expr::Data(label.clone(), attr.clone());
+            }
+            _ => panic!("Expected label.attr!"),
         }
     }
 
