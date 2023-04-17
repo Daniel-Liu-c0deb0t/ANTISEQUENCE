@@ -27,6 +27,7 @@ enum Item {
 
 #[derive(Debug, Clone, PartialEq)]
 enum Expr {
+    True,
     And(Vec<Expr>),
     Or(Vec<Expr>),
     Not(Expr),
@@ -37,6 +38,7 @@ enum Expr {
 fn matches_rec(expr: &Expr, read: &Read) -> bool {
     use Expr::*;
     match expr {
+        True => true,
         And(v) => v.iter().fold(true, |a, b| a & matches_rec(b, read)),
         Or(v) => v.iter().fold(false, |a, b| a | matches_rec(b, read)),
         Not(e) => !matches_rec(&e, read),
@@ -102,7 +104,9 @@ fn lex(expr_str: &str) -> Vec<Item> {
 fn parse(items: &[Item]) -> Expr {
     items = unwrap_parens(items);
 
-    assert!(!items.is_empty(), "Expected non-empty expression!");
+    if items.is_empty() {
+        return Expr::True;
+    }
 
     if items.len() == 1 {
         if let Label(label) = items[0] {
@@ -113,11 +117,8 @@ fn parse(items: &[Item]) -> Expr {
     }
 
     if items.len() == 3 {
-        match (items[0], items[1], items[2]) {
-            (Label(label), Dot, Label(attr)) => {
-                return Expr::Data(label.clone(), attr.clone());
-            }
-            _ => panic!("Expected label.attr!"),
+        if let (Label(label), Dot, Label(attr)) = (items[0], items[1], items[2]) {
+            return Expr::Data(label.clone(), attr.clone());
         }
     }
 
