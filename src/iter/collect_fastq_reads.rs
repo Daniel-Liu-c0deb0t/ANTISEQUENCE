@@ -43,7 +43,7 @@ impl<'r, R: Reads> Reads for CollectFastqReads<'r, R> {
 
             let file_writers = self.file_writers.read().unwrap();
             let writer = file_writers[&file_name].lock().unwrap();
-            writeln!(writer, "{}", read);
+            write_fastq_record(&mut writer, read.to_fastq());
         }
 
         reads

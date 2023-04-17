@@ -35,3 +35,13 @@ pub fn iter_fastq(file: &str, chunk_size: usize) -> FastqReads {
         chunk_size,
     }
 }
+
+pub fn write_fastq_record(writer: &mut Box<dyn Writer>, record: (&[u8], &[u8], &[u8])) {
+    writer.write_all(b"@").unwrap();
+    writer.write_all(&record.0).unwrap();
+    writer.write_all(b"\n").unwrap();
+    writer.write_all(&record.1).unwrap();
+    writer.write_all(b"\n+\n").unwrap();
+    writer.write_all(&record.3).unwrap();
+    writer.write_all("\n").unwrap();
+}
