@@ -31,8 +31,8 @@ enum Expr {
     And(Vec<Expr>),
     Or(Vec<Expr>),
     Not(Expr),
-    Label(String),
-    Data(String, String),
+    Label(StrType, String),
+    Data(StrType, String, String),
 }
 
 fn matches_rec(expr: &Expr, read: &Read) -> bool {
@@ -42,8 +42,8 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
         And(v) => v.iter().fold(true, |a, b| a & matches_rec(b, read)),
         Or(v) => v.iter().fold(false, |a, b| a | matches_rec(b, read)),
         Not(e) => !matches_rec(&e, read),
-        Label(label) => !read.get_mapping(label).unwrap().is_empty(),
-        Data(label, attr) => read.get_data(label, attr).unwrap().as_bool(),
+        Label(str_type, label) => !read.get_str_mappings(str_type).unwrap().get_mapping(label).unwrap().is_empty(),
+        Data(str_type, label, attr) => read.get_str_mappings(str_type).unwrap().get_data(label, attr).unwrap().as_bool(),
     }
 }
 
@@ -88,7 +88,7 @@ fn lex(expr_str: &str) -> Vec<Item> {
                 write_curr(false);
                 res.push(Dot);
             }
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' => curr.push(c),
+            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '*' => curr.push(c),
             ' ' | '\t' | '\n' | '\r' => (),
             _ => panic!("The character '{}' is not allowed!", c),
         }
@@ -108,17 +108,15 @@ fn parse(items: &[Item]) -> Expr {
         return Expr::True;
     }
 
-    if items.len() == 1 {
-        if let Label(label) = items[0] {
-            return Expr::Label(label.clone());
-        } else {
-            panic!("Expected label!");
+    if items.len() == 3 {
+        if let (Label(str_type), Dot, Label(label)) = (items[0], items[1], items[2]) {
+            return Expr::Label(StrType::new(&str_type), label.clone());
         }
     }
 
-    if items.len() == 3 {
-        if let (Label(label), Dot, Label(attr)) = (items[0], items[1], items[2]) {
-            return Expr::Data(label.clone(), attr.clone());
+    if items.len() == 5 {
+        if let (Label(str_type), Dot, Label(label), Dot, Label(attr)) = (items[0], items[1], items[2], items[3], items[4]) {
+            return Expr::Data(StrType::new(&str_type), label.clone(), attr.clone());
         }
     }
 
