@@ -1,18 +1,32 @@
+#[derive(Debug, Clone, Copy, PartialEq, Hash)]
+pub struct StrType {
+    Name,
+    Seq,
+    Name1,
+    Seq1,
+    Name2,
+    Seq2,
+}
+
+#[derive(Debug, Clone)]
 pub struct Read {
-    name: Mappings,
-    seq: Mappings,
-    qual: Mappings,
+    str_mappings: Vec<StrType, Mappings>,
 }
 
 #[derive(Clone)]
-pub struct Mappings {
+pub struct StrMappings {
     mappings: Vec<Mapping>,
     string: Vec<u8>,
+    qual: Option<Vec<u8>>,
 }
 
-impl Mappings {
+impl StrMappings {
     pub fn new(string: Vec<u8>) -> Self {
-        Self { mappings: vec![Mapping::new(string.len())], string }
+        Self { mappings: vec![Mapping::new(string.len())], string, qual: None }
+    }
+
+    pub fn new_with_qual(string: Vec<u8>, qual: Vec<u8>) -> Self {
+        Self { mappings: vec![Mapping::new(string.len())], string, qual: Some(qual) }
     }
 
     pub fn get_data(&self, label: &str, attr: &str) -> Option<&Data> {
@@ -23,7 +37,15 @@ impl Mappings {
         self.mappings.iter().find(|&m| m.label == label)
     }
 
-    pub fn get_region(&self, mapping: &Mapping) -> &[u8] {
+    pub fn string(&self) -> &[u8] {
+        &self.string
+    }
+
+    pub fn qual(&self) -> Option<&[u8]> {
+        self.qual.as_ref()
+    }
+
+    pub fn substring(&self, mapping: &Mapping) -> &[u8] {
         &self.string[mapping.start..mapping.start + mapping.len]
     }
 
@@ -55,6 +77,10 @@ impl Mappings {
         });
 
         self.string.drain(mapping.start..mapping.start + mapping.len);
+
+        if let Some(qual) = self.qual {
+            qual.drain(mapping.start..mapping.start + mapping.len);
+        }
     }
 }
 
@@ -85,9 +111,9 @@ pub enum Intersection {
 }
 
 impl Mapping {
-    pub fn new(label: &str, len: usize) -> Self {
+    pub fn new(len: usize) -> Self {
         Self {
-            label: label.to_owned(),
+            label: "*".to_owned(),
             start: 0,
             len,
             data: FxHashMap::default(),
@@ -126,25 +152,30 @@ impl Mapping {
 
 impl Read {
     pub fn from_fastq(name: &[u8], seq: &[u8], qual: &[u8]) -> Self {
-        let name = Mappings::new("name", name.to_owned());
-        let seq = Mappings::new("*", seq.to_owned());
-        let qual = Mappings::new("*", qual.to_owned());
+        let name = StrMappings::new(name.to_owned());
+        let seq = StrMappings::new_with_qual(seq.to_owned(), qual.to_owned());
 
         Self {
-            name,
-            seq,
-            qual,
+            str_mappings: vec![(StrType::Name, name), (StrType::Seq, seq)],
         }
     }
 
     pub fn to_fastq(&self) -> (&[u8], &[u8], &[u8]) {
-        (&self.name.string, &self.seq.string, &self.qual.string)
+        let name = self.get_str_mappings(StrType::Name).unwrap();
+        let seq = self.get_str_mappings(StrType::Seq).unwrap();
+        (name.string(), seq.string(), seq.qual().unwrap())
     }
 
-    pub fn trim(&mut self, label: &str) {
-        self.name.trim(label);
-        self.seq.trim(label);
-        self.qual.trim(label);
+    pub fn get_str_mappings(&self, str_type: StrType) -> Option<&StrMappings> {
+        self.str_mappings.iter().find_map(|(t, m)| if t == str_type { Some(m) } else { None })
+    }
+
+    pub fn get_str_mappings_mut(&mut self, str_type: StrType) -> Option<&mut StrMappings> {
+        self.str_mappings.iter_mut().find_map(|(t, m)| if t == str_type { Some(m) } else { None })
+    }
+
+    pub fn trim(&mut self, str_type: StrType, label: &str) {
+        self.get_str_mappings_mut(str_type).unwrap().trim(label);
     }
 }
 
@@ -159,9 +190,9 @@ impl Data {
     }
 }
 
-impl fmt::Display for Mappings {
+impl fmt::Display for StrMappings {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let len = self.mappings.iter().map(|m| m.label.len()).max().unwrap();
+        let len = self.mappings.iter().map(|m| m.label.len()).max().unwrap().max(4);
 
         for m in &self.mappings {
             let curr = if m.is_empty() {
@@ -182,15 +213,22 @@ impl fmt::Display for Mappings {
             writeln!(f);
         }
 
-        writeln!(f, "{: <len} {}", "", self.string)
+        writeln!(f, "{: <len} {}", "str", self.string)?;
+
+        if let Some(qual) = self.qual {
+            writeln!(f, "{: <len} {}", "qual", qual)?;
+        }
+
+        Ok(())
     }
 }
 
 impl fmt::Display for Read {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "name\n{}", self.name)?;
-        writeln!(f, "seq \n{}", self.seq)?;
-        writeln!(f, "qual\n{}", self.qual)
+        for (str_type, str_mapping) in &self.str_mappings {
+            writeln!(f, "{}\n{}", str_type, str_mapping)?;
+        }
+        Ok(())
     }
 }
 
@@ -201,6 +239,34 @@ impl fmt::Display for Data {
             Int(x) => write!(f, "{}", x),
             Bytes(x) => write!(f, "{}", std::str::from_utf8(x).unwrap()),
             String(x) => write!(f, "{}", x),
+        }
+    }
+}
+
+impl StrType {
+    pub fn new(str_type: &str) -> Self {
+        use StrType::*;
+        match str_type {
+            "name" => Name,
+            "seq" => Seq,
+            "name1" => Name1,
+            "seq1" => Seq1,
+            "name2" => Name2,
+            "seq2" => Seq2,
+            _ => panic!("Unknown string: {}", str_type),
+        }
+    }
+}
+
+impl fmt::Display for StrType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Name => write!(f, "name"),
+            Seq => write!(f, "seq"),
+            Name1 => write!(f, "name1"),
+            Seq1 => write!(f, "seq1"),
+            Name2 => write!(f, "name2"),
+            Seq2 => write!(f, "seq2"),
         }
     }
 }
