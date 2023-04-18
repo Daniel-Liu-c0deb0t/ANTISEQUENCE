@@ -1,3 +1,5 @@
+use crate::read::*;
+
 pub struct TransformExpr {
     before: Vec<Label>,
     after: Vec<Label>,
@@ -19,11 +21,11 @@ impl TransformExpr {
         assert_eq!(after_size, self.after.len());
     }
 
-    pub fn before(&self) -> &[String] {
+    pub fn before(&self) -> &[Label] {
         &self.before
     }
 
-    pub fn after(&self) -> &[String] {
+    pub fn after(&self) -> &[Label] {
         &self.after
     }
 }
@@ -37,8 +39,8 @@ fn parse(expr: &str) -> (Vec<Label>, Vec<Label>) {
     let before_str = before_str.chars().filter(|c| !c.is_ascii_whitespace()).collect::<String>();
     let before = before_str.split(',').map(|s| {
         let split = s.split('.').collect::<Vec<_>>();
-        match split {
-            [str_type, label] => Label { str_type: StrType::new(str_type), label: label.clone() },
+        match split.as_slice() {
+            [str_type, label] => Label { str_type: StrType::new(str_type), label: label.to_owned() },
             _ => panic!("Expected type.label!"),
         }
     }).collect::<Vec<_>>();
@@ -46,8 +48,8 @@ fn parse(expr: &str) -> (Vec<Label>, Vec<Label>) {
     let after_str = after_str.chars().filter(|c| !c.is_ascii_whitespace()).collect::<String>();
     let after = after_str.split(',').map(|s| {
         let split = s.split('.').collect::<Vec<_>>();
-        match split {
-            [str_type, label] => Label { str_type: StrType::new(str_type), label: label.clone() },
+        match split.as_slice() {
+            [str_type, label] => Label { str_type: StrType::new(str_type), label: label.to_owned() },
             _ => panic!("Expected type.label!"),
         }
     }).collect::<Vec<_>>();

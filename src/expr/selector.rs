@@ -30,7 +30,7 @@ enum Expr {
     True,
     And(Vec<Expr>),
     Or(Vec<Expr>),
-    Not(Expr),
+    Not(Box<Expr>),
     Label(StrType, String),
     Data(StrType, String, String),
 }
@@ -109,12 +109,14 @@ fn parse(items: &[Item]) -> Expr {
     }
 
     if items.len() == 3 {
+        use Item::{Dot, Label};
         if let (Label(str_type), Dot, Label(label)) = (items[0], items[1], items[2]) {
             return Expr::Label(StrType::new(&str_type), label.clone());
         }
     }
 
     if items.len() == 5 {
+        use Item::{Dot, Label};
         if let (Label(str_type), Dot, Label(label), Dot, Label(attr)) = (items[0], items[1], items[2], items[3], items[4]) {
             return Expr::Data(StrType::new(&str_type), label.clone(), attr.clone());
         }
@@ -137,7 +139,7 @@ fn parse(items: &[Item]) -> Expr {
     }
 
     if let Item::Not = items[0] {
-        return Expr::Not(parse(&items[1..]));
+        return Expr::Not(Box::new(parse(&items[1..])));
     } else {
         panic!("Expected unary NOT!");
     }
@@ -150,13 +152,13 @@ fn split_skip_parens<F>(items: &[Item], delim: Item, f: F) -> bool where F: FnMu
     for (idx, item) in items.iter().enumerate() {
         use Item::*;
         match item {
-            LeftParens => layer += 1;
+            LeftParens => layer += 1,
             RightParens => {
                 assert!(layer > 0, "Mismatched parentheses!");
                 layer -= 1;
             }
             _ if layer == 0 && item == delim => {
-                f(items[prev_idx..idx]);
+                f(&items[prev_idx..idx]);
                 prev_idx = idx + 1;
             }
             _ => (),
@@ -172,8 +174,8 @@ fn split_skip_parens<F>(items: &[Item], delim: Item, f: F) -> bool where F: FnMu
 }
 
 fn unwrap_parens(items: &[Item]) -> &[Item] {
-    let c1 = items.iter().take_while(|i| i == Item::LeftParens).count();
-    let c2 = items.iter().rev().take_while(|i| i == Item::RightParens).count();
+    let c1 = items.iter().take_while(|&i| i == &Item::LeftParens).count();
+    let c2 = items.iter().rev().take_while(|&i| i == &Item::RightParens).count();
     let c = c1.min(c2);
     &items[c..items.len() - c]
 }

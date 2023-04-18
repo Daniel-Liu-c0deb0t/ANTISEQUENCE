@@ -1,3 +1,5 @@
+use crate::read::*;
+
 pub struct FormatExpr {
     expr: Vec<Expr>,
 }
@@ -16,16 +18,19 @@ impl FormatExpr {
     pub fn format(&self, read: &Read) -> String {
         let mut res = String::new();
 
+        use Expr::*;
         match self.expr {
             Literal(s) => res.push_str(&s),
             Label(str_type, label) => {
-                let mapping = read.get_str_mappings(str_type).unwrap().get_mapping(label).unwrap();
+                let mapping = read.get_str_mappings(str_type).unwrap().get_mapping(&label).unwrap();
                 res.push_str(std::str::from_utf8(read.substring(mapping)).unwrap());
             }
             Data(str_type, label, attr) => {
-                res.push_str(read.get_str_mappings(str_type).unwrap().get_data(label, attr).unwrap().to_string());
+                res.push_str(&read.get_str_mappings(str_type).unwrap().get_data(&label, &attr).unwrap().to_string());
             }
         }
+
+        res
     }
 }
 
@@ -47,7 +52,7 @@ fn parse(expr: &str) -> Vec<Expr> {
                 assert!(in_label);
 
                 let v = curr.split(".").collect::<Vec<_>>();
-                res.push(match v {
+                res.push(match v.as_slice() {
                     [str_type, label] => Expr::Label(StrType::new(str_type), label.clone()),
                     [str_type, label, attr] => Expr::Data(StrType::new(str_type), label.clone(), attr.clone()),
                     _ => panic!("Expected type.label or type.label.attr!"),

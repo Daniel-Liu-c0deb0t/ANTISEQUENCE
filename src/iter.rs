@@ -1,5 +1,8 @@
 use std::thread;
 
+use crate::read::*;
+use crate::expr::*;
+
 pub mod trim_reads;
 pub use trim_reads::*;
 
@@ -23,13 +26,13 @@ pub trait Reads {
     }
 
     #[must_use]
-    fn trim(&self, selector_expr: &str, labels: &[&str]) -> TrimReads {
+    fn trim(&self, selector_expr: &str, labels: &[&str]) -> TrimReads<Self> where Self: Sized {
         let labels = labels.iter().cloned().collect::<Vec<_>>();
         TrimReads::new(self, SelectorExpr::new(selector_expr), labels)
     }
 
     #[must_use]
-    fn collect_fastq(&self, selector_expr: &str, file_expr: &str) -> CollectFastqReads {
+    fn collect_fastq(&self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> where Self: Sized {
         CollectFastqReads::new(self, SelectorExpr::new(selector_expr), FormatExpr::new(file_expr))
     }
 

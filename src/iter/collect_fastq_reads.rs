@@ -1,10 +1,20 @@
+use std::fs::File;
+use std::io::{Write, BufWriter};
+use std::sync::{Mutex, RwLock};
+
+use rustc_hash::FxHashMap;
+
+use flate2::{write::GzEncoder, Compression};
+
+use crate::fastq::*;
+use crate::iter::*;
 use crate::read::*;
 
 pub struct CollectFastqReads<'r, R: Reads> {
     reads: &'r R,
     selector_expr: SelectorExpr,
     file_expr: FormatExpr,
-    file_writers: RwLock<FxHashMap<String, Mutex<Box<dyn Writer>>>>,
+    file_writers: RwLock<FxHashMap<String, Mutex<Box<dyn Write>>>>,
 }
 
 impl<'r, R: Reads> CollectFastqReads<'r, R> {
@@ -28,8 +38,8 @@ impl<'r, R: Reads> Reads for CollectFastqReads<'r, R> {
                 let file_name = self.file_expr.format(read);
 
                 file_writers.entry(file_name.clone()).or_insert_with(|| {
-                    let writer: Box<dyn Writer> = if file_name.ends_with(".gz") {
-                        Box::new(BufWriter::new(GzipEncoder::new(File::create(&file_name).unwrap(), Compression::default())))
+                    let writer: Box<dyn Write> = if file_name.ends_with(".gz") {
+                        Box::new(BufWriter::new(GzEncoder::new(File::create(&file_name).unwrap(), Compression::default())))
                     } else {
                         Box::new(BufWriter::new(File::create(&file_name).unwrap()))
                     };

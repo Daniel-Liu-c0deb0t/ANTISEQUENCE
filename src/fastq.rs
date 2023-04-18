@@ -1,8 +1,10 @@
 use needletail::*;
 
 use std::sync::Mutex;
+use std::io::Write;
 
-use crate::{Read, Reads};
+use crate::read::*;
+use crate::iter::*;
 
 pub struct FastqReads {
     reader: Mutex<Box<dyn FastxReader>>,
@@ -36,7 +38,7 @@ pub fn iter_fastq(file: &str, chunk_size: usize) -> FastqReads {
     }
 }
 
-pub fn write_fastq_record(writer: &mut Box<dyn Writer>, record: (&[u8], &[u8], &[u8])) {
+pub fn write_fastq_record(writer: &mut Box<dyn Write>, record: (&[u8], &[u8], &[u8])) {
     writer.write_all(b"@").unwrap();
     writer.write_all(&record.0).unwrap();
     writer.write_all(b"\n").unwrap();

@@ -1,5 +1,9 @@
+use rustc_hash::FxHashMap;
+
+use std::fmt;
+
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
-pub struct StrType {
+pub enum StrType {
     Name,
     Seq,
     Name1,
@@ -10,10 +14,10 @@ pub struct StrType {
 
 #[derive(Debug, Clone)]
 pub struct Read {
-    str_mappings: Vec<StrType, Mappings>,
+    str_mappings: Vec<(StrType, StrMappings)>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct StrMappings {
     mappings: Vec<Mapping>,
     string: Vec<u8>,
@@ -42,7 +46,7 @@ impl StrMappings {
     }
 
     pub fn qual(&self) -> Option<&[u8]> {
-        self.qual.as_ref()
+        self.qual.as_ref().map(|q| q.as_slice())
     }
 
     pub fn substring(&self, mapping: &Mapping) -> &[u8] {
@@ -145,7 +149,7 @@ impl Mapping {
         self.len == 0
     }
 
-    pub fn get_data(attr: &str) -> Option<&Data> {
+    pub fn get_data(&self, attr: &str) -> Option<&Data> {
         self.data.get(attr)
     }
 }
@@ -167,11 +171,11 @@ impl Read {
     }
 
     pub fn get_str_mappings(&self, str_type: StrType) -> Option<&StrMappings> {
-        self.str_mappings.iter().find_map(|(t, m)| if t == str_type { Some(m) } else { None })
+        self.str_mappings.iter().find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
     }
 
     pub fn get_str_mappings_mut(&mut self, str_type: StrType) -> Option<&mut StrMappings> {
-        self.str_mappings.iter_mut().find_map(|(t, m)| if t == str_type { Some(m) } else { None })
+        self.str_mappings.iter_mut().find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
     }
 
     pub fn trim(&mut self, str_type: StrType, label: &str) {
@@ -181,9 +185,10 @@ impl Read {
 
 impl Data {
     pub fn as_bool(&self) -> bool {
+        use Data::*;
         match self {
-            Bool(x) => x,
-            Int(x) => x > 0,
+            Bool(x) => *x,
+            Int(x) => *x > 0,
             Bytes(x) => !x.is_empty(),
             String(x) => !x.is_empty(),
         }
@@ -197,15 +202,15 @@ impl fmt::Display for StrMappings {
         for m in &self.mappings {
             let curr = if m.is_empty() {
                 let str_len = self.string.len();
-                format!("{: <str_len}", "(empty)")
+                format!("{: <str_len$}", "(empty)")
             } else {
-                let mut c = " ".repeat(self.string.len());
-                c[m.start] = '|';
-                c[m.start + m.len - 1] = '|';
-                c[m.start + 1..m.start + m.len - 1] = '-';
-                c
+                let mut c = vec![b' '; self.string.len()];
+                c[m.start] = b'|';
+                c[m.start + m.len - 1] = b'|';
+                c[m.start + 1..m.start + m.len - 1].fill(b'-');
+                String::from_utf8(c).unwrap()
             };
-            write!(f, "{: <len} {}", m.label, curr)?;
+            write!(f, "{: <len$} {}", m.label, curr)?;
 
             for (k, v) in &m.data {
                 write!(f, " {}={}", k, v)?;
@@ -213,10 +218,10 @@ impl fmt::Display for StrMappings {
             writeln!(f);
         }
 
-        writeln!(f, "{: <len} {}", "str", self.string)?;
+        writeln!(f, "{: <len$} {}", "str", std::str::from_utf8(&self.string).unwrap())?;
 
         if let Some(qual) = self.qual {
-            writeln!(f, "{: <len} {}", "qual", qual)?;
+            writeln!(f, "{: <len$} {}", "qual", std::str::from_utf8(&qual).unwrap())?;
         }
 
         Ok(())
@@ -234,6 +239,7 @@ impl fmt::Display for Read {
 
 impl fmt::Display for Data {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Data::*;
         match self {
             Bool(x) => write!(f, "{}", x),
             Int(x) => write!(f, "{}", x),
@@ -260,6 +266,7 @@ impl StrType {
 
 impl fmt::Display for StrType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use StrType::*;
         match self {
             Name => write!(f, "name"),
             Seq => write!(f, "seq"),

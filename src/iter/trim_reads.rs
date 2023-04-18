@@ -1,3 +1,4 @@
+use crate::iter::*;
 use crate::read::*;
 
 pub struct TrimReads<'r, R: Reads> {
