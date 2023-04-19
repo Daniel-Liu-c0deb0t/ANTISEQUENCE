@@ -1,13 +1,8 @@
-use crate::read::*;
+use crate::expr::Label;
 
 pub struct TransformExpr {
     before: Vec<Label>,
     after: Vec<Label>,
-}
-
-pub struct Label {
-    pub str_type: StrType,
-    pub label: String,
 }
 
 impl TransformExpr {
@@ -38,20 +33,12 @@ fn parse(expr: &str) -> (Vec<Label>, Vec<Label>) {
 
     let before_str = before_str.chars().filter(|c| !c.is_ascii_whitespace()).collect::<String>();
     let before = before_str.split(',').map(|s| {
-        let split = s.split('.').collect::<Vec<_>>();
-        match split.as_slice() {
-            [str_type, label] => Label { str_type: StrType::new(str_type), label: label.to_owned() },
-            _ => panic!("Expected type.label!"),
-        }
+        Label::new(s)
     }).collect::<Vec<_>>();
 
     let after_str = after_str.chars().filter(|c| !c.is_ascii_whitespace()).collect::<String>();
     let after = after_str.split(',').map(|s| {
-        let split = s.split('.').collect::<Vec<_>>();
-        match split.as_slice() {
-            [str_type, label] => Label { str_type: StrType::new(str_type), label: label.to_owned() },
-            _ => panic!("Expected type.label!"),
-        }
+        Label::new(s)
     }).collect::<Vec<_>>();
 
     (before, after)

@@ -8,13 +8,12 @@ use flate2::{write::GzEncoder, Compression};
 
 use crate::fastq::*;
 use crate::iter::*;
-use crate::read::*;
 
 pub struct CollectFastqReads<'r, R: Reads> {
     reads: &'r R,
     selector_expr: SelectorExpr,
     file_expr: FormatExpr,
-    file_writers: RwLock<FxHashMap<String, Mutex<Box<dyn Write>>>>,
+    file_writers: RwLock<FxHashMap<String, Mutex<Box<dyn Write + std::marker::Send>>>>,
 }
 
 impl<'r, R: Reads> CollectFastqReads<'r, R> {
@@ -23,6 +22,7 @@ impl<'r, R: Reads> CollectFastqReads<'r, R> {
             reads,
             selector_expr,
             file_expr,
+            file_writers: RwLock::new(FxHashMap::default()),
         }
     }
 }
@@ -32,13 +32,13 @@ impl<'r, R: Reads> Reads for CollectFastqReads<'r, R> {
         let reads = self.reads.next_chunk();
 
         {
-            let file_writers = self.file_writers.write().unwrap();
+            let mut file_writers = self.file_writers.write().unwrap();
 
-            for read in &reads {
+            for read in reads.iter().filter(|r| self.selector_expr.matches(r)) {
                 let file_name = self.file_expr.format(read);
 
                 file_writers.entry(file_name.clone()).or_insert_with(|| {
-                    let writer: Box<dyn Write> = if file_name.ends_with(".gz") {
+                    let writer: Box<dyn Write + std::marker::Send> = if file_name.ends_with(".gz") {
                         Box::new(BufWriter::new(GzEncoder::new(File::create(&file_name).unwrap(), Compression::default())))
                     } else {
                         Box::new(BufWriter::new(File::create(&file_name).unwrap()))
@@ -48,12 +48,12 @@ impl<'r, R: Reads> Reads for CollectFastqReads<'r, R> {
             }
         }
 
-        for read in &reads {
+        for read in reads.iter().filter(|r| self.selector_expr.matches(r)) {
             let file_name = self.file_expr.format(read);
 
             let file_writers = self.file_writers.read().unwrap();
-            let writer = file_writers[&file_name].lock().unwrap();
-            write_fastq_record(&mut writer, read.to_fastq());
+            let mut writer = file_writers[&file_name].lock().unwrap();
+            write_fastq_record(&mut *writer, read.to_fastq());
         }
 
         reads

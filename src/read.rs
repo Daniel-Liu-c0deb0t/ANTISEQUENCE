@@ -82,7 +82,7 @@ impl StrMappings {
 
         self.string.drain(mapping.start..mapping.start + mapping.len);
 
-        if let Some(qual) = self.qual {
+        if let Some(qual) = &mut self.qual {
             qual.drain(mapping.start..mapping.start + mapping.len);
         }
     }
@@ -215,12 +215,12 @@ impl fmt::Display for StrMappings {
             for (k, v) in &m.data {
                 write!(f, " {}={}", k, v)?;
             }
-            writeln!(f);
+            writeln!(f)?;
         }
 
         writeln!(f, "{: <len$} {}", "str", std::str::from_utf8(&self.string).unwrap())?;
 
-        if let Some(qual) = self.qual {
+        if let Some(qual) = &self.qual {
             writeln!(f, "{: <len$} {}", "qual", std::str::from_utf8(&qual).unwrap())?;
         }
 

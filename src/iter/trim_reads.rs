@@ -1,14 +1,13 @@
 use crate::iter::*;
-use crate::read::*;
 
 pub struct TrimReads<'r, R: Reads> {
     reads: &'r R,
     selector_expr: SelectorExpr,
-    labels: Vec<String>,
+    labels: Vec<Label>,
 }
 
 impl<'r, R: Reads> TrimReads<'r, R> {
-    pub fn new(reads: &'r R, selector_expr: SelectorExpr, labels: String) -> Self {
+    pub fn new(reads: &'r R, selector_expr: SelectorExpr, labels: Vec<Label>) -> Self {
         Self {
             reads,
             selector_expr,
@@ -21,8 +20,8 @@ impl<'r, R: Reads> Reads for TrimReads<'r, R> {
     fn next_chunk(&self) -> Vec<Read> {
         let mut reads = self.reads.next_chunk();
 
-        for read in &mut reads {
-            self.labels.iter().for_each(|l| read.trim(l));
+        for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
+            self.labels.iter().for_each(|l| read.trim(l.str_type, &l.label));
         }
 
         reads

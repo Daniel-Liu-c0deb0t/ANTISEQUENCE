@@ -1,4 +1,5 @@
 use crate::read::*;
+use crate::expr;
 
 pub struct SelectorExpr {
     expr: Expr,
@@ -31,8 +32,8 @@ enum Expr {
     And(Vec<Expr>),
     Or(Vec<Expr>),
     Not(Box<Expr>),
-    Label(StrType, String),
-    Data(StrType, String, String),
+    Label(expr::Label),
+    Data(expr::Data),
 }
 
 fn matches_rec(expr: &Expr, read: &Read) -> bool {
@@ -42,8 +43,8 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
         And(v) => v.iter().fold(true, |a, b| a & matches_rec(b, read)),
         Or(v) => v.iter().fold(false, |a, b| a | matches_rec(b, read)),
         Not(e) => !matches_rec(&e, read),
-        Label(str_type, label) => !read.get_str_mappings(str_type).unwrap().get_mapping(label).unwrap().is_empty(),
-        Data(str_type, label, attr) => read.get_str_mappings(str_type).unwrap().get_data(label, attr).unwrap().as_bool(),
+        Label(expr::Label { str_type, label }) => !read.get_str_mappings(*str_type).unwrap().get_mapping(label).unwrap().is_empty(),
+        Data(expr::Data { str_type, label, attr }) => read.get_str_mappings(*str_type).unwrap().get_data(label, attr).unwrap().as_bool(),
     }
 }
 
@@ -53,7 +54,7 @@ fn lex(expr_str: &str) -> Vec<Item> {
 
     use Item::*;
 
-    let mut write_curr = |expect_empty| {
+    let write_curr = |res: &mut Vec<Item>, curr: &mut String, expect_empty| {
         assert!((expect_empty && curr.is_empty()) || (!expect_empty && !curr.is_empty()));
 
         if !curr.is_empty() {
@@ -65,27 +66,27 @@ fn lex(expr_str: &str) -> Vec<Item> {
     for c in expr_str.chars() {
         match c {
             '(' => {
-                write_curr(true);
+                write_curr(&mut res, &mut curr, true);
                 res.push(LeftParens);
             }
             ')' => {
-                write_curr(false);
+                write_curr(&mut res, &mut curr, false);
                 res.push(RightParens);
             }
             '&' => {
-                write_curr(false);
+                write_curr(&mut res, &mut curr, false);
                 res.push(And);
             }
             '|' => {
-                write_curr(false);
+                write_curr(&mut res, &mut curr, false);
                 res.push(Or);
             }
             '!' => {
-                write_curr(true);
+                write_curr(&mut res, &mut curr, true);
                 res.push(Not);
             }
             '.' => {
-                write_curr(false);
+                write_curr(&mut res, &mut curr, false);
                 res.push(Dot);
             }
             'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '*' => curr.push(c),
@@ -102,7 +103,7 @@ fn lex(expr_str: &str) -> Vec<Item> {
 }
 
 fn parse(items: &[Item]) -> Expr {
-    items = unwrap_parens(items);
+    let items = unwrap_parens(items);
 
     if items.is_empty() {
         return Expr::True;
@@ -110,15 +111,15 @@ fn parse(items: &[Item]) -> Expr {
 
     if items.len() == 3 {
         use Item::{Dot, Label};
-        if let (Label(str_type), Dot, Label(label)) = (items[0], items[1], items[2]) {
-            return Expr::Label(StrType::new(&str_type), label.clone());
+        if let (Label(str_type), Dot, Label(label)) = (&items[0], &items[1], &items[2]) {
+            return Expr::Label(expr::Label { str_type: StrType::new(&str_type), label: label.clone() });
         }
     }
 
     if items.len() == 5 {
         use Item::{Dot, Label};
-        if let (Label(str_type), Dot, Label(label), Dot, Label(attr)) = (items[0], items[1], items[2], items[3], items[4]) {
-            return Expr::Data(StrType::new(&str_type), label.clone(), attr.clone());
+        if let (Label(str_type), Dot, Label(label), Dot, Label(attr)) = (&items[0], &items[1], &items[2], &items[3], &items[4]) {
+            return Expr::Data(expr::Data { str_type: StrType::new(&str_type), label: label.clone(), attr: attr.clone() });
         }
     }
 
@@ -145,7 +146,7 @@ fn parse(items: &[Item]) -> Expr {
     }
 }
 
-fn split_skip_parens<F>(items: &[Item], delim: Item, f: F) -> bool where F: FnMut(&[Item]) {
+fn split_skip_parens<F>(items: &[Item], delim: Item, mut f: F) -> bool where F: FnMut(&[Item]) {
     let mut prev_idx = 0;
     let mut layer = 0;
 
@@ -157,7 +158,7 @@ fn split_skip_parens<F>(items: &[Item], delim: Item, f: F) -> bool where F: FnMu
                 assert!(layer > 0, "Mismatched parentheses!");
                 layer -= 1;
             }
-            _ if layer == 0 && item == delim => {
+            _ if layer == 0 && item == &delim => {
                 f(&items[prev_idx..idx]);
                 prev_idx = idx + 1;
             }

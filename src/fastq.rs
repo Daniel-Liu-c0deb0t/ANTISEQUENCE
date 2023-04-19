@@ -19,7 +19,7 @@ impl Reads for FastqReads {
         for _ in 0..self.chunk_size {
             if let Some(record) = reader.next() {
                 let record = record.unwrap();
-                res.push(Read::from_fastq(record.id(), record.seq(), record.qual().unwrap()));
+                res.push(Read::from_fastq(record.id(), &record.seq(), record.qual().unwrap()));
             } else {
                 break;
             }
@@ -38,12 +38,12 @@ pub fn iter_fastq(file: &str, chunk_size: usize) -> FastqReads {
     }
 }
 
-pub fn write_fastq_record(writer: &mut Box<dyn Write>, record: (&[u8], &[u8], &[u8])) {
+pub fn write_fastq_record(writer: &mut Box<dyn Write + std::marker::Send>, record: (&[u8], &[u8], &[u8])) {
     writer.write_all(b"@").unwrap();
     writer.write_all(&record.0).unwrap();
     writer.write_all(b"\n").unwrap();
     writer.write_all(&record.1).unwrap();
     writer.write_all(b"\n+\n").unwrap();
-    writer.write_all(&record.3).unwrap();
-    writer.write_all("\n").unwrap();
+    writer.write_all(&record.2).unwrap();
+    writer.write_all(b"\n").unwrap();
 }
