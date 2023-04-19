@@ -21,13 +21,13 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn trim(&self, selector_expr: &str, labels: &[&str]) -> TrimReads<Self> {
+    fn trim(self, selector_expr: &str, labels: &[&str]) -> TrimReads<Self> {
         let labels = labels.iter().map(|l| Label::new(l)).collect::<Vec<_>>();
         TrimReads::new(self, SelectorExpr::new(selector_expr), labels)
     }
 
     #[must_use]
-    fn collect_fastq(&self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> {
+    fn collect_fastq(self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> {
         CollectFastqReads::new(
             self,
             SelectorExpr::new(selector_expr),

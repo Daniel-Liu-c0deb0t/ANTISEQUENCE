@@ -9,15 +9,15 @@ use flate2::{write::GzEncoder, Compression};
 use crate::fastq::*;
 use crate::iter::*;
 
-pub struct CollectFastqReads<'r, R: Reads> {
-    reads: &'r R,
+pub struct CollectFastqReads<R: Reads> {
+    reads: R,
     selector_expr: SelectorExpr,
     file_expr: FormatExpr,
     file_writers: RwLock<FxHashMap<String, Mutex<Box<dyn Write + std::marker::Send>>>>,
 }
 
-impl<'r, R: Reads> CollectFastqReads<'r, R> {
-    pub fn new(reads: &'r R, selector_expr: SelectorExpr, file_expr: FormatExpr) -> Self {
+impl<R: Reads> CollectFastqReads<R> {
+    pub fn new(reads: R, selector_expr: SelectorExpr, file_expr: FormatExpr) -> Self {
         Self {
             reads,
             selector_expr,
@@ -27,7 +27,7 @@ impl<'r, R: Reads> CollectFastqReads<'r, R> {
     }
 }
 
-impl<'r, R: Reads> Reads for CollectFastqReads<'r, R> {
+impl<R: Reads> Reads for CollectFastqReads<R> {
     fn next_chunk(&self) -> Vec<Read> {
         let reads = self.reads.next_chunk();
 

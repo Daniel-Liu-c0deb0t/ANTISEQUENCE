@@ -1,13 +1,13 @@
 use crate::iter::*;
 
-pub struct TrimReads<'r, R: Reads> {
-    reads: &'r R,
+pub struct TrimReads<R: Reads> {
+    reads: R,
     selector_expr: SelectorExpr,
     labels: Vec<Label>,
 }
 
-impl<'r, R: Reads> TrimReads<'r, R> {
-    pub fn new(reads: &'r R, selector_expr: SelectorExpr, labels: Vec<Label>) -> Self {
+impl<R: Reads> TrimReads<R> {
+    pub fn new(reads: R, selector_expr: SelectorExpr, labels: Vec<Label>) -> Self {
         Self {
             reads,
             selector_expr,
@@ -16,7 +16,7 @@ impl<'r, R: Reads> TrimReads<'r, R> {
     }
 }
 
-impl<'r, R: Reads> Reads for TrimReads<'r, R> {
+impl<R: Reads> Reads for TrimReads<R> {
     fn next_chunk(&self) -> Vec<Read> {
         let mut reads = self.reads.next_chunk();
 
