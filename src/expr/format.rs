@@ -1,5 +1,5 @@
-use crate::read::*;
 use crate::expr;
+use crate::read::*;
 
 pub struct FormatExpr {
     expr: Vec<Expr>,
@@ -28,8 +28,19 @@ impl FormatExpr {
                     let mapping = str_mappings.get_mapping(&label).unwrap();
                     res.push_str(std::str::from_utf8(str_mappings.substring(mapping)).unwrap());
                 }
-                Data(expr::Data { str_type, label, attr }) => {
-                    res.push_str(&read.get_str_mappings(*str_type).unwrap().get_data(&label, &attr).unwrap().to_string());
+                Data(expr::Data {
+                    str_type,
+                    label,
+                    attr,
+                }) => {
+                    res.push_str(
+                        &read
+                            .get_str_mappings(*str_type)
+                            .unwrap()
+                            .get_data(&label, &attr)
+                            .unwrap()
+                            .to_string(),
+                    );
                 }
             }
         }
@@ -57,8 +68,15 @@ fn parse(expr: &str) -> Vec<Expr> {
 
                 let v = curr.split(".").collect::<Vec<_>>();
                 res.push(match v.as_slice() {
-                    &[str_type, label] => Expr::Label(expr::Label { str_type: StrType::new(str_type), label: label.to_owned() }),
-                    &[str_type, label, attr] => Expr::Data(expr::Data { str_type: StrType::new(str_type), label: label.to_owned(), attr: attr.to_owned() }),
+                    &[str_type, label] => Expr::Label(expr::Label {
+                        str_type: StrType::new(str_type),
+                        label: label.to_owned(),
+                    }),
+                    &[str_type, label, attr] => Expr::Data(expr::Data {
+                        str_type: StrType::new(str_type),
+                        label: label.to_owned(),
+                        attr: attr.to_owned(),
+                    }),
                     _ => panic!("Expected type.label or type.label.attr!"),
                 });
 

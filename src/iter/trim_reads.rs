@@ -21,7 +21,9 @@ impl<'r, R: Reads> Reads for TrimReads<'r, R> {
         let mut reads = self.reads.next_chunk();
 
         for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
-            self.labels.iter().for_each(|l| read.trim(l.str_type, &l.label));
+            self.labels
+                .iter()
+                .for_each(|l| read.trim(l.str_type, &l.label));
         }
 
         reads

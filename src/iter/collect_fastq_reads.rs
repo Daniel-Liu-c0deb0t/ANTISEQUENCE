@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{Write, BufWriter};
+use std::io::{BufWriter, Write};
 use std::sync::{Mutex, RwLock};
 
 use rustc_hash::FxHashMap;
@@ -39,7 +39,10 @@ impl<'r, R: Reads> Reads for CollectFastqReads<'r, R> {
 
                 file_writers.entry(file_name.clone()).or_insert_with(|| {
                     let writer: Box<dyn Write + std::marker::Send> = if file_name.ends_with(".gz") {
-                        Box::new(BufWriter::new(GzEncoder::new(File::create(&file_name).unwrap(), Compression::default())))
+                        Box::new(BufWriter::new(GzEncoder::new(
+                            File::create(&file_name).unwrap(),
+                            Compression::default(),
+                        )))
                     } else {
                         Box::new(BufWriter::new(File::create(&file_name).unwrap()))
                     };

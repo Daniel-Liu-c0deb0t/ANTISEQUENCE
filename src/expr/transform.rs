@@ -31,15 +31,23 @@ fn parse(expr: &str) -> (Vec<Label>, Vec<Label>) {
     let after_str = split.next().unwrap();
     assert_eq!(split.next(), None);
 
-    let before_str = before_str.chars().filter(|c| !c.is_ascii_whitespace()).collect::<String>();
-    let before = before_str.split(',').map(|s| {
-        Label::new(s)
-    }).collect::<Vec<_>>();
+    let before_str = before_str
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace())
+        .collect::<String>();
+    let before = before_str
+        .split(',')
+        .map(|s| Label::new(s))
+        .collect::<Vec<_>>();
 
-    let after_str = after_str.chars().filter(|c| !c.is_ascii_whitespace()).collect::<String>();
-    let after = after_str.split(',').map(|s| {
-        Label::new(s)
-    }).collect::<Vec<_>>();
+    let after_str = after_str
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace())
+        .collect::<String>();
+    let after = after_str
+        .split(',')
+        .map(|s| Label::new(s))
+        .collect::<Vec<_>>();
 
     (before, after)
 }

@@ -26,11 +26,19 @@ pub struct StrMappings {
 
 impl StrMappings {
     pub fn new(string: Vec<u8>) -> Self {
-        Self { mappings: vec![Mapping::new(string.len())], string, qual: None }
+        Self {
+            mappings: vec![Mapping::new(string.len())],
+            string,
+            qual: None,
+        }
     }
 
     pub fn new_with_qual(string: Vec<u8>, qual: Vec<u8>) -> Self {
-        Self { mappings: vec![Mapping::new(string.len())], string, qual: Some(qual) }
+        Self {
+            mappings: vec![Mapping::new(string.len())],
+            string,
+            qual: Some(qual),
+        }
     }
 
     pub fn get_data(&self, label: &str, attr: &str) -> Option<&Data> {
@@ -54,7 +62,10 @@ impl StrMappings {
     }
 
     pub fn trim(&mut self, label: &str) {
-        let mapping = self.get_mapping(label).unwrap_or_else(|| panic!("Label not found in string: {}", label)).clone();
+        let mapping = self
+            .get_mapping(label)
+            .unwrap_or_else(|| panic!("Label not found in string: {}", label))
+            .clone();
 
         self.mappings.iter_mut().for_each(|m| {
             use Intersection::*;
@@ -80,7 +91,8 @@ impl StrMappings {
             }
         });
 
-        self.string.drain(mapping.start..mapping.start + mapping.len);
+        self.string
+            .drain(mapping.start..mapping.start + mapping.len);
 
         if let Some(qual) = &mut self.qual {
             qual.drain(mapping.start..mapping.start + mapping.len);
@@ -171,11 +183,15 @@ impl Read {
     }
 
     pub fn get_str_mappings(&self, str_type: StrType) -> Option<&StrMappings> {
-        self.str_mappings.iter().find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
+        self.str_mappings
+            .iter()
+            .find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
     }
 
     pub fn get_str_mappings_mut(&mut self, str_type: StrType) -> Option<&mut StrMappings> {
-        self.str_mappings.iter_mut().find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
+        self.str_mappings
+            .iter_mut()
+            .find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
     }
 
     pub fn trim(&mut self, str_type: StrType, label: &str) {
@@ -197,7 +213,13 @@ impl Data {
 
 impl fmt::Display for StrMappings {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let len = self.mappings.iter().map(|m| m.label.len()).max().unwrap().max(4);
+        let len = self
+            .mappings
+            .iter()
+            .map(|m| m.label.len())
+            .max()
+            .unwrap()
+            .max(4);
 
         for m in &self.mappings {
             let curr = if m.is_empty() {
@@ -218,10 +240,20 @@ impl fmt::Display for StrMappings {
             writeln!(f)?;
         }
 
-        writeln!(f, "{: <len$} {}", "str", std::str::from_utf8(&self.string).unwrap())?;
+        writeln!(
+            f,
+            "{: <len$} {}",
+            "str",
+            std::str::from_utf8(&self.string).unwrap()
+        )?;
 
         if let Some(qual) = &self.qual {
-            writeln!(f, "{: <len$} {}", "qual", std::str::from_utf8(&qual).unwrap())?;
+            writeln!(
+                f,
+                "{: <len$} {}",
+                "qual",
+                std::str::from_utf8(&qual).unwrap()
+            )?;
         }
 
         Ok(())

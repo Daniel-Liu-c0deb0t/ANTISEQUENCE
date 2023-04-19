@@ -1,7 +1,7 @@
 use std::thread;
 
-use crate::read::*;
 use crate::expr::*;
+use crate::read::*;
 
 pub mod trim_reads;
 pub use trim_reads::*;
@@ -15,9 +15,7 @@ pub trait Reads: Sized + std::marker::Sync {
 
         thread::scope(|s| {
             for _ in 0..threads {
-                s.spawn(|| {
-                    while self.next_chunk().len() > 0 {}
-                });
+                s.spawn(|| while self.next_chunk().len() > 0 {});
             }
         });
     }
@@ -30,7 +28,11 @@ pub trait Reads: Sized + std::marker::Sync {
 
     #[must_use]
     fn collect_fastq(&self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> {
-        CollectFastqReads::new(self, SelectorExpr::new(selector_expr), FormatExpr::new(file_expr))
+        CollectFastqReads::new(
+            self,
+            SelectorExpr::new(selector_expr),
+            FormatExpr::new(file_expr),
+        )
     }
 
     fn next_chunk(&self) -> Vec<Read>;

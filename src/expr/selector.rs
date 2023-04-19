@@ -1,5 +1,5 @@
-use crate::read::*;
 use crate::expr;
+use crate::read::*;
 
 pub struct SelectorExpr {
     expr: Expr,
@@ -7,7 +7,9 @@ pub struct SelectorExpr {
 
 impl SelectorExpr {
     pub fn new(expr_str: &str) -> Self {
-        Self { expr: parse(&lex(expr_str)) }
+        Self {
+            expr: parse(&lex(expr_str)),
+        }
     }
 
     pub fn matches(&self, read: &Read) -> bool {
@@ -43,8 +45,22 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
         And(v) => v.iter().fold(true, |a, b| a & matches_rec(b, read)),
         Or(v) => v.iter().fold(false, |a, b| a | matches_rec(b, read)),
         Not(e) => !matches_rec(&e, read),
-        Label(expr::Label { str_type, label }) => !read.get_str_mappings(*str_type).unwrap().get_mapping(label).unwrap().is_empty(),
-        Data(expr::Data { str_type, label, attr }) => read.get_str_mappings(*str_type).unwrap().get_data(label, attr).unwrap().as_bool(),
+        Label(expr::Label { str_type, label }) => !read
+            .get_str_mappings(*str_type)
+            .unwrap()
+            .get_mapping(label)
+            .unwrap()
+            .is_empty(),
+        Data(expr::Data {
+            str_type,
+            label,
+            attr,
+        }) => read
+            .get_str_mappings(*str_type)
+            .unwrap()
+            .get_data(label, attr)
+            .unwrap()
+            .as_bool(),
     }
 }
 
@@ -112,14 +128,23 @@ fn parse(items: &[Item]) -> Expr {
     if items.len() == 3 {
         use Item::{Dot, Label};
         if let (Label(str_type), Dot, Label(label)) = (&items[0], &items[1], &items[2]) {
-            return Expr::Label(expr::Label { str_type: StrType::new(&str_type), label: label.clone() });
+            return Expr::Label(expr::Label {
+                str_type: StrType::new(&str_type),
+                label: label.clone(),
+            });
         }
     }
 
     if items.len() == 5 {
         use Item::{Dot, Label};
-        if let (Label(str_type), Dot, Label(label), Dot, Label(attr)) = (&items[0], &items[1], &items[2], &items[3], &items[4]) {
-            return Expr::Data(expr::Data { str_type: StrType::new(&str_type), label: label.clone(), attr: attr.clone() });
+        if let (Label(str_type), Dot, Label(label), Dot, Label(attr)) =
+            (&items[0], &items[1], &items[2], &items[3], &items[4])
+        {
+            return Expr::Data(expr::Data {
+                str_type: StrType::new(&str_type),
+                label: label.clone(),
+                attr: attr.clone(),
+            });
         }
     }
 
@@ -146,7 +171,10 @@ fn parse(items: &[Item]) -> Expr {
     }
 }
 
-fn split_skip_parens<F>(items: &[Item], delim: Item, mut f: F) -> bool where F: FnMut(&[Item]) {
+fn split_skip_parens<F>(items: &[Item], delim: Item, mut f: F) -> bool
+where
+    F: FnMut(&[Item]),
+{
     let mut prev_idx = 0;
     let mut layer = 0;
 
@@ -176,7 +204,11 @@ fn split_skip_parens<F>(items: &[Item], delim: Item, mut f: F) -> bool where F: 
 
 fn unwrap_parens(items: &[Item]) -> &[Item] {
     let c1 = items.iter().take_while(|&i| i == &Item::LeftParens).count();
-    let c2 = items.iter().rev().take_while(|&i| i == &Item::RightParens).count();
+    let c2 = items
+        .iter()
+        .rev()
+        .take_while(|&i| i == &Item::RightParens)
+        .count();
     let c = c1.min(c2);
     &items[c..items.len() - c]
 }

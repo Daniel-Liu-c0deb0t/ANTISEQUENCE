@@ -27,7 +27,10 @@ impl Label {
         let split = s.split('.').collect::<Vec<_>>();
 
         match split.as_slice() {
-            &[str_type, label] => Self { str_type: StrType::new(str_type), label: label.to_owned() },
+            &[str_type, label] => Self {
+                str_type: StrType::new(str_type),
+                label: label.to_owned(),
+            },
             _ => panic!("Expected type.label!"),
         }
     }
@@ -38,7 +41,11 @@ impl Data {
         let split = s.split('.').collect::<Vec<_>>();
 
         match split.as_slice() {
-            &[str_type, label, attr] => Self { str_type: StrType::new(str_type), label: label.to_owned(), attr: attr.to_owned() },
+            &[str_type, label, attr] => Self {
+                str_type: StrType::new(str_type),
+                label: label.to_owned(),
+                attr: attr.to_owned(),
+            },
             _ => panic!("Expected type.label.attr!"),
         }
     }
