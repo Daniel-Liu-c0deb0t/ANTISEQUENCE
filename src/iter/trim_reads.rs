@@ -23,7 +23,7 @@ impl<R: Reads> Reads for TrimReads<R> {
         for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
             self.labels
                 .iter()
-                .for_each(|l| read.trim(l.str_type, &l.label));
+                .for_each(|l| read.trim(l.str_type, l.label));
         }
 
         reads

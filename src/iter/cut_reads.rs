@@ -32,9 +32,9 @@ impl<R: Reads> Reads for CutReads<R> {
         for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
             read.cut(
                 self.transform_expr.before()[0].str_type,
-                &self.transform_expr.before()[0].label,
-                &self.transform_expr.after()[0].label,
-                &self.transform_expr.after()[1].label,
+                self.transform_expr.before()[0].label,
+                self.transform_expr.after()[0].label,
+                self.transform_expr.after()[1].label,
                 self.cut_idx,
             );
         }

@@ -1,4 +1,5 @@
 use crate::expr;
+use crate::inline_string::*;
 use crate::read::*;
 
 pub struct SelectorExpr {
@@ -48,7 +49,7 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
         Label(expr::Label { str_type, label }) => !read
             .get_str_mappings(*str_type)
             .unwrap()
-            .get_mapping(label)
+            .get_mapping(*label)
             .unwrap()
             .is_empty(),
         Data(expr::Data {
@@ -58,7 +59,7 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
         }) => read
             .get_str_mappings(*str_type)
             .unwrap()
-            .get_data(label, attr)
+            .get_data(*label, *attr)
             .unwrap()
             .as_bool(),
     }
@@ -130,7 +131,7 @@ fn parse(items: &[Item]) -> Expr {
         if let (Label(str_type), Dot, Label(label)) = (&items[0], &items[1], &items[2]) {
             return Expr::Label(expr::Label {
                 str_type: StrType::new(&str_type),
-                label: label.clone(),
+                label: InlineString::new(label),
             });
         }
     }
@@ -142,8 +143,8 @@ fn parse(items: &[Item]) -> Expr {
         {
             return Expr::Data(expr::Data {
                 str_type: StrType::new(&str_type),
-                label: label.clone(),
-                attr: attr.clone(),
+                label: InlineString::new(label),
+                attr: InlineString::new(attr),
             });
         }
     }

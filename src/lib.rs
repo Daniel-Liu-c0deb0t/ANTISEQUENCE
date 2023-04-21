@@ -4,3 +4,5 @@ pub mod expr;
 pub mod fastq;
 pub mod iter;
 pub mod read;
+
+mod inline_string;

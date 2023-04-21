@@ -2,6 +2,8 @@ use rustc_hash::FxHashMap;
 
 use std::fmt;
 
+use crate::inline_string::*;
+
 pub use EndIdx::*;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -49,11 +51,11 @@ impl StrMappings {
         }
     }
 
-    pub fn get_data(&self, label: &str, attr: &str) -> Option<&Data> {
+    pub fn get_data(&self, label: InlineString, attr: InlineString) -> Option<&Data> {
         self.get_mapping(label).and_then(|m| m.get_data(attr))
     }
 
-    pub fn get_mapping(&self, label: &str) -> Option<&Mapping> {
+    pub fn get_mapping(&self, label: InlineString) -> Option<&Mapping> {
         self.mappings.iter().find(|&m| m.label == label)
     }
 
@@ -69,7 +71,13 @@ impl StrMappings {
         &self.string[mapping.start..mapping.start + mapping.len]
     }
 
-    pub fn cut(&mut self, label: &str, new_label1: &str, new_label2: &str, cut_idx: EndIdx) {
+    pub fn cut(
+        &mut self,
+        label: InlineString,
+        new_label1: InlineString,
+        new_label2: InlineString,
+        cut_idx: EndIdx,
+    ) {
         let (start, len) = {
             let mapping = self
                 .get_mapping(label)
@@ -94,7 +102,7 @@ impl StrMappings {
         }
     }
 
-    pub fn trim(&mut self, label: &str) {
+    pub fn trim(&mut self, label: InlineString) {
         let mapping = self
             .get_mapping(label)
             .unwrap_or_else(|| panic!("Label not found in string: {}", label))
@@ -135,10 +143,10 @@ impl StrMappings {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mapping {
-    pub label: String,
+    pub label: InlineString,
     pub start: usize,
     pub len: usize,
-    pub data: FxHashMap<String, Data>,
+    pub data: FxHashMap<InlineString, Data>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -162,16 +170,16 @@ pub enum Intersection {
 impl Mapping {
     pub fn new_default(len: usize) -> Self {
         Self {
-            label: "*".to_owned(),
+            label: InlineString::new("*"),
             start: 0,
             len,
             data: FxHashMap::default(),
         }
     }
 
-    pub fn new(label: &str, start: usize, len: usize) -> Self {
+    pub fn new(label: InlineString, start: usize, len: usize) -> Self {
         Self {
-            label: label.to_owned(),
+            label,
             start,
             len,
             data: FxHashMap::default(),
@@ -203,8 +211,8 @@ impl Mapping {
         self.len == 0
     }
 
-    pub fn get_data(&self, attr: &str) -> Option<&Data> {
-        self.data.get(attr)
+    pub fn get_data(&self, attr: InlineString) -> Option<&Data> {
+        self.data.get(&attr)
     }
 }
 
@@ -239,9 +247,9 @@ impl Read {
     pub fn cut(
         &mut self,
         str_type: StrType,
-        label: &str,
-        new_label1: &str,
-        new_label2: &str,
+        label: InlineString,
+        new_label1: InlineString,
+        new_label2: InlineString,
         cut_idx: EndIdx,
     ) {
         self.get_str_mappings_mut(str_type)
@@ -249,7 +257,7 @@ impl Read {
             .cut(label, new_label1, new_label2, cut_idx);
     }
 
-    pub fn trim(&mut self, str_type: StrType, label: &str) {
+    pub fn trim(&mut self, str_type: StrType, label: InlineString) {
         self.get_str_mappings_mut(str_type).unwrap().trim(label);
     }
 }
