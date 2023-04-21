@@ -2,6 +2,14 @@ use rustc_hash::FxHashMap;
 
 use std::fmt;
 
+pub use EndIdx::*;
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum EndIdx {
+    LeftEnd(usize),
+    RightEnd(usize),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum StrType {
     Name,
@@ -27,7 +35,7 @@ pub struct StrMappings {
 impl StrMappings {
     pub fn new(string: Vec<u8>) -> Self {
         Self {
-            mappings: vec![Mapping::new(string.len())],
+            mappings: vec![Mapping::new_default(string.len())],
             string,
             qual: None,
         }
@@ -35,7 +43,7 @@ impl StrMappings {
 
     pub fn new_with_qual(string: Vec<u8>, qual: Vec<u8>) -> Self {
         Self {
-            mappings: vec![Mapping::new(string.len())],
+            mappings: vec![Mapping::new_default(string.len())],
             string,
             qual: Some(qual),
         }
@@ -59,6 +67,31 @@ impl StrMappings {
 
     pub fn substring(&self, mapping: &Mapping) -> &[u8] {
         &self.string[mapping.start..mapping.start + mapping.len]
+    }
+
+    pub fn cut(&mut self, label: &str, new_label1: &str, new_label2: &str, cut_idx: EndIdx) {
+        let (start, len) = {
+            let mapping = self
+                .get_mapping(label)
+                .unwrap_or_else(|| panic!("Label not found in string: {}", label));
+            (mapping.start, mapping.len)
+        };
+
+        match cut_idx {
+            LeftEnd(idx) => {
+                let cut = idx.min(len);
+                self.mappings.push(Mapping::new(new_label1, start, cut));
+                self.mappings
+                    .push(Mapping::new(new_label2, start + cut, len - cut));
+            }
+            RightEnd(idx) => {
+                let cut = idx.min(len);
+                self.mappings
+                    .push(Mapping::new(new_label1, start, len - cut));
+                self.mappings
+                    .push(Mapping::new(new_label2, start + len - cut, cut));
+            }
+        }
     }
 
     pub fn trim(&mut self, label: &str) {
@@ -127,10 +160,19 @@ pub enum Intersection {
 }
 
 impl Mapping {
-    pub fn new(len: usize) -> Self {
+    pub fn new_default(len: usize) -> Self {
         Self {
             label: "*".to_owned(),
             start: 0,
+            len,
+            data: FxHashMap::default(),
+        }
+    }
+
+    pub fn new(label: &str, start: usize, len: usize) -> Self {
+        Self {
+            label: label.to_owned(),
+            start,
             len,
             data: FxHashMap::default(),
         }
@@ -192,6 +234,19 @@ impl Read {
         self.str_mappings
             .iter_mut()
             .find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
+    }
+
+    pub fn cut(
+        &mut self,
+        str_type: StrType,
+        label: &str,
+        new_label1: &str,
+        new_label2: &str,
+        cut_idx: EndIdx,
+    ) {
+        self.get_str_mappings_mut(str_type)
+            .unwrap()
+            .cut(label, new_label1, new_label2, cut_idx);
     }
 
     pub fn trim(&mut self, str_type: StrType, label: &str) {
