@@ -103,40 +103,43 @@ impl StrMappings {
     }
 
     pub fn trim(&mut self, label: InlineString) {
-        let mapping = self
+        let trimmed = self
             .get_mapping(label)
             .unwrap_or_else(|| panic!("Label not found in string: {}", label))
             .clone();
 
         self.mappings.iter_mut().for_each(|m| {
             use Intersection::*;
-            match mapping.intersect(m) {
-                BStart(len) => {
-                    m.start += len;
+            match trimmed.intersect(m) {
+                ABOverlap(len) => {
+                    m.start = trimmed.start;
                     m.len -= len;
                 }
-                BEnd(len) => {
+                BAOverlap(len) => {
                     m.len -= len;
                 }
                 AInsideB => {
-                    m.len -= mapping.len;
+                    m.len -= trimmed.len;
                 }
                 BInsideA => {
-                    m.start = mapping.start;
+                    m.start = trimmed.start;
                     m.len = 0;
                 }
                 Equal => {
                     m.len = 0;
                 }
-                None => (),
+                ABeforeB => {
+                    m.start -= trimmed.len;
+                }
+                BBeforeA => (),
             }
         });
 
         self.string
-            .drain(mapping.start..mapping.start + mapping.len);
+            .drain(trimmed.start..trimmed.start + trimmed.len);
 
         if let Some(qual) = &mut self.qual {
-            qual.drain(mapping.start..mapping.start + mapping.len);
+            qual.drain(trimmed.start..trimmed.start + trimmed.len);
         }
     }
 }
@@ -159,12 +162,13 @@ pub enum Data {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Intersection {
-    BStart(usize),
-    BEnd(usize),
+    ABOverlap(usize),
+    BAOverlap(usize),
     AInsideB,
     BInsideA,
     Equal,
-    None,
+    ABeforeB,
+    BBeforeA,
 }
 
 impl Mapping {
@@ -192,18 +196,35 @@ impl Mapping {
         let b_start = b.start;
         let b_end = b.start + b.len;
 
+        use Intersection::*;
         if a_start == b_start && a_end == b_end {
-            Intersection::Equal
-        } else if a_start <= b_start && b_end <= a_end {
-            Intersection::BInsideA
-        } else if b_start <= a_start && a_end <= b_end {
-            Intersection::AInsideB
+            Equal
+        } else if a_start < b_start && b_end < a_end {
+            BInsideA
+        } else if b_start < a_start && a_end < b_end {
+            AInsideB
+        } else if a_start == b_start {
+            if a_end > b_end {
+                BAOverlap(b_end - a_start)
+            } else {
+                ABOverlap(a_end - b_start)
+            }
+        } else if a_end == b_end {
+            if a_start > b_start {
+                BAOverlap(b_end - a_start)
+            } else {
+                ABOverlap(a_end - b_start)
+            }
         } else if a_start <= b_start && b_start < a_end {
-            Intersection::BStart(a_end - b_start)
+            ABOverlap(a_end - b_start)
         } else if a_start < b_end && b_end <= a_end {
-            Intersection::BEnd(b_end - a_start)
+            BAOverlap(b_end - a_start)
+        } else if a_end <= b_start {
+            ABeforeB
+        } else if b_end <= a_start {
+            BBeforeA
         } else {
-            Intersection::None
+            unreachable!()
         }
     }
 
@@ -295,7 +316,7 @@ impl fmt::Display for StrMappings {
                 c[m.start + 1..m.start + m.len - 1].fill(b'-');
                 String::from_utf8(c).unwrap()
             };
-            write!(f, "{: <len$} {}", m.label, curr)?;
+            write!(f, "{: <len$} {}", m.label.to_string(), curr)?;
 
             for (k, v) in &m.data {
                 write!(f, " {}={}", k, v)?;

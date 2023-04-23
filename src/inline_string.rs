@@ -19,7 +19,7 @@ impl InlineString {
     }
 
     pub fn bytes<'a>(&'a self) -> impl Iterator<Item = u8> + 'a {
-        self.data.iter().cloned()
+        self.data[..self.len()].iter().cloned()
     }
 
     pub fn len(&self) -> usize {
@@ -33,15 +33,20 @@ impl InlineString {
 
 impl fmt::Debug for InlineString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use std::fmt::Write;
-        f.write_char('"')?;
-        f.write_str(std::str::from_utf8(&self.data[..self.data.len()]).unwrap())?;
-        f.write_char('"')
+        write!(
+            f,
+            "\"{}\"",
+            std::str::from_utf8(&self.data[..self.len()]).unwrap()
+        )
     }
 }
 
 impl fmt::Display for InlineString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(std::str::from_utf8(&self.data[..self.data.len()]).unwrap())
+        write!(
+            f,
+            "{}",
+            std::str::from_utf8(&self.data[..self.len()]).unwrap()
+        )
     }
 }

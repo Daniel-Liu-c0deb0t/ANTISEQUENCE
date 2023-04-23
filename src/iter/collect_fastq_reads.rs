@@ -38,6 +38,9 @@ impl<R: Reads> Reads for CollectFastqReads<R> {
                 let file_name = self.file_expr.format(read);
 
                 file_writers.entry(file_name.clone()).or_insert_with(|| {
+                    std::fs::create_dir_all(std::path::Path::new(&file_name).parent().unwrap())
+                        .unwrap();
+
                     let writer: Box<dyn Write + std::marker::Send> = if file_name.ends_with(".gz") {
                         Box::new(BufWriter::new(GzEncoder::new(
                             File::create(&file_name).unwrap(),
