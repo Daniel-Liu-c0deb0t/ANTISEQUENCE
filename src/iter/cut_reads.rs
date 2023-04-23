@@ -14,7 +14,8 @@ impl<R: Reads> CutReads<R> {
         transform_expr: TransformExpr,
         cut_idx: EndIdx,
     ) -> Self {
-        transform_expr.check(1, 2);
+        transform_expr.check_size(1, 2);
+        transform_expr.check_same_str_type();
 
         Self {
             reads,

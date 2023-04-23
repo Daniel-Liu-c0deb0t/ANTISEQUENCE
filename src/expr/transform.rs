@@ -11,9 +11,15 @@ impl TransformExpr {
         Self { before, after }
     }
 
-    pub fn check(&self, before_size: usize, after_size: usize) {
+    pub fn check_size(&self, before_size: usize, after_size: usize) {
         assert_eq!(before_size, self.before.len());
         assert_eq!(after_size, self.after.len());
+    }
+
+    pub fn check_same_str_type(&self) {
+        let str_type = self.before[0].str_type;
+        assert!(self.before.iter().all(|l| l.str_type == str_type));
+        assert!(self.after.iter().all(|l| l.str_type == str_type));
     }
 
     pub fn before(&self) -> &[Label] {
