@@ -45,8 +45,15 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn trim<S>(self, selector_expr: &str, labels: impl AsRef<[S]>) -> TrimReads<Self> where S: AsRef<str> {
-        let labels = labels.as_ref().iter().map(|l| Label::new(l.as_ref())).collect::<Vec<_>>();
+    fn trim<S>(self, selector_expr: &str, labels: impl AsRef<[S]>) -> TrimReads<Self>
+    where
+        S: AsRef<str>,
+    {
+        let labels = labels
+            .as_ref()
+            .iter()
+            .map(|l| Label::new(l.as_ref()))
+            .collect::<Vec<_>>();
         TrimReads::new(self, SelectorExpr::new(selector_expr), labels)
     }
 
