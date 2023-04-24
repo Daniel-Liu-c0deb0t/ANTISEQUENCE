@@ -20,6 +20,8 @@ pub enum StrType {
     Seq1,
     Name2,
     Seq2,
+    Index1,
+    Index2,
 }
 
 #[derive(Debug, Clone)]
@@ -375,6 +377,8 @@ impl StrType {
             "seq1" => Seq1,
             "name2" => Name2,
             "seq2" => Seq2,
+            "index1" => Index1,
+            "index2" => Index2,
             _ => panic!("Unknown string: {}", str_type),
         }
     }
@@ -390,6 +394,8 @@ impl fmt::Display for StrType {
             Seq1 => write!(f, "seq1"),
             Name2 => write!(f, "name2"),
             Seq2 => write!(f, "seq2"),
+            Index1 => write!(f, "index1"),
+            Index2 => write!(f, "index2"),
         }
     }
 }
