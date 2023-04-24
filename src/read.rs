@@ -61,6 +61,16 @@ impl StrMappings {
         self.mappings.iter().find(|&m| m.label == label)
     }
 
+    pub fn add_mapping(&mut self, label: Option<InlineString>, start: usize, len: usize) {
+        let Some(label) = label else {
+            return;
+        };
+        if self.get_mapping(label).is_some() {
+            panic!("Label already exists: {}", label);
+        }
+        self.mappings.push(Mapping::new(label, start, len));
+    }
+
     pub fn string(&self) -> &[u8] {
         &self.string
     }
@@ -76,8 +86,8 @@ impl StrMappings {
     pub fn cut(
         &mut self,
         label: InlineString,
-        new_label1: InlineString,
-        new_label2: InlineString,
+        new_label1: Option<InlineString>,
+        new_label2: Option<InlineString>,
         cut_idx: EndIdx,
     ) {
         let (start, len) = {
@@ -90,16 +100,13 @@ impl StrMappings {
         match cut_idx {
             LeftEnd(idx) => {
                 let cut = idx.min(len);
-                self.mappings.push(Mapping::new(new_label1, start, cut));
-                self.mappings
-                    .push(Mapping::new(new_label2, start + cut, len - cut));
+                self.add_mapping(new_label1, start, cut);
+                self.add_mapping(new_label2, start + cut, len - cut);
             }
             RightEnd(idx) => {
                 let cut = idx.min(len);
-                self.mappings
-                    .push(Mapping::new(new_label1, start, len - cut));
-                self.mappings
-                    .push(Mapping::new(new_label2, start + len - cut, cut));
+                self.add_mapping(new_label1, start, len - cut);
+                self.add_mapping(new_label2, start + len - cut, cut);
             }
         }
     }
@@ -271,8 +278,8 @@ impl Read {
         &mut self,
         str_type: StrType,
         label: InlineString,
-        new_label1: InlineString,
-        new_label2: InlineString,
+        new_label1: Option<InlineString>,
+        new_label2: Option<InlineString>,
         cut_idx: EndIdx,
     ) {
         self.get_str_mappings_mut(str_type)
