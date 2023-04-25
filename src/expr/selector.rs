@@ -36,7 +36,7 @@ enum Expr {
     Or(Vec<Expr>),
     Not(Box<Expr>),
     Label(expr::Label),
-    Data(expr::Data),
+    Attr(expr::Attr),
 }
 
 fn matches_rec(expr: &Expr, read: &Read) -> bool {
@@ -52,7 +52,7 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
             .get_mapping(*label)
             .unwrap()
             .is_empty(),
-        Data(expr::Data {
+        Attr(expr::Attr {
             str_type,
             label,
             attr,
@@ -141,7 +141,7 @@ fn parse(items: &[Item]) -> Expr {
         if let (Label(str_type), Dot, Label(label), Dot, Label(attr)) =
             (&items[0], &items[1], &items[2], &items[3], &items[4])
         {
-            return Expr::Data(expr::Data {
+            return Expr::Attr(expr::Attr {
                 str_type: StrType::new(&str_type),
                 label: InlineString::new(label),
                 attr: InlineString::new(attr),

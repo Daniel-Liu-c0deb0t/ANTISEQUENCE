@@ -17,10 +17,16 @@ pub struct Label {
 }
 
 #[derive(Debug, Clone, PartialEq, Hash)]
-pub struct Data {
+pub struct Attr {
     pub str_type: StrType,
     pub label: InlineString,
     pub attr: InlineString,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LabelOrAttr {
+    Label(Label),
+    Attr(Attr),
 }
 
 impl Label {
@@ -37,7 +43,7 @@ impl Label {
     }
 }
 
-impl Data {
+impl Attr {
     pub fn new(s: &str) -> Self {
         let split = s.split('.').collect::<Vec<_>>();
 
@@ -48,6 +54,18 @@ impl Data {
                 attr: InlineString::new(attr),
             },
             _ => panic!("Expected type.label.attr!"),
+        }
+    }
+}
+
+impl LabelOrAttr {
+    pub fn new(s: &str) -> Self {
+        let count = s.chars().filter(|&c| c == '.').count();
+
+        match count {
+            1 => LabelOrAttr::Label(Label::new(s)),
+            2 => LabelOrAttr::Attr(Attr::new(s)),
+            _ => panic!("Expected either type.label or type.label.attr!"),
         }
     }
 }

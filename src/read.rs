@@ -57,8 +57,17 @@ impl StrMappings {
         self.get_mapping(label).and_then(|m| m.get_data(attr))
     }
 
+    pub fn get_data_mut(&mut self, label: InlineString, attr: InlineString) -> Option<&mut Data> {
+        self.get_mapping_mut(label)
+            .and_then(|m| m.get_data_mut(attr))
+    }
+
     pub fn get_mapping(&self, label: InlineString) -> Option<&Mapping> {
-        self.mappings.iter().find(|&m| m.label == label)
+        self.mappings.iter().find(|m| m.label == label)
+    }
+
+    pub fn get_mapping_mut(&mut self, label: InlineString) -> Option<&mut Mapping> {
+        self.mappings.iter_mut().find(|m| m.label == label)
     }
 
     pub fn add_mapping(&mut self, label: Option<InlineString>, start: usize, len: usize) {
@@ -81,6 +90,12 @@ impl StrMappings {
 
     pub fn substring(&self, mapping: &Mapping) -> &[u8] {
         &self.string[mapping.start..mapping.start + mapping.len]
+    }
+
+    pub fn substring_qual(&self, mapping: &Mapping) -> Option<&[u8]> {
+        self.qual
+            .as_ref()
+            .map(|q| &q[mapping.start..mapping.start + mapping.len])
     }
 
     pub fn cut(
@@ -108,6 +123,68 @@ impl StrMappings {
                 self.add_mapping(new_label1, start, len - cut);
                 self.add_mapping(new_label2, start + len - cut, cut);
             }
+        }
+    }
+
+    pub fn set(&mut self, label: InlineString, new_str: &[u8], new_qual: Option<&[u8]>) {
+        let prev = self
+            .get_mapping(label)
+            .unwrap_or_else(|| panic!("Label not found in string: {}", label))
+            .clone();
+
+        self.mappings.iter_mut().for_each(|m| {
+            use Intersection::*;
+            match prev.intersect(m) {
+                ABOverlap(len) => {
+                    if len > new_str.len() {
+                        m.start = prev.start;
+                        m.len -= len - new_str.len();
+                    } else {
+                        if new_str.len() >= prev.len {
+                            m.start += new_str.len() - prev.len;
+                        } else {
+                            m.start -= prev.len - new_str.len();
+                        }
+                    }
+                }
+                BAOverlap(len) => {
+                    if len > new_str.len() {
+                        m.len -= len - new_str.len();
+                    }
+                }
+                AInsideB => {
+                    if new_str.len() >= prev.len {
+                        m.len += new_str.len() - prev.len;
+                    } else {
+                        m.len -= prev.len - new_str.len();
+                    }
+                }
+                BInsideA => {
+                    m.start = m.start.min(prev.start + new_str.len());
+                    m.len = m.len.min(prev.start + new_str.len() - m.start);
+                }
+                Equal => {
+                    m.len = new_str.len();
+                }
+                ABeforeB => {
+                    if new_str.len() >= prev.len {
+                        m.start += new_str.len() - prev.len;
+                    } else {
+                        m.start -= prev.len - new_str.len();
+                    }
+                }
+                BBeforeA => (),
+            }
+        });
+
+        self.string
+            .splice(prev.start..prev.start + prev.len, new_str.iter().cloned());
+
+        if let Some(qual) = &mut self.qual {
+            qual.splice(
+                prev.start..prev.start + prev.len,
+                new_qual.unwrap().iter().cloned(),
+            );
         }
     }
 
@@ -244,6 +321,10 @@ impl Mapping {
     pub fn get_data(&self, attr: InlineString) -> Option<&Data> {
         self.data.get(&attr)
     }
+
+    pub fn get_data_mut(&mut self, attr: InlineString) -> Option<&mut Data> {
+        self.data.get_mut(&attr)
+    }
 }
 
 impl Read {
@@ -285,6 +366,18 @@ impl Read {
         self.get_str_mappings_mut(str_type)
             .unwrap()
             .cut(label, new_label1, new_label2, cut_idx);
+    }
+
+    pub fn set(
+        &mut self,
+        str_type: StrType,
+        label: InlineString,
+        new_str: &[u8],
+        new_qual: Option<&[u8]>,
+    ) {
+        self.get_str_mappings_mut(str_type)
+            .unwrap()
+            .set(label, new_str, new_qual);
     }
 
     pub fn trim(&mut self, str_type: StrType, label: InlineString) {

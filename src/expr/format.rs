@@ -9,7 +9,7 @@ pub struct FormatExpr {
 enum Expr {
     Literal(String),
     Label(expr::Label),
-    Data(expr::Data),
+    Attr(expr::Attr),
 }
 
 impl FormatExpr {
@@ -17,7 +17,7 @@ impl FormatExpr {
         Self { expr: parse(expr) }
     }
 
-    pub fn format(&self, read: &Read) -> String {
+    pub fn format(&self, read: &Read, use_qual: bool) -> String {
         let mut res = String::new();
 
         for e in &self.expr {
@@ -27,9 +27,14 @@ impl FormatExpr {
                 Label(expr::Label { str_type, label }) => {
                     let str_mappings = read.get_str_mappings(*str_type).unwrap();
                     let mapping = str_mappings.get_mapping(*label).unwrap();
-                    res.push_str(std::str::from_utf8(str_mappings.substring(mapping)).unwrap());
+                    let string = if use_qual {
+                        str_mappings.substring_qual(mapping).unwrap()
+                    } else {
+                        str_mappings.substring(mapping)
+                    };
+                    res.push_str(std::str::from_utf8(string).unwrap());
                 }
-                Data(expr::Data {
+                Attr(expr::Attr {
                     str_type,
                     label,
                     attr,
@@ -73,7 +78,7 @@ fn parse(expr: &str) -> Vec<Expr> {
                         str_type: StrType::new(str_type),
                         label: InlineString::new(label),
                     }),
-                    &[str_type, label, attr] => Expr::Data(expr::Data {
+                    &[str_type, label, attr] => Expr::Attr(expr::Attr {
                         str_type: StrType::new(str_type),
                         label: InlineString::new(label),
                         attr: InlineString::new(attr),

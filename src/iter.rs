@@ -15,6 +15,9 @@ pub use for_each_reads::*;
 pub mod cut_reads;
 pub use cut_reads::*;
 
+pub mod set_reads;
+pub use set_reads::*;
+
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self, threads: usize) {
         assert!(threads >= 1);
@@ -55,6 +58,16 @@ pub trait Reads: Sized + std::marker::Sync {
             .map(|l| Label::new(l.as_ref()))
             .collect::<Vec<_>>();
         TrimReads::new(self, SelectorExpr::new(selector_expr), labels)
+    }
+
+    #[must_use]
+    fn set(self, selector_expr: &str, label_or_attr: &str, format_expr: &str) -> SetReads<Self> {
+        SetReads::new(
+            self,
+            SelectorExpr::new(selector_expr),
+            LabelOrAttr::new(label_or_attr),
+            FormatExpr::new(format_expr),
+        )
     }
 
     #[must_use]

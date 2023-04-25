@@ -35,7 +35,7 @@ impl<R: Reads> Reads for CollectFastqReads<R> {
             let mut file_writers = self.file_writers.write().unwrap();
 
             for read in reads.iter().filter(|r| self.selector_expr.matches(r)) {
-                let file_name = self.file_expr.format(read);
+                let file_name = self.file_expr.format(read, false);
 
                 file_writers.entry(file_name.clone()).or_insert_with(|| {
                     std::fs::create_dir_all(std::path::Path::new(&file_name).parent().unwrap())
@@ -55,7 +55,7 @@ impl<R: Reads> Reads for CollectFastqReads<R> {
         }
 
         for read in reads.iter().filter(|r| self.selector_expr.matches(r)) {
-            let file_name = self.file_expr.format(read);
+            let file_name = self.file_expr.format(read, false);
 
             let file_writers = self.file_writers.read().unwrap();
             let mut writer = file_writers[&file_name].lock().unwrap();
