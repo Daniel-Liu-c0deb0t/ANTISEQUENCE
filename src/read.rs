@@ -409,12 +409,13 @@ impl fmt::Display for StrMappings {
 
         for m in &self.mappings {
             let curr = if m.is_empty() {
-                let str_len = self.string.len();
-                format!("{: <str_len$}", "(empty)")
-            } else {
-                let mut c = vec![b' '; self.string.len()];
+                let mut c = vec![b' '; self.string.len() + 1];
                 c[m.start] = b'|';
-                c[m.start + m.len - 1] = b'|';
+                String::from_utf8(c).unwrap()
+            } else {
+                let mut c = vec![b' '; self.string.len() + 1];
+                c[m.start] = b'[';
+                c[m.start + m.len - 1] = b']';
                 c[m.start + 1..m.start + m.len - 1].fill(b'-');
                 String::from_utf8(c).unwrap()
             };
