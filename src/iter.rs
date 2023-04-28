@@ -1,5 +1,5 @@
-use std::thread;
 use std::ops::RangeBounds;
+use std::thread;
 
 use crate::expr::*;
 use crate::read::*;
@@ -45,7 +45,15 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn length_in_bounds<B>(self, selector_expr: &str, attr: &str, bounds: B) -> LengthInBoundsReads<Self, B> where B: RangeBounds<usize> + std::marker::Sync {
+    fn length_in_bounds<B>(
+        self,
+        selector_expr: &str,
+        attr: &str,
+        bounds: B,
+    ) -> LengthInBoundsReads<Self, B>
+    where
+        B: RangeBounds<usize> + std::marker::Sync,
+    {
         LengthInBoundsReads::new(
             self,
             SelectorExpr::new(selector_expr),
@@ -98,10 +106,7 @@ pub trait Reads: Sized + std::marker::Sync {
 
     #[must_use]
     fn retain(self, selector_expr: &str) -> RetainReads<Self> {
-        RetainReads::new(
-            self,
-            SelectorExpr::new(selector_expr),
-        )
+        RetainReads::new(self, SelectorExpr::new(selector_expr))
     }
 
     fn next_chunk(&self) -> Vec<Read>;

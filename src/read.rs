@@ -58,8 +58,7 @@ impl StrMappings {
     }
 
     pub fn get_data_mut(&mut self, label: InlineString, attr: InlineString) -> Option<&mut Data> {
-        self.get_mapping_mut(label)
-            .map(|m| m.get_data_mut(attr))
+        self.get_mapping_mut(label).map(|m| m.get_data_mut(attr))
     }
 
     pub fn get_mapping(&self, label: InlineString) -> Option<&Mapping> {

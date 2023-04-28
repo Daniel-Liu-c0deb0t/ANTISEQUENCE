@@ -6,10 +6,7 @@ pub struct RetainReads<R: Reads> {
 }
 
 impl<R: Reads> RetainReads<R> {
-    pub fn new(
-        reads: R,
-        selector_expr: SelectorExpr,
-    ) -> Self {
+    pub fn new(reads: R, selector_expr: SelectorExpr) -> Self {
         Self {
             reads,
             selector_expr,
