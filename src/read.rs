@@ -59,7 +59,7 @@ impl StrMappings {
 
     pub fn get_data_mut(&mut self, label: InlineString, attr: InlineString) -> Option<&mut Data> {
         self.get_mapping_mut(label)
-            .and_then(|m| m.get_data_mut(attr))
+            .map(|m| m.get_data_mut(attr))
     }
 
     pub fn get_mapping(&self, label: InlineString) -> Option<&Mapping> {
@@ -322,8 +322,8 @@ impl Mapping {
         self.data.get(&attr)
     }
 
-    pub fn get_data_mut(&mut self, attr: InlineString) -> Option<&mut Data> {
-        self.data.get_mut(&attr)
+    pub fn get_data_mut(&mut self, attr: InlineString) -> &mut Data {
+        self.data.entry(attr).or_insert_with(|| Data::Bool(false))
     }
 }
 

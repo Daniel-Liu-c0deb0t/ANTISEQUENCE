@@ -55,8 +55,7 @@ impl<R: Reads> Reads for SetReads<R> {
                         .unwrap()
                         .get_mapping_mut(attr.label)
                         .unwrap()
-                        .get_data_mut(attr.attr)
-                        .unwrap() = Data::String(new_str)
+                        .get_data_mut(attr.attr) = Data::String(new_str)
                 }
             }
         }

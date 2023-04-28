@@ -1,22 +1,29 @@
 use std::thread;
+use std::ops::RangeBounds;
 
 use crate::expr::*;
 use crate::read::*;
 
 pub mod trim_reads;
-pub use trim_reads::*;
+use trim_reads::*;
 
 pub mod collect_fastq_reads;
-pub use collect_fastq_reads::*;
+use collect_fastq_reads::*;
 
 pub mod for_each_reads;
-pub use for_each_reads::*;
+use for_each_reads::*;
 
 pub mod cut_reads;
-pub use cut_reads::*;
+use cut_reads::*;
 
 pub mod set_reads;
-pub use set_reads::*;
+use set_reads::*;
+
+pub mod length_in_bounds_reads;
+use length_in_bounds_reads::*;
+
+pub mod retain_reads;
+use retain_reads::*;
 
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self, threads: usize) {
@@ -35,6 +42,16 @@ pub trait Reads: Sized + std::marker::Sync {
         F: Fn(&mut Read) + std::marker::Sync,
     {
         ForEachReads::new(self, SelectorExpr::new(selector_expr), func)
+    }
+
+    #[must_use]
+    fn length_in_bounds<B>(self, selector_expr: &str, attr: &str, bounds: B) -> LengthInBoundsReads<Self, B> where B: RangeBounds<usize> + std::marker::Sync {
+        LengthInBoundsReads::new(
+            self,
+            SelectorExpr::new(selector_expr),
+            Attr::new(attr),
+            bounds,
+        )
     }
 
     #[must_use]
@@ -76,6 +93,14 @@ pub trait Reads: Sized + std::marker::Sync {
             self,
             SelectorExpr::new(selector_expr),
             FormatExpr::new(file_expr),
+        )
+    }
+
+    #[must_use]
+    fn retain(self, selector_expr: &str) -> RetainReads<Self> {
+        RetainReads::new(
+            self,
+            SelectorExpr::new(selector_expr),
         )
     }
 
