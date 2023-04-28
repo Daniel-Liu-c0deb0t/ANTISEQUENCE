@@ -40,7 +40,7 @@ pub fn iter_fastq(file: &str, chunk_size: usize) -> FastqReads {
 }
 
 pub fn write_fastq_record(
-    writer: &mut Box<dyn Write + std::marker::Send>,
+    writer: &mut (dyn Write + std::marker::Send),
     record: (&[u8], &[u8], &[u8]),
 ) {
     writer.write_all(b"@").unwrap();
