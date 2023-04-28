@@ -32,12 +32,7 @@ impl<R: Reads> Reads for SetReads<R> {
 
             match &self.label_or_attr {
                 LabelOrAttr::Label(label) => {
-                    if read
-                        .get_str_mappings(label.str_type)
-                        .unwrap()
-                        .qual()
-                        .is_some()
-                    {
+                    if read.str_mappings(label.str_type).unwrap().qual().is_some() {
                         let new_qual = self.format_expr.format(read, true);
                         read.set(
                             label.str_type,
@@ -51,11 +46,11 @@ impl<R: Reads> Reads for SetReads<R> {
                 }
                 LabelOrAttr::Attr(attr) => {
                     *read
-                        .get_str_mappings_mut(attr.str_type)
+                        .str_mappings_mut(attr.str_type)
                         .unwrap()
-                        .get_mapping_mut(attr.label)
+                        .mapping_mut(attr.label)
                         .unwrap()
-                        .get_data_mut(attr.attr) = Data::String(new_str)
+                        .data_mut(attr.attr) = Data::String(new_str)
                 }
             }
         }

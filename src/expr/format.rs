@@ -25,8 +25,8 @@ impl FormatExpr {
             match e {
                 Literal(s) => res.push_str(&s),
                 Label(expr::Label { str_type, label }) => {
-                    let str_mappings = read.get_str_mappings(*str_type).unwrap();
-                    let mapping = str_mappings.get_mapping(*label).unwrap();
+                    let str_mappings = read.str_mappings(*str_type).unwrap();
+                    let mapping = str_mappings.mapping(*label).unwrap();
                     let string = if use_qual {
                         str_mappings.substring_qual(mapping).unwrap()
                     } else {
@@ -41,9 +41,9 @@ impl FormatExpr {
                 }) => {
                     res.push_str(
                         &read
-                            .get_str_mappings(*str_type)
+                            .str_mappings(*str_type)
                             .unwrap()
-                            .get_data(*label, *attr)
+                            .data(*label, *attr)
                             .unwrap()
                             .to_string(),
                     );

@@ -53,19 +53,19 @@ impl StrMappings {
         }
     }
 
-    pub fn get_data(&self, label: InlineString, attr: InlineString) -> Option<&Data> {
-        self.get_mapping(label).and_then(|m| m.get_data(attr))
+    pub fn data(&self, label: InlineString, attr: InlineString) -> Option<&Data> {
+        self.mapping(label).and_then(|m| m.data(attr))
     }
 
-    pub fn get_data_mut(&mut self, label: InlineString, attr: InlineString) -> Option<&mut Data> {
-        self.get_mapping_mut(label).map(|m| m.get_data_mut(attr))
+    pub fn data_mut(&mut self, label: InlineString, attr: InlineString) -> Option<&mut Data> {
+        self.mapping_mut(label).map(|m| m.data_mut(attr))
     }
 
-    pub fn get_mapping(&self, label: InlineString) -> Option<&Mapping> {
+    pub fn mapping(&self, label: InlineString) -> Option<&Mapping> {
         self.mappings.iter().find(|m| m.label == label)
     }
 
-    pub fn get_mapping_mut(&mut self, label: InlineString) -> Option<&mut Mapping> {
+    pub fn mapping_mut(&mut self, label: InlineString) -> Option<&mut Mapping> {
         self.mappings.iter_mut().find(|m| m.label == label)
     }
 
@@ -73,7 +73,7 @@ impl StrMappings {
         let Some(label) = label else {
             return;
         };
-        if self.get_mapping(label).is_some() {
+        if self.mapping(label).is_some() {
             panic!("Label already exists: {}", label);
         }
         self.mappings.push(Mapping::new(label, start, len));
@@ -106,7 +106,7 @@ impl StrMappings {
     ) {
         let (start, len) = {
             let mapping = self
-                .get_mapping(label)
+                .mapping(label)
                 .unwrap_or_else(|| panic!("Label not found in string: {}", label));
             (mapping.start, mapping.len)
         };
@@ -127,7 +127,7 @@ impl StrMappings {
 
     pub fn set(&mut self, label: InlineString, new_str: &[u8], new_qual: Option<&[u8]>) {
         let prev = self
-            .get_mapping(label)
+            .mapping(label)
             .unwrap_or_else(|| panic!("Label not found in string: {}", label))
             .clone();
 
@@ -189,7 +189,7 @@ impl StrMappings {
 
     pub fn trim(&mut self, label: InlineString) {
         let trimmed = self
-            .get_mapping(label)
+            .mapping(label)
             .unwrap_or_else(|| panic!("Label not found in string: {}", label))
             .clone();
 
@@ -234,7 +234,7 @@ pub struct Mapping {
     pub label: InlineString,
     pub start: usize,
     pub len: usize,
-    pub data: FxHashMap<InlineString, Data>,
+    data: FxHashMap<InlineString, Data>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -317,11 +317,11 @@ impl Mapping {
         self.len == 0
     }
 
-    pub fn get_data(&self, attr: InlineString) -> Option<&Data> {
+    pub fn data(&self, attr: InlineString) -> Option<&Data> {
         self.data.get(&attr)
     }
 
-    pub fn get_data_mut(&mut self, attr: InlineString) -> &mut Data {
+    pub fn data_mut(&mut self, attr: InlineString) -> &mut Data {
         self.data.entry(attr).or_insert_with(|| Data::Bool(false))
     }
 }
@@ -337,18 +337,18 @@ impl Read {
     }
 
     pub fn to_fastq(&self) -> (&[u8], &[u8], &[u8]) {
-        let name = self.get_str_mappings(StrType::Name).unwrap();
-        let seq = self.get_str_mappings(StrType::Seq).unwrap();
+        let name = self.str_mappings(StrType::Name).unwrap();
+        let seq = self.str_mappings(StrType::Seq).unwrap();
         (name.string(), seq.string(), seq.qual().unwrap())
     }
 
-    pub fn get_str_mappings(&self, str_type: StrType) -> Option<&StrMappings> {
+    pub fn str_mappings(&self, str_type: StrType) -> Option<&StrMappings> {
         self.str_mappings
             .iter()
             .find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
     }
 
-    pub fn get_str_mappings_mut(&mut self, str_type: StrType) -> Option<&mut StrMappings> {
+    pub fn str_mappings_mut(&mut self, str_type: StrType) -> Option<&mut StrMappings> {
         self.str_mappings
             .iter_mut()
             .find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
@@ -362,7 +362,7 @@ impl Read {
         new_label2: Option<InlineString>,
         cut_idx: EndIdx,
     ) {
-        self.get_str_mappings_mut(str_type)
+        self.str_mappings_mut(str_type)
             .unwrap()
             .cut(label, new_label1, new_label2, cut_idx);
     }
@@ -374,13 +374,13 @@ impl Read {
         new_str: &[u8],
         new_qual: Option<&[u8]>,
     ) {
-        self.get_str_mappings_mut(str_type)
+        self.str_mappings_mut(str_type)
             .unwrap()
             .set(label, new_str, new_qual);
     }
 
     pub fn trim(&mut self, str_type: StrType, label: InlineString) {
-        self.get_str_mappings_mut(str_type).unwrap().trim(label);
+        self.str_mappings_mut(str_type).unwrap().trim(label);
     }
 }
 

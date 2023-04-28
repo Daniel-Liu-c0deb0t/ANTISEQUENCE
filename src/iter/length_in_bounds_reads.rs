@@ -26,11 +26,11 @@ impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> Reads for LengthInBoun
 
         for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
             let mapping = read
-                .get_str_mappings_mut(self.attr.str_type)
+                .str_mappings_mut(self.attr.str_type)
                 .unwrap()
-                .get_mapping_mut(self.attr.label)
+                .mapping_mut(self.attr.label)
                 .unwrap();
-            *mapping.get_data_mut(self.attr.attr) = Data::Bool(self.bounds.contains(&mapping.len));
+            *mapping.data_mut(self.attr.attr) = Data::Bool(self.bounds.contains(&mapping.len));
         }
 
         reads

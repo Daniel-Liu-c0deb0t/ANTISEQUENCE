@@ -47,9 +47,9 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
         Or(v) => v.iter().fold(false, |a, b| a | matches_rec(b, read)),
         Not(e) => !matches_rec(&e, read),
         Label(expr::Label { str_type, label }) => !read
-            .get_str_mappings(*str_type)
+            .str_mappings(*str_type)
             .unwrap()
-            .get_mapping(*label)
+            .mapping(*label)
             .unwrap()
             .is_empty(),
         Attr(expr::Attr {
@@ -57,9 +57,9 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
             label,
             attr,
         }) => read
-            .get_str_mappings(*str_type)
+            .str_mappings(*str_type)
             .unwrap()
-            .get_data(*label, *attr)
+            .data(*label, *attr)
             .unwrap()
             .as_bool(),
     }
