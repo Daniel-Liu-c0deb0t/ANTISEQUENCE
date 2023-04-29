@@ -109,11 +109,26 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn collect_fastq(self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> {
-        CollectFastqReads::new(
+    fn collect_fastq1(self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> {
+        CollectFastqReads::new1(
             self,
             SelectorExpr::new(selector_expr),
             FormatExpr::new(file_expr),
+        )
+    }
+
+    #[must_use]
+    fn collect_fastq2(
+        self,
+        selector_expr: &str,
+        file_expr1: &str,
+        file_expr2: &str,
+    ) -> CollectFastqReads<Self> {
+        CollectFastqReads::new2(
+            self,
+            SelectorExpr::new(selector_expr),
+            FormatExpr::new(file_expr1),
+            FormatExpr::new(file_expr2),
         )
     }
 

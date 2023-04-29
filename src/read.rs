@@ -14,8 +14,6 @@ pub enum EndIdx {
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum StrType {
-    Name,
-    Seq,
     Name1,
     Seq1,
     Name2,
@@ -132,6 +130,16 @@ impl StrMappings {
             .clone();
 
         self.mappings.iter_mut().for_each(|m| {
+            if m.label.bytes().all(|b| b == b'*') {
+                if new_str.len() >= prev.len {
+                    m.len += new_str.len() - prev.len;
+                } else {
+                    m.len -= prev.len - new_str.len();
+                }
+
+                return;
+            }
+
             use Intersection::*;
             match prev.intersect(m) {
                 ABOverlap(len) => {
@@ -327,19 +335,53 @@ impl Mapping {
 }
 
 impl Read {
-    pub fn from_fastq(name: &[u8], seq: &[u8], qual: &[u8]) -> Self {
+    pub fn from_fastq1(name: &[u8], seq: &[u8], qual: &[u8]) -> Self {
         let name = StrMappings::new(name.to_owned());
         let seq = StrMappings::new_with_qual(seq.to_owned(), qual.to_owned());
 
         Self {
-            str_mappings: vec![(StrType::Name, name), (StrType::Seq, seq)],
+            str_mappings: vec![(StrType::Name1, name), (StrType::Seq1, seq)],
         }
     }
 
-    pub fn to_fastq(&self) -> (&[u8], &[u8], &[u8]) {
-        let name = self.str_mappings(StrType::Name).unwrap();
-        let seq = self.str_mappings(StrType::Seq).unwrap();
+    pub fn from_fastq2(
+        name1: &[u8],
+        seq1: &[u8],
+        qual1: &[u8],
+        name2: &[u8],
+        seq2: &[u8],
+        qual2: &[u8],
+    ) -> Self {
+        let name1 = StrMappings::new(name1.to_owned());
+        let seq1 = StrMappings::new_with_qual(seq1.to_owned(), qual1.to_owned());
+        let name2 = StrMappings::new(name2.to_owned());
+        let seq2 = StrMappings::new_with_qual(seq2.to_owned(), qual2.to_owned());
+
+        Self {
+            str_mappings: vec![
+                (StrType::Name1, name1),
+                (StrType::Seq1, seq1),
+                (StrType::Name2, name2),
+                (StrType::Seq2, seq2),
+            ],
+        }
+    }
+
+    pub fn to_fastq1(&self) -> (&[u8], &[u8], &[u8]) {
+        let name = self.str_mappings(StrType::Name1).unwrap();
+        let seq = self.str_mappings(StrType::Seq1).unwrap();
         (name.string(), seq.string(), seq.qual().unwrap())
+    }
+
+    pub fn to_fastq2(&self) -> ((&[u8], &[u8], &[u8]), (&[u8], &[u8], &[u8])) {
+        let name1 = self.str_mappings(StrType::Name1).unwrap();
+        let seq1 = self.str_mappings(StrType::Seq1).unwrap();
+        let name2 = self.str_mappings(StrType::Name2).unwrap();
+        let seq2 = self.str_mappings(StrType::Seq2).unwrap();
+        (
+            (name1.string(), seq1.string(), seq1.qual().unwrap()),
+            (name2.string(), seq2.string(), seq2.qual().unwrap()),
+        )
     }
 
     pub fn str_mappings(&self, str_type: StrType) -> Option<&StrMappings> {
@@ -471,8 +513,6 @@ impl StrType {
     pub fn new(str_type: &str) -> Self {
         use StrType::*;
         match str_type {
-            "name" => Name,
-            "seq" => Seq,
             "name1" => Name1,
             "seq1" => Seq1,
             "name2" => Name2,
@@ -488,8 +528,6 @@ impl fmt::Display for StrType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use StrType::*;
         match self {
-            Name => write!(f, "name"),
-            Seq => write!(f, "seq"),
             Name1 => write!(f, "name1"),
             Seq1 => write!(f, "seq1"),
             Name2 => write!(f, "name2"),
