@@ -22,6 +22,10 @@ impl InlineString {
         self.data[..self.len()].iter().cloned()
     }
 
+    pub fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.data[..self.len()]).unwrap()
+    }
+
     pub fn len(&self) -> usize {
         let mut len = 0;
         while len < LEN && self.data[len] != 0 {

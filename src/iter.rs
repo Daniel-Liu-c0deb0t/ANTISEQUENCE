@@ -25,6 +25,9 @@ use length_in_bounds_reads::*;
 pub mod retain_reads;
 use retain_reads::*;
 
+pub mod regex_match_reads;
+use regex_match_reads::*;
+
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self, threads: usize) {
         assert!(threads >= 1);
@@ -92,6 +95,16 @@ pub trait Reads: Sized + std::marker::Sync {
             SelectorExpr::new(selector_expr),
             LabelOrAttr::new(label_or_attr),
             FormatExpr::new(format_expr),
+        )
+    }
+
+    #[must_use]
+    fn regex_match(self, selector_expr: &str, attr: &str, regex: &str) -> RegexMatchReads<Self> {
+        RegexMatchReads::new(
+            self,
+            SelectorExpr::new(selector_expr),
+            Attr::new(attr),
+            regex,
         )
     }
 
