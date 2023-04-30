@@ -485,7 +485,7 @@ impl fmt::Display for StrMappings {
 impl fmt::Display for Read {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for (str_type, str_mapping) in &self.str_mappings {
-            writeln!(f, "{}\n{}", str_type, str_mapping)?;
+            writeln!(f, "{}:\n{}", str_type, str_mapping)?;
         }
         Ok(())
     }
