@@ -9,11 +9,11 @@ pub struct InlineString {
 }
 
 impl InlineString {
-    pub fn new(s: &str) -> Self {
+    pub fn new(s: &[u8]) -> Self {
         assert!(s.len() <= LEN);
 
         let mut data = [0u8; LEN];
-        s.bytes().enumerate().for_each(|(i, b)| data[i] = b);
+        s.iter().enumerate().for_each(|(i, &b)| data[i] = b);
 
         Self { data }
     }

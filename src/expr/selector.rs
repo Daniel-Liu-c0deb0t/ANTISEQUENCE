@@ -7,7 +7,7 @@ pub struct SelectorExpr {
 }
 
 impl SelectorExpr {
-    pub fn new(expr_str: &str) -> Self {
+    pub fn new(expr_str: &[u8]) -> Self {
         Self {
             expr: parse(&lex(expr_str)),
         }
@@ -26,7 +26,7 @@ enum Item {
     Or,
     Not,
     Dot,
-    Label(String),
+    Label(Vec<u8>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -65,13 +65,13 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
     }
 }
 
-fn lex(expr_str: &str) -> Vec<Item> {
+fn lex(expr_str: &[u8]) -> Vec<Item> {
     let mut res = Vec::new();
-    let mut curr = String::new();
+    let mut curr = Vec::new();
 
     use Item::*;
 
-    let write_curr = |res: &mut Vec<Item>, curr: &mut String, expect_empty| {
+    let write_curr = |res: &mut Vec<Item>, curr: &mut Vec<u8>, expect_empty| {
         assert!((expect_empty && curr.is_empty()) || (!expect_empty && !curr.is_empty()));
 
         if !curr.is_empty() {
@@ -80,35 +80,35 @@ fn lex(expr_str: &str) -> Vec<Item> {
         }
     };
 
-    for c in expr_str.chars() {
+    for &c in expr_str {
         match c {
-            '(' => {
+            b'(' => {
                 write_curr(&mut res, &mut curr, true);
                 res.push(LeftParens);
             }
-            ')' => {
+            b')' => {
                 write_curr(&mut res, &mut curr, false);
                 res.push(RightParens);
             }
-            '&' => {
+            b'&' => {
                 write_curr(&mut res, &mut curr, false);
                 res.push(And);
             }
-            '|' => {
+            b'|' => {
                 write_curr(&mut res, &mut curr, false);
                 res.push(Or);
             }
-            '!' => {
+            b'!' => {
                 write_curr(&mut res, &mut curr, true);
                 res.push(Not);
             }
-            '.' => {
+            b'.' => {
                 write_curr(&mut res, &mut curr, false);
                 res.push(Dot);
             }
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '*' => curr.push(c),
-            ' ' | '\t' | '\n' | '\r' => (),
-            _ => panic!("The character '{}' is not allowed!", c),
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'*' => curr.push(c),
+            _ if c.is_ascii_whitespace() => (),
+            _ => panic!("The character '{}' is not allowed!", c as char),
         }
     }
 

@@ -44,7 +44,7 @@ pub trait Reads: Sized + std::marker::Sync {
     where
         F: Fn(&mut Read) + std::marker::Sync,
     {
-        ForEachReads::new(self, SelectorExpr::new(selector_expr), func)
+        ForEachReads::new(self, SelectorExpr::new(selector_expr.as_bytes()), func)
     }
 
     #[must_use]
@@ -59,8 +59,8 @@ pub trait Reads: Sized + std::marker::Sync {
     {
         LengthInBoundsReads::new(
             self,
-            SelectorExpr::new(selector_expr),
-            Attr::new(attr),
+            SelectorExpr::new(selector_expr.as_bytes()),
+            Attr::new(attr.as_bytes()),
             bounds,
         )
     }
@@ -69,8 +69,8 @@ pub trait Reads: Sized + std::marker::Sync {
     fn cut(self, selector_expr: &str, transform_expr: &str, cut_idx: EndIdx) -> CutReads<Self> {
         CutReads::new(
             self,
-            SelectorExpr::new(selector_expr),
-            TransformExpr::new(transform_expr),
+            SelectorExpr::new(selector_expr.as_bytes()),
+            TransformExpr::new(transform_expr.as_bytes()),
             cut_idx,
         )
     }
@@ -83,18 +83,18 @@ pub trait Reads: Sized + std::marker::Sync {
         let labels = labels
             .as_ref()
             .iter()
-            .map(|l| Label::new(l.as_ref()))
+            .map(|l| Label::new(l.as_ref().as_bytes()))
             .collect::<Vec<_>>();
-        TrimReads::new(self, SelectorExpr::new(selector_expr), labels)
+        TrimReads::new(self, SelectorExpr::new(selector_expr.as_bytes()), labels)
     }
 
     #[must_use]
     fn set(self, selector_expr: &str, label_or_attr: &str, format_expr: &str) -> SetReads<Self> {
         SetReads::new(
             self,
-            SelectorExpr::new(selector_expr),
-            LabelOrAttr::new(label_or_attr),
-            FormatExpr::new(format_expr),
+            SelectorExpr::new(selector_expr.as_bytes()),
+            LabelOrAttr::new(label_or_attr.as_bytes()),
+            FormatExpr::new(format_expr.as_bytes()),
         )
     }
 
@@ -102,8 +102,8 @@ pub trait Reads: Sized + std::marker::Sync {
     fn regex_match(self, selector_expr: &str, attr: &str, regex: &str) -> RegexMatchReads<Self> {
         RegexMatchReads::new(
             self,
-            SelectorExpr::new(selector_expr),
-            Attr::new(attr),
+            SelectorExpr::new(selector_expr.as_bytes()),
+            Attr::new(attr.as_bytes()),
             regex,
         )
     }
@@ -112,8 +112,8 @@ pub trait Reads: Sized + std::marker::Sync {
     fn collect_fastq1(self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> {
         CollectFastqReads::new1(
             self,
-            SelectorExpr::new(selector_expr),
-            FormatExpr::new(file_expr),
+            SelectorExpr::new(selector_expr.as_bytes()),
+            FormatExpr::new(file_expr.as_bytes()),
         )
     }
 
@@ -126,15 +126,15 @@ pub trait Reads: Sized + std::marker::Sync {
     ) -> CollectFastqReads<Self> {
         CollectFastqReads::new2(
             self,
-            SelectorExpr::new(selector_expr),
-            FormatExpr::new(file_expr1),
-            FormatExpr::new(file_expr2),
+            SelectorExpr::new(selector_expr.as_bytes()),
+            FormatExpr::new(file_expr1.as_bytes()),
+            FormatExpr::new(file_expr2.as_bytes()),
         )
     }
 
     #[must_use]
     fn retain(self, selector_expr: &str) -> RetainReads<Self> {
-        RetainReads::new(self, SelectorExpr::new(selector_expr))
+        RetainReads::new(self, SelectorExpr::new(selector_expr.as_bytes()))
     }
 
     fn next_chunk(&self) -> Vec<Read>;

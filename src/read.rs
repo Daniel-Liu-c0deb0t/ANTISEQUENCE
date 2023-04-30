@@ -250,7 +250,6 @@ pub enum Data {
     Bool(bool),
     Int(usize),
     Bytes(Vec<u8>),
-    String(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -267,7 +266,7 @@ pub enum Intersection {
 impl Mapping {
     pub fn new_default(len: usize) -> Self {
         Self {
-            label: InlineString::new("*"),
+            label: InlineString::new(b"*"),
             start: 0,
             len,
             data: FxHashMap::default(),
@@ -433,7 +432,6 @@ impl Data {
             Bool(x) => *x,
             Int(x) => *x > 0,
             Bytes(x) => !x.is_empty(),
-            String(x) => !x.is_empty(),
         }
     }
 }
@@ -504,22 +502,21 @@ impl fmt::Display for Data {
             Bool(x) => write!(f, "{}", x),
             Int(x) => write!(f, "{}", x),
             Bytes(x) => write!(f, "{}", std::str::from_utf8(x).unwrap()),
-            String(x) => write!(f, "{}", x),
         }
     }
 }
 
 impl StrType {
-    pub fn new(str_type: &str) -> Self {
+    pub fn new(str_type: &[u8]) -> Self {
         use StrType::*;
         match str_type {
-            "name1" => Name1,
-            "seq1" => Seq1,
-            "name2" => Name2,
-            "seq2" => Seq2,
-            "index1" => Index1,
-            "index2" => Index2,
-            _ => panic!("Unknown string: {}", str_type),
+            b"name1" => Name1,
+            b"seq1" => Seq1,
+            b"name2" => Name2,
+            b"seq2" => Seq2,
+            b"index1" => Index1,
+            b"index2" => Index2,
+            _ => panic!("Unknown string: {}", std::str::from_utf8(str_type).unwrap()),
         }
     }
 }

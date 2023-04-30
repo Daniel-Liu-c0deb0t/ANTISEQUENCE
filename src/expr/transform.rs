@@ -6,7 +6,7 @@ pub struct TransformExpr {
 }
 
 impl TransformExpr {
-    pub fn new(expr: &str) -> Self {
+    pub fn new(expr: &[u8]) -> Self {
         let (before, after) = parse(expr);
         Self { before, after }
     }
@@ -34,29 +34,33 @@ impl TransformExpr {
     }
 }
 
-fn parse(expr: &str) -> (Vec<Label>, Vec<Option<Label>>) {
-    let mut split = expr.split("->");
-    let before_str = split.next().unwrap();
-    let after_str = split.next().unwrap();
-    assert_eq!(split.next(), None);
+fn parse(expr: &[u8]) -> (Vec<Label>, Vec<Option<Label>>) {
+    let split_idx = expr
+        .windows(2)
+        .position(|w| w == b"->")
+        .expect("Expected '->' in transform expression!");
+    let before_str = &expr[..split_idx];
+    let after_str = &expr[split_idx + 2..];
 
     let before_str = before_str
-        .chars()
+        .iter()
+        .cloned()
         .filter(|c| !c.is_ascii_whitespace())
-        .collect::<String>();
+        .collect::<Vec<_>>();
     let before = before_str
-        .split(',')
+        .split(|&b| b == b',')
         .map(|s| Label::new(s))
         .collect::<Vec<_>>();
 
     let after_str = after_str
-        .chars()
+        .iter()
+        .cloned()
         .filter(|c| !c.is_ascii_whitespace())
-        .collect::<String>();
+        .collect::<Vec<_>>();
     let after = after_str
-        .split(',')
+        .split(|&b| b == b',')
         .map(|s| {
-            if s.chars().all(|c| c == '_') {
+            if s.iter().all(|&c| c == b'_') {
                 None
             } else {
                 Some(Label::new(s))

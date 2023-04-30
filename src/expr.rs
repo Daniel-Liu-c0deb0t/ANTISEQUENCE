@@ -30,8 +30,8 @@ pub enum LabelOrAttr {
 }
 
 impl Label {
-    pub fn new(s: &str) -> Self {
-        let split = s.split('.').collect::<Vec<_>>();
+    pub fn new(s: &[u8]) -> Self {
+        let split = s.split(|&b| b == b'.').collect::<Vec<_>>();
 
         match split.as_slice() {
             &[str_type, label] => Self {
@@ -44,8 +44,8 @@ impl Label {
 }
 
 impl Attr {
-    pub fn new(s: &str) -> Self {
-        let split = s.split('.').collect::<Vec<_>>();
+    pub fn new(s: &[u8]) -> Self {
+        let split = s.split(|&b| b == b'.').collect::<Vec<_>>();
 
         match split.as_slice() {
             &[str_type, label, attr] => Self {
@@ -59,8 +59,8 @@ impl Attr {
 }
 
 impl LabelOrAttr {
-    pub fn new(s: &str) -> Self {
-        let count = s.chars().filter(|&c| c == '.').count();
+    pub fn new(s: &[u8]) -> Self {
+        let count = s.iter().filter(|&&c| c == b'.').count();
 
         match count {
             1 => LabelOrAttr::Label(Label::new(s)),

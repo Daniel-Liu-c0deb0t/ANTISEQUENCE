@@ -27,7 +27,7 @@ impl<R: Reads> Reads for RegexMatchReads<R> {
         let cap_names = self
             .regex
             .capture_names()
-            .filter_map(|name| name.map(|n| InlineString::new(n)))
+            .filter_map(|name| name.map(|n| InlineString::new(n.as_bytes())))
             .collect::<Vec<_>>();
         let mut new_mappings = Vec::new();
 

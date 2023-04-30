@@ -34,14 +34,9 @@ impl<R: Reads> Reads for SetReads<R> {
                 LabelOrAttr::Label(label) => {
                     if read.str_mappings(label.str_type).unwrap().qual().is_some() {
                         let new_qual = self.format_expr.format(read, true);
-                        read.set(
-                            label.str_type,
-                            label.label,
-                            new_str.as_bytes(),
-                            Some(new_qual.as_bytes()),
-                        );
+                        read.set(label.str_type, label.label, &new_str, Some(&new_qual));
                     } else {
-                        read.set(label.str_type, label.label, new_str.as_bytes(), None);
+                        read.set(label.str_type, label.label, &new_str, None);
                     }
                 }
                 LabelOrAttr::Attr(attr) => {
@@ -50,7 +45,7 @@ impl<R: Reads> Reads for SetReads<R> {
                         .unwrap()
                         .mapping_mut(attr.label)
                         .unwrap()
-                        .data_mut(attr.attr) = Data::String(new_str)
+                        .data_mut(attr.attr) = Data::Bytes(new_str)
                 }
             }
         }

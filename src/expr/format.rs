@@ -7,23 +7,23 @@ pub struct FormatExpr {
 }
 
 enum Expr {
-    Literal(String),
+    Literal(Vec<u8>),
     Label(expr::Label),
     Attr(expr::Attr),
 }
 
 impl FormatExpr {
-    pub fn new(expr: &str) -> Self {
+    pub fn new(expr: &[u8]) -> Self {
         Self { expr: parse(expr) }
     }
 
-    pub fn format(&self, read: &Read, use_qual: bool) -> String {
-        let mut res = String::new();
+    pub fn format(&self, read: &Read, use_qual: bool) -> Vec<u8> {
+        let mut res = Vec::new();
 
         for e in &self.expr {
             use Expr::*;
             match e {
-                Literal(s) => res.push_str(&s),
+                Literal(s) => res.extend(s),
                 Label(expr::Label { str_type, label }) => {
                     let str_mappings = read.str_mappings(*str_type).unwrap();
                     let mapping = str_mappings.mapping(*label).unwrap();
@@ -32,20 +32,20 @@ impl FormatExpr {
                     } else {
                         str_mappings.substring(mapping)
                     };
-                    res.push_str(std::str::from_utf8(string).unwrap());
+                    res.extend(string);
                 }
                 Attr(expr::Attr {
                     str_type,
                     label,
                     attr,
                 }) => {
-                    res.push_str(
-                        &read
-                            .str_mappings(*str_type)
+                    res.extend(
+                        read.str_mappings(*str_type)
                             .unwrap()
                             .data(*label, *attr)
                             .unwrap()
-                            .to_string(),
+                            .to_string()
+                            .as_bytes(),
                     );
                 }
             }
@@ -55,24 +55,24 @@ impl FormatExpr {
     }
 }
 
-fn parse(expr: &str) -> Vec<Expr> {
+fn parse(expr: &[u8]) -> Vec<Expr> {
     let mut res = Vec::new();
-    let mut curr = String::new();
+    let mut curr = Vec::new();
     let mut escape = false;
     let mut in_label = false;
 
-    for c in expr.chars() {
+    for &c in expr {
         match c {
-            '{' if !escape => {
+            b'{' if !escape => {
                 assert!(!in_label);
                 res.push(Expr::Literal(curr.clone()));
                 in_label = true;
                 curr.clear();
             }
-            '}' if !escape => {
+            b'}' if !escape => {
                 assert!(in_label);
 
-                let v = curr.split(".").collect::<Vec<_>>();
+                let v = curr.split(|&b| b == b'.').collect::<Vec<_>>();
                 res.push(match v.as_slice() {
                     &[str_type, label] => Expr::Label(expr::Label {
                         str_type: StrType::new(str_type),
@@ -89,8 +89,8 @@ fn parse(expr: &str) -> Vec<Expr> {
                 in_label = false;
                 curr.clear();
             }
-            '\\' if !escape => escape = true,
-            ' ' | '\t' | '\n' | '\r' if in_label => (),
+            b'\\' if !escape => escape = true,
+            _ if c.is_ascii_whitespace() && in_label => (),
             _ => {
                 escape = false;
                 curr.push(c);
