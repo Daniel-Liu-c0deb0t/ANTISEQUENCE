@@ -46,12 +46,11 @@ fn matches_rec(expr: &Expr, read: &Read) -> bool {
         And(v) => v.iter().fold(true, |a, b| a & matches_rec(b, read)),
         Or(v) => v.iter().fold(false, |a, b| a | matches_rec(b, read)),
         Not(e) => !matches_rec(&e, read),
-        Label(expr::Label { str_type, label }) => !read
+        Label(expr::Label { str_type, label }) => read
             .str_mappings(*str_type)
             .unwrap()
             .mapping(*label)
-            .unwrap()
-            .is_empty(),
+            .is_some(),
         Attr(expr::Attr {
             str_type,
             label,

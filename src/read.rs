@@ -320,10 +320,6 @@ impl Mapping {
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len == 0
-    }
-
     pub fn data(&self, attr: InlineString) -> Option<&Data> {
         self.data.get(&attr)
     }
@@ -447,7 +443,7 @@ impl fmt::Display for StrMappings {
             .max(4);
 
         for m in &self.mappings {
-            let curr = if m.is_empty() {
+            let curr = if m.len == 0 {
                 let mut c = vec![b' '; self.string.len() + 1];
                 c[m.start] = b'|';
                 String::from_utf8(c).unwrap()
