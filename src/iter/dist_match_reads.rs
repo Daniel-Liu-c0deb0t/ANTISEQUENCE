@@ -40,7 +40,7 @@ impl<R: Reads> Reads for DistMatchReads<R> {
 
             for pattern in self.patterns.patterns() {
                 use DistanceType::*;
-                let matched = match self.dist_type {
+                match self.dist_type {
                     Exact => {
                         if substring == pattern.pattern {
                             min_dist = 0;
@@ -60,7 +60,7 @@ impl<R: Reads> Reads for DistMatchReads<R> {
                         }
                     }
                     GlobalAln(t) => {}
-                };
+                }
             }
 
             let mapping = str_mappings.mapping_mut(self.label.label).unwrap();

@@ -422,6 +422,24 @@ impl Read {
 }
 
 impl Data {
+    pub fn from_bytes(s: &[u8]) -> Self {
+        use Data::*;
+
+        if s == b"true" {
+            return Bool(true);
+        }
+
+        if s == b"false" {
+            return Bool(false);
+        }
+
+        if let Ok(i) = std::str::from_utf8(s).unwrap().parse::<usize>() {
+            return Int(i);
+        }
+
+        Bytes(s.to_owned())
+    }
+
     pub fn as_bool(&self) -> bool {
         use Data::*;
         match self {
