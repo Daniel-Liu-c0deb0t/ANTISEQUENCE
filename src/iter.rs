@@ -2,6 +2,7 @@ use std::ops::RangeBounds;
 use std::thread;
 
 use crate::expr::*;
+use crate::patterns::*;
 use crate::read::*;
 
 pub mod trim_reads;
@@ -27,6 +28,9 @@ use retain_reads::*;
 
 pub mod regex_match_reads;
 use regex_match_reads::*;
+
+pub mod dist_match_reads;
+use dist_match_reads::*;
 
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self, threads: usize) {
@@ -109,6 +113,23 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
+    fn dist_match(
+        self,
+        selector_expr: &str,
+        label: &str,
+        patterns_tsv: &str,
+        dist_type: DistanceType,
+    ) -> DistMatchReads<Self> {
+        DistMatchReads::new(
+            self,
+            SelectorExpr::new(selector_expr.as_bytes()),
+            Label::new(label.as_bytes()),
+            Patterns::from_tsv(patterns_tsv.as_bytes()),
+            dist_type,
+        )
+    }
+
+    #[must_use]
     fn collect_fastq1(self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> {
         CollectFastqReads::new1(
             self,
@@ -138,4 +159,27 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     fn next_chunk(&self) -> Vec<Read>;
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum DistanceType {
+    Exact,
+    Hamming(Threshold),
+    GlobalAln(Threshold),
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Threshold {
+    Count(usize),
+    Frac(f64),
+}
+
+impl Threshold {
+    pub fn get(&self, len: usize) -> usize {
+        use Threshold::*;
+        match self {
+            Count(c) => *c,
+            Frac(f) => (*f * (len as f64)) as usize,
+        }
+    }
 }
