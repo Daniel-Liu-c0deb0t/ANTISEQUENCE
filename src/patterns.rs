@@ -1,3 +1,4 @@
+use crate::expr::FormatExpr;
 use crate::inline_string::*;
 use crate::read::*;
 
@@ -8,14 +9,14 @@ pub struct Patterns {
 }
 
 impl Patterns {
-    pub fn new(name: InlineString, patterns: Vec<Vec<u8>>) -> Self {
+    pub fn new(name: InlineString, patterns: Vec<FormatExpr>) -> Self {
         Self {
             pattern_name: name,
             attr_names: Vec::new(),
             patterns: patterns
                 .into_iter()
                 .map(|v| Pattern {
-                    pattern: v,
+                    expr: v,
                     attrs: Vec::new(),
                 })
                 .collect(),
@@ -50,12 +51,12 @@ impl Patterns {
 
             assert_eq!(split.len(), names.len());
 
-            let pattern = split[0].to_owned();
+            let expr = FormatExpr::new(&split[0]);
             let attrs = split[1..]
                 .iter()
                 .map(|s| Data::from_bytes(s))
                 .collect::<Vec<_>>();
-            patterns.push(Pattern { pattern, attrs });
+            patterns.push(Pattern { expr, attrs });
         }
 
         let pattern_name = names[0];
@@ -82,6 +83,6 @@ impl Patterns {
 }
 
 pub struct Pattern {
-    pub pattern: Vec<u8>,
+    pub expr: FormatExpr,
     pub attrs: Vec<Data>,
 }
