@@ -117,14 +117,14 @@ pub trait Reads: Sized + std::marker::Sync {
         self,
         selector_expr: &str,
         label: &str,
-        patterns_tsv: &str,
+        patterns_yaml: &str,
         dist_type: DistanceType,
     ) -> DistMatchReads<Self> {
         DistMatchReads::new(
             self,
             SelectorExpr::new(selector_expr.as_bytes()),
             Label::new(label.as_bytes()),
-            Patterns::from_tsv(patterns_tsv.as_bytes()),
+            Patterns::from_yaml(patterns_yaml.as_bytes()),
             dist_type,
         )
     }

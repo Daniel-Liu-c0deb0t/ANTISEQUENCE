@@ -248,7 +248,7 @@ pub struct Mapping {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Data {
     Bool(bool),
-    Int(usize),
+    UInt(usize),
     Bytes(Vec<u8>),
 }
 
@@ -422,29 +422,11 @@ impl Read {
 }
 
 impl Data {
-    pub fn from_bytes(s: &[u8]) -> Self {
-        use Data::*;
-
-        if s == b"true" {
-            return Bool(true);
-        }
-
-        if s == b"false" {
-            return Bool(false);
-        }
-
-        if let Ok(i) = std::str::from_utf8(s).unwrap().parse::<usize>() {
-            return Int(i);
-        }
-
-        Bytes(s.to_owned())
-    }
-
     pub fn as_bool(&self) -> bool {
         use Data::*;
         match self {
             Bool(x) => *x,
-            Int(x) => *x > 0,
+            UInt(x) => *x > 0,
             Bytes(x) => !x.is_empty(),
         }
     }
@@ -514,7 +496,7 @@ impl fmt::Display for Data {
         use Data::*;
         match self {
             Bool(x) => write!(f, "{}", x),
-            Int(x) => write!(f, "{}", x),
+            UInt(x) => write!(f, "{}", x),
             Bytes(x) => write!(f, "{}", std::str::from_utf8(x).unwrap()),
         }
     }

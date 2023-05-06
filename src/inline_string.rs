@@ -2,7 +2,7 @@ use std::fmt;
 
 const LEN: usize = 16usize;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[repr(align(8))]
 pub struct InlineString {
     data: [u8; LEN],

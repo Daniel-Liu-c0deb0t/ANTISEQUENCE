@@ -1,3 +1,8 @@
+use serde::{Deserialize, Serialize};
+use serde_yaml;
+
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::expr::FormatExpr;
 use crate::inline_string::*;
 use crate::read::*;
@@ -23,48 +28,39 @@ impl Patterns {
         }
     }
 
-    pub fn from_tsv(tsv: &[u8]) -> Self {
-        let mut lines = tsv.split(|&b| b == b'\n');
-        let mut names = lines
-            .next()
-            .unwrap()
-            .split(|&b| b.is_ascii_whitespace())
-            .filter_map(|s| {
-                if s.len() > 0 {
-                    Some(InlineString::new(s))
-                } else {
-                    None
-                }
+    pub fn from_yaml(yaml: impl AsRef<[u8]>) -> Self {
+        let patterns: PatternsSchema = serde_yaml::from_slice(yaml.as_ref()).unwrap();
+
+        let pattern_name = InlineString::new(patterns.pattern_name.as_bytes());
+
+        let attr_names = patterns.patterns[0]
+            .attrs
+            .iter()
+            .map(|(k, _)| InlineString::new(k.as_bytes()))
+            .collect::<BTreeSet<_>>();
+
+        let patterns = patterns
+            .patterns
+            .into_iter()
+            .map(|PatternSchema { pattern, attrs }| {
+                let expr = FormatExpr::new(pattern.as_bytes());
+                let attrs = attrs
+                    .iter()
+                    .map(|(k, v)| {
+                        let s = InlineString::new(k.as_bytes());
+                        assert!(attr_names.contains(&s));
+                        v.to_data()
+                    })
+                    .collect::<Vec<_>>();
+                Pattern { expr, attrs }
             })
             .collect::<Vec<_>>();
-        let mut patterns = Vec::new();
 
-        for line in lines {
-            let split = line
-                .split(|&b| b.is_ascii_whitespace())
-                .filter(|s| s.len() > 0)
-                .collect::<Vec<_>>();
-
-            if split.is_empty() {
-                continue;
-            }
-
-            assert_eq!(split.len(), names.len());
-
-            let expr = FormatExpr::new(&split[0]);
-            let attrs = split[1..]
-                .iter()
-                .map(|s| Data::from_bytes(s))
-                .collect::<Vec<_>>();
-            patterns.push(Pattern { expr, attrs });
-        }
-
-        let pattern_name = names[0];
-        names.remove(0);
+        let attr_names = attr_names.into_iter().collect::<Vec<_>>();
 
         Self {
             pattern_name,
-            attr_names: names,
+            attr_names,
             patterns,
         }
     }
@@ -85,4 +81,34 @@ impl Patterns {
 pub struct Pattern {
     pub expr: FormatExpr,
     pub attrs: Vec<Data>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PatternsSchema {
+    pub pattern_name: String,
+    pub patterns: Vec<PatternSchema>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PatternSchema {
+    pub pattern: String,
+    #[serde(flatten)]
+    pub attrs: BTreeMap<String, DataSchema>,
+}
+
+#[derive(Serialize, Deserialize)]
+enum DataSchema {
+    Bool(bool),
+    UInt(usize),
+    String(String),
+}
+
+impl DataSchema {
+    fn to_data(&self) -> Data {
+        match self {
+            DataSchema::Bool(x) => Data::Bool(*x),
+            DataSchema::UInt(x) => Data::UInt(*x),
+            DataSchema::String(x) => Data::Bytes(x.as_bytes().to_owned()),
+        }
+    }
 }
