@@ -29,8 +29,8 @@ use retain_reads::*;
 pub mod regex_match_reads;
 use regex_match_reads::*;
 
-pub mod dist_match_reads;
-use dist_match_reads::*;
+pub mod match_any_reads;
+use match_any_reads::*;
 
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self, threads: usize) {
@@ -113,14 +113,14 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn dist_match(
+    fn match_any(
         self,
         selector_expr: &str,
         label: &str,
         patterns_yaml: &str,
         dist_type: DistanceType,
-    ) -> DistMatchReads<Self> {
-        DistMatchReads::new(
+    ) -> MatchAnyReads<Self> {
+        MatchAnyReads::new(
             self,
             SelectorExpr::new(selector_expr.as_bytes()),
             Label::new(label.as_bytes()),

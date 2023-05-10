@@ -2,7 +2,7 @@ use block_aligner::{cigar::*, scan_block::*, scores::*};
 
 use crate::iter::*;
 
-pub struct DistMatchReads<R: Reads> {
+pub struct MatchAnyReads<R: Reads> {
     reads: R,
     selector_expr: SelectorExpr,
     label: Label,
@@ -10,7 +10,7 @@ pub struct DistMatchReads<R: Reads> {
     dist_type: DistanceType,
 }
 
-impl<R: Reads> DistMatchReads<R> {
+impl<R: Reads> MatchAnyReads<R> {
     pub fn new(
         reads: R,
         selector_expr: SelectorExpr,
@@ -28,7 +28,7 @@ impl<R: Reads> DistMatchReads<R> {
     }
 }
 
-impl<R: Reads> Reads for DistMatchReads<R> {
+impl<R: Reads> Reads for MatchAnyReads<R> {
     fn next_chunk(&self) -> Vec<Read> {
         let mut reads = self.reads.next_chunk();
         let mut aligner = None;
