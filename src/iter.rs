@@ -44,110 +44,103 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn for_each<F>(self, selector_expr: &str, func: F) -> ForEachReads<Self, F>
+    fn for_each<F>(self, selector_expr: SelectorExpr, func: F) -> ForEachReads<Self, F>
     where
         F: Fn(&mut Read) + std::marker::Sync,
     {
-        ForEachReads::new(self, SelectorExpr::new(selector_expr.as_bytes()), func)
+        ForEachReads::new(self, selector_expr, func)
     }
 
     #[must_use]
     fn length_in_bounds<B>(
         self,
-        selector_expr: &str,
-        attr: &str,
+        selector_expr: SelectorExpr,
+        attr: Attr,
         bounds: B,
     ) -> LengthInBoundsReads<Self, B>
     where
         B: RangeBounds<usize> + std::marker::Sync,
     {
-        LengthInBoundsReads::new(
-            self,
-            SelectorExpr::new(selector_expr.as_bytes()),
-            Attr::new(attr.as_bytes()),
-            bounds,
-        )
+        LengthInBoundsReads::new(self, selector_expr, attr, bounds)
     }
 
     #[must_use]
-    fn cut(self, selector_expr: &str, transform_expr: &str, cut_idx: EndIdx) -> CutReads<Self> {
-        CutReads::new(
-            self,
-            SelectorExpr::new(selector_expr.as_bytes()),
-            TransformExpr::new(transform_expr.as_bytes()),
-            cut_idx,
-        )
+    fn cut(
+        self,
+        selector_expr: SelectorExpr,
+        transform_expr: TransformExpr,
+        cut_idx: EndIdx,
+    ) -> CutReads<Self> {
+        CutReads::new(self, selector_expr, transform_expr, cut_idx)
     }
 
     #[must_use]
-    fn trim<S>(self, selector_expr: &str, labels: impl AsRef<[S]>) -> TrimReads<Self>
-    where
-        S: AsRef<str>,
-    {
-        let labels = labels
-            .as_ref()
-            .iter()
-            .map(|l| Label::new(l.as_ref().as_bytes()))
-            .collect::<Vec<_>>();
-        TrimReads::new(self, SelectorExpr::new(selector_expr.as_bytes()), labels)
+    fn trim(self, selector_expr: SelectorExpr, labels: impl AsRef<[Label]>) -> TrimReads<Self> {
+        let labels = labels.as_ref().to_owned();
+        TrimReads::new(self, selector_expr, labels)
     }
 
     #[must_use]
-    fn set(self, selector_expr: &str, label_or_attr: &str, format_expr: &str) -> SetReads<Self> {
+    fn set(
+        self,
+        selector_expr: SelectorExpr,
+        label_or_attr: LabelOrAttr,
+        format_expr: &str,
+    ) -> SetReads<Self> {
         SetReads::new(
             self,
-            SelectorExpr::new(selector_expr.as_bytes()),
-            LabelOrAttr::new(label_or_attr.as_bytes()),
+            selector_expr,
+            label_or_attr,
             FormatExpr::new(format_expr.as_bytes()),
         )
     }
 
     #[must_use]
-    fn regex_match(self, selector_expr: &str, attr: &str, regex: &str) -> RegexMatchReads<Self> {
-        RegexMatchReads::new(
-            self,
-            SelectorExpr::new(selector_expr.as_bytes()),
-            Attr::new(attr.as_bytes()),
-            regex,
-        )
+    fn regex_match(
+        self,
+        selector_expr: SelectorExpr,
+        attr: Attr,
+        regex: &str,
+    ) -> RegexMatchReads<Self> {
+        RegexMatchReads::new(self, selector_expr, attr, regex)
     }
 
     #[must_use]
     fn match_any(
         self,
-        selector_expr: &str,
-        label: &str,
+        selector_expr: SelectorExpr,
+        label: Label,
         patterns_yaml: &str,
         match_type: MatchType,
     ) -> MatchAnyReads<Self> {
         MatchAnyReads::new(
             self,
-            SelectorExpr::new(selector_expr.as_bytes()),
-            Label::new(label.as_bytes()),
+            selector_expr,
+            label,
             Patterns::from_yaml(patterns_yaml.as_bytes()),
             match_type,
         )
     }
 
     #[must_use]
-    fn collect_fastq1(self, selector_expr: &str, file_expr: &str) -> CollectFastqReads<Self> {
-        CollectFastqReads::new1(
-            self,
-            SelectorExpr::new(selector_expr.as_bytes()),
-            FormatExpr::new(file_expr.as_bytes()),
-        )
+    fn collect_fastq1(
+        self,
+        selector_expr: SelectorExpr,
+        file_expr: &str,
+    ) -> CollectFastqReads<Self> {
+        CollectFastqReads::new1(self, selector_expr, FormatExpr::new(file_expr.as_bytes()))
     }
 
     #[must_use]
     fn collect_fastq2(
         self,
-        selector_expr: &str,
+        selector_expr: SelectorExpr,
         file_expr1: &str,
         file_expr2: &str,
     ) -> CollectFastqReads<Self> {
         CollectFastqReads::new2(
             self,
-            SelectorExpr::new(selector_expr.as_bytes()),
+            selector_expr,
             FormatExpr::new(file_expr1.as_bytes()),
             FormatExpr::new(file_expr2.as_bytes()),
         )

@@ -69,3 +69,53 @@ impl LabelOrAttr {
         }
     }
 }
+
+#[macro_export]
+macro_rules! sel {
+    ($($t:tt)*) => {
+        {
+            let s = stringify!($($t)*);
+            $crate::expr::SelectorExpr::new(s.as_bytes())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! tr {
+    ($($t:tt)+) => {
+        {
+            let s = stringify!($($t)+);
+            $crate::expr::TransformExpr::new(s.as_bytes())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! label {
+    ($($t:tt)+) => {
+        {
+            let s = stringify!($($t)+);
+            $crate::expr::Label::new(s.as_bytes())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! attr {
+    ($($t:tt)+) => {
+        {
+            let s = stringify!($($t)+);
+            $crate::expr::Attr::new(s.as_bytes())
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! label_or_attr {
+    ($($t:tt)+) => {
+        {
+            let s = stringify!($($t)+);
+            $crate::expr::LabelOrAttr::new(s.as_bytes())
+        }
+    };
+}
