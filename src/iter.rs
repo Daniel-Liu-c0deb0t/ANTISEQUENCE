@@ -154,6 +154,9 @@ pub trait Reads: Sized + std::marker::Sync {
     fn next_chunk(&self) -> Vec<Read>;
 }
 
+pub use MatchType::*;
+pub use Threshold::*;
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MatchType {
     Exact,
