@@ -118,14 +118,14 @@ pub trait Reads: Sized + std::marker::Sync {
         selector_expr: &str,
         label: &str,
         patterns_yaml: &str,
-        dist_type: DistanceType,
+        match_type: MatchType,
     ) -> MatchAnyReads<Self> {
         MatchAnyReads::new(
             self,
             SelectorExpr::new(selector_expr.as_bytes()),
             Label::new(label.as_bytes()),
             Patterns::from_yaml(patterns_yaml.as_bytes()),
-            dist_type,
+            match_type,
         )
     }
 
@@ -162,10 +162,17 @@ pub trait Reads: Sized + std::marker::Sync {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum DistanceType {
+pub enum MatchType {
     Exact,
+    ExactPrefix,
+    ExactSuffix,
     Hamming(Threshold),
+    HammingPrefix(Threshold),
+    HammingSuffix(Threshold),
     GlobalAln(Threshold),
+    LocalAln(Threshold),
+    PrefixAln(Threshold),
+    SuffixAln(Threshold),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]

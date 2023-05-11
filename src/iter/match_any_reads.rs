@@ -7,7 +7,7 @@ pub struct MatchAnyReads<R: Reads> {
     selector_expr: SelectorExpr,
     label: Label,
     patterns: Patterns,
-    dist_type: DistanceType,
+    match_type: MatchType,
 }
 
 impl<R: Reads> MatchAnyReads<R> {
@@ -16,14 +16,14 @@ impl<R: Reads> MatchAnyReads<R> {
         selector_expr: SelectorExpr,
         label: Label,
         patterns: Patterns,
-        dist_type: DistanceType,
+        match_type: MatchType,
     ) -> Self {
         Self {
             reads,
             selector_expr,
             label,
             patterns,
-            dist_type,
+            match_type,
         }
     }
 }
@@ -31,7 +31,7 @@ impl<R: Reads> MatchAnyReads<R> {
 impl<R: Reads> Reads for MatchAnyReads<R> {
     fn next_chunk(&self) -> Vec<Read> {
         let mut reads = self.reads.next_chunk();
-        let mut aligner = None;
+        let mut aligner: Option<Box<dyn Aligner>> = None;
 
         for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
             let str_mappings = read.str_mappings(self.label.str_type).unwrap();
@@ -39,42 +39,120 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
             let substring = str_mappings.substring(mapping);
 
             if aligner.is_none() {
-                if let DistanceType::GlobalAln(_) = self.dist_type {
-                    aligner = Some(MatchAligner::new(substring.len() * 2));
+                match self.match_type {
+                    MatchType::GlobalAln(_) => {
+                        aligner = Some(Box::new(MatchAligner::<false, false>::new(
+                            substring.len() * 2,
+                        )));
+                    }
+                    MatchType::LocalAln(_) => {
+                        aligner = Some(Box::new(MatchAligner::<true, false>::new(
+                            substring.len() * 2,
+                        )));
+                    }
+                    MatchType::PrefixAln(_) | MatchType::SuffixAln(_) => {
+                        aligner = Some(Box::new(MatchAligner::<false, true>::new(
+                            substring.len() * 2,
+                        )));
+                    }
+                    _ => (),
                 }
             }
 
-            let mut min_dist = std::usize::MAX;
-            let mut min_pattern = None;
+            let mut max_matches = 0;
+            let mut max_pattern = None;
 
             for pattern in self.patterns.patterns() {
                 let pattern_str = pattern.expr.format(read, false);
+                let pattern_len = pattern_str.len();
 
-                use DistanceType::*;
-                let dist = match self.dist_type {
+                use MatchType::*;
+                let matches = match self.match_type {
                     Exact => {
                         if substring == pattern_str {
-                            Some(0)
+                            Some(pattern_str.len())
+                        } else {
+                            None
+                        }
+                    }
+                    ExactPrefix => {
+                        if pattern_len <= substring.len()
+                            && &substring[..pattern_len] == &pattern_str
+                        {
+                            Some(pattern_str.len())
+                        } else {
+                            None
+                        }
+                    }
+                    ExactSuffix => {
+                        if pattern_len <= substring.len()
+                            && &substring[substring.len() - pattern_len..] == &pattern_str
+                        {
+                            Some(pattern_str.len())
                         } else {
                             None
                         }
                     }
                     Hamming(t) => {
-                        let t = t.get(pattern_str.len());
+                        let t = t.get(pattern_len);
                         hamming(substring, &pattern_str, t)
                     }
+                    HammingPrefix(t) => {
+                        if pattern_len <= substring.len() {
+                            let t = t.get(pattern_len);
+                            hamming(&substring[..pattern_len], &pattern_str, t)
+                        } else {
+                            None
+                        }
+                    }
+                    HammingSuffix(t) => {
+                        if pattern_len <= substring.len() {
+                            let t = t.get(pattern_len);
+                            hamming(&substring[substring.len() - pattern_len..], &pattern_str, t)
+                        } else {
+                            None
+                        }
+                    }
                     GlobalAln(t) => {
-                        let t = t.get(pattern_str.len());
-                        aligner.as_mut().unwrap().align(substring, &pattern_str, t)
+                        let t = t.get(pattern_len);
+                        aligner
+                            .as_mut()
+                            .unwrap()
+                            .align(substring, &pattern_str, t, false)
+                    }
+                    LocalAln(t) => {
+                        let t = t.get(pattern_len);
+                        aligner
+                            .as_mut()
+                            .unwrap()
+                            .align(substring, &pattern_str, t, false)
+                    }
+                    PrefixAln(t) => {
+                        let t = t.get(pattern_len);
+                        let len = substring.len().min(pattern_len * 2);
+                        aligner
+                            .as_mut()
+                            .unwrap()
+                            .align(&substring[..len], &pattern_str, t, true)
+                    }
+                    SuffixAln(t) => {
+                        let t = t.get(pattern_len);
+                        let len = substring.len().min(pattern_len * 2);
+                        aligner.as_mut().unwrap().align(
+                            &substring[substring.len() - len..],
+                            &pattern_str,
+                            t,
+                            false,
+                        )
                     }
                 };
 
-                if let Some(dist) = dist {
-                    if dist < min_dist {
-                        min_dist = dist;
-                        min_pattern = Some((pattern_str, &pattern.attrs));
+                if let Some(matches) = matches {
+                    if matches > max_matches {
+                        max_matches = matches;
+                        max_pattern = Some((pattern_str, &pattern.attrs));
 
-                        if min_dist == 0 {
+                        if max_matches >= pattern_len {
                             break;
                         }
                     }
@@ -84,14 +162,14 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
             let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
             let mapping = str_mappings.mapping_mut(self.label.label).unwrap();
 
-            if let Some((pattern_str, pattern_attrs)) = min_pattern {
+            if let Some((pattern_str, pattern_attrs)) = max_pattern {
                 *mapping.data_mut(self.patterns.pattern_name()) = Data::Bytes(pattern_str);
 
                 for (&attr, data) in self.patterns.attr_names().iter().zip(pattern_attrs) {
                     *mapping.data_mut(attr) = data.clone();
                 }
             } else {
-                *mapping.data_mut(self.patterns.pattern_name()) = Data::Bytes(b"".to_vec());
+                *mapping.data_mut(self.patterns.pattern_name()) = Data::Bool(false);
             }
         }
 
@@ -131,32 +209,38 @@ fn hamming(a: &[u8], b: &[u8], threshold: usize) -> Option<usize> {
         }
     }
 
-    if res <= threshold {
-        Some(res)
+    let matches = n - res;
+
+    if matches >= threshold {
+        Some(matches)
     } else {
         None
     }
 }
 
-struct MatchAligner {
+trait Aligner {
+    fn align(&mut self, a: &[u8], pattern: &[u8], threshold: usize, prefix: bool) -> Option<usize>;
+}
+
+struct MatchAligner<const LOCAL: bool, const PREFIX_SUFFIX: bool> {
     a_padded: PaddedBytes,
     b_padded: PaddedBytes,
-    // store trace and global alignment
-    block: Block<true, false>,
+    // always store trace
+    block: Block<true, LOCAL, LOCAL, PREFIX_SUFFIX>,
     cigar: Cigar,
     len: usize,
 }
 
-impl MatchAligner {
+impl<const LOCAL: bool, const PREFIX_SUFFIX: bool> MatchAligner<LOCAL, PREFIX_SUFFIX> {
     const MIN_SIZE: usize = 32;
-    const MAX_SIZE: usize = 256;
+    const MAX_SIZE: usize = 512;
     const GAP_OPEN: i8 = -2;
     const GAP_EXTEND: i8 = -1;
 
     pub fn new(len: usize) -> Self {
-        let a_padded = PaddedBytes::new::<ByteMatrix>(len, Self::MAX_SIZE);
-        let b_padded = PaddedBytes::new::<ByteMatrix>(len, Self::MAX_SIZE);
-        let block = Block::<true, false>::new(len, len, Self::MAX_SIZE);
+        let a_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
+        let b_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
+        let block = Block::<true, LOCAL, LOCAL, PREFIX_SUFFIX>::new(len, len, Self::MAX_SIZE);
         let cigar = Cigar::new(len, len);
 
         Self {
@@ -170,31 +254,47 @@ impl MatchAligner {
 
     fn resize_if_needed(&mut self, len: usize) {
         if len > self.len {
-            self.a_padded = PaddedBytes::new::<ByteMatrix>(len, Self::MAX_SIZE);
-            self.b_padded = PaddedBytes::new::<ByteMatrix>(len, Self::MAX_SIZE);
-            self.block = Block::<true, false>::new(len, len, Self::MAX_SIZE);
+            self.a_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
+            self.b_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
+            self.block = Block::<true, LOCAL, LOCAL, PREFIX_SUFFIX>::new(len, len, Self::MAX_SIZE);
             self.cigar = Cigar::new(len, len);
             self.len = len;
         }
     }
+}
 
-    pub fn align(&mut self, a: &[u8], pattern: &[u8], threshold: usize) -> Option<usize> {
+impl<const LOCAL: bool, const PREFIX_SUFFIX: bool> Aligner for MatchAligner<LOCAL, PREFIX_SUFFIX> {
+    fn align(&mut self, a: &[u8], pattern: &[u8], threshold: usize, prefix: bool) -> Option<usize> {
         self.resize_if_needed(a.len().max(pattern.len()));
 
-        self.a_padded.set_bytes::<ByteMatrix>(a, Self::MAX_SIZE);
-        self.b_padded
-            .set_bytes::<ByteMatrix>(pattern, Self::MAX_SIZE);
+        if prefix {
+            self.a_padded.set_bytes_rev::<NucMatrix>(a, Self::MAX_SIZE);
+            self.b_padded
+                .set_bytes_rev::<NucMatrix>(pattern, Self::MAX_SIZE);
+        } else {
+            self.a_padded.set_bytes::<NucMatrix>(a, Self::MAX_SIZE);
+            self.b_padded
+                .set_bytes::<NucMatrix>(pattern, Self::MAX_SIZE);
+        }
+
         let gaps = Gaps {
             open: Self::GAP_OPEN,
             extend: Self::GAP_EXTEND,
         };
+
+        let min_size = if LOCAL || PREFIX_SUFFIX {
+            Self::MAX_SIZE
+        } else {
+            Self::MIN_SIZE
+        };
+
         self.block.align(
             &self.a_padded,
             &self.b_padded,
-            &BYTES1,
+            &NW1,
             gaps,
-            Self::MIN_SIZE..=Self::MAX_SIZE,
-            0,
+            min_size..=Self::MAX_SIZE,
+            pattern.len() as i32,
         );
 
         let res = self.block.res();
@@ -218,10 +318,8 @@ impl MatchAligner {
             }
         }
 
-        let unmatched = pattern.len() - matches;
-
-        if unmatched <= threshold {
-            Some(unmatched)
+        if matches >= threshold {
+            Some(matches)
         } else {
             None
         }

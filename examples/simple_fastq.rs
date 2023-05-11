@@ -1,4 +1,4 @@
-use antisequence::{fastq::*, iter::*, read::*};
+use antisequence::prelude::*;
 
 fn main() {
     iter_fastq1("example_data/simple.fastq", 256)
