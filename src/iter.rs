@@ -26,8 +26,8 @@ use length_in_bounds_reads::*;
 pub mod retain_reads;
 use retain_reads::*;
 
-pub mod regex_match_reads;
-use regex_match_reads::*;
+pub mod match_regex_reads;
+use match_regex_reads::*;
 
 pub mod match_any_reads;
 use match_any_reads::*;
@@ -96,13 +96,13 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn regex_match(
+    fn match_regex(
         self,
         selector_expr: SelectorExpr,
         attr: Attr,
         regex: &str,
-    ) -> RegexMatchReads<Self> {
-        RegexMatchReads::new(self, selector_expr, attr, regex)
+    ) -> MatchRegexReads<Self> {
+        MatchRegexReads::new(self, selector_expr, attr, regex)
     }
 
     #[must_use]

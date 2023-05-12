@@ -3,14 +3,14 @@ use regex::bytes::*;
 use crate::inline_string::*;
 use crate::iter::*;
 
-pub struct RegexMatchReads<R: Reads> {
+pub struct MatchRegexReads<R: Reads> {
     reads: R,
     selector_expr: SelectorExpr,
     attr: Attr,
     regex: Regex,
 }
 
-impl<R: Reads> RegexMatchReads<R> {
+impl<R: Reads> MatchRegexReads<R> {
     pub fn new(reads: R, selector_expr: SelectorExpr, attr: Attr, regex: &str) -> Self {
         Self {
             reads,
@@ -21,7 +21,7 @@ impl<R: Reads> RegexMatchReads<R> {
     }
 }
 
-impl<R: Reads> Reads for RegexMatchReads<R> {
+impl<R: Reads> Reads for MatchRegexReads<R> {
     fn next_chunk(&self) -> Vec<Read> {
         let mut reads = self.reads.next_chunk();
         let cap_names = self
