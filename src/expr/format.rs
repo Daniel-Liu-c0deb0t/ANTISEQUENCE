@@ -2,10 +2,12 @@ use crate::expr;
 use crate::inline_string::*;
 use crate::read::*;
 
+#[derive(Debug, Clone)]
 pub struct FormatExpr {
     expr: Vec<Expr>,
 }
 
+#[derive(Debug, Clone)]
 enum Expr {
     Literal(Vec<u8>),
     Label(expr::Label),

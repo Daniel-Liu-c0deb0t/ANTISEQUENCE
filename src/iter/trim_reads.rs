@@ -28,4 +28,8 @@ impl<R: Reads> Reads for TrimReads<R> {
 
         reads
     }
+
+    fn finish(&self) {
+        self.reads.finish();
+    }
 }

@@ -107,4 +107,8 @@ impl<R: Reads> Reads for CollectFastqReads<R> {
 
         reads
     }
+
+    fn finish(&self) {
+        self.reads.finish();
+    }
 }

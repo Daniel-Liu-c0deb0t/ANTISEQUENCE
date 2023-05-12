@@ -32,6 +32,9 @@ use match_regex_reads::*;
 pub mod match_any_reads;
 use match_any_reads::*;
 
+pub mod count_reads;
+use count_reads::*;
+
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self, threads: usize) {
         assert!(threads >= 1);
@@ -41,6 +44,8 @@ pub trait Reads: Sized + std::marker::Sync {
                 s.spawn(|| while self.next_chunk().len() > 0 {});
             }
         });
+
+        self.finish();
     }
 
     #[must_use]
@@ -49,6 +54,20 @@ pub trait Reads: Sized + std::marker::Sync {
         F: Fn(&mut Read) + std::marker::Sync,
     {
         ForEachReads::new(self, selector_expr, func)
+    }
+
+    #[must_use]
+    fn dbg(self, selector_expr: SelectorExpr) -> ForEachReads<Self, fn(&mut Read)> {
+        ForEachReads::new(self, selector_expr, |read| eprintln!("{}", read))
+    }
+
+    #[must_use]
+    fn count<F>(self, selector_exprs: impl AsRef<[SelectorExpr]>, func: F) -> CountReads<Self, F>
+    where
+        F: Fn(&[usize]) + std::marker::Sync,
+    {
+        let selector_exprs = selector_exprs.as_ref().to_owned();
+        CountReads::new(self, selector_exprs, func)
     }
 
     #[must_use]
@@ -156,6 +175,8 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     fn next_chunk(&self) -> Vec<Read>;
+
+    fn finish(&self);
 }
 
 pub use MatchType::*;

@@ -59,4 +59,8 @@ impl<R: Reads> Reads for MatchRegexReads<R> {
 
         reads
     }
+
+    fn finish(&self) {
+        self.reads.finish();
+    }
 }

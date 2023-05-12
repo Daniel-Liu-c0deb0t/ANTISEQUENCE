@@ -35,4 +35,8 @@ impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> Reads for LengthInBoun
 
         reads
     }
+
+    fn finish(&self) {
+        self.reads.finish();
+    }
 }

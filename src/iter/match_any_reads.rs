@@ -175,6 +175,10 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
 
         reads
     }
+
+    fn finish(&self) {
+        self.reads.finish();
+    }
 }
 
 fn hamming(a: &[u8], b: &[u8], threshold: usize) -> Option<usize> {

@@ -25,4 +25,8 @@ impl<R: Reads, F: Fn(&mut Read) + std::marker::Sync> Reads for ForEachReads<R, F
             .for_each(|read| (self.func)(read));
         reads
     }
+
+    fn finish(&self) {
+        self.reads.finish();
+    }
 }

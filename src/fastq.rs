@@ -23,7 +23,7 @@ impl Reads for Fastq1Reads {
         for _ in 0..self.chunk_size {
             if let Some(record) = reader.next() {
                 let record = record.unwrap();
-                let line = self.line.fetch_add(4, Ordering::SeqCst);
+                let line = self.line.fetch_add(4, Ordering::Relaxed);
 
                 res.push(Read::from_fastq1(
                     record.id(),
@@ -39,6 +39,8 @@ impl Reads for Fastq1Reads {
 
         res
     }
+
+    fn finish(&self) {}
 }
 
 pub struct Fastq2Reads {
@@ -67,7 +69,7 @@ impl Reads for Fastq2Reads {
 
             let record1 = record1.unwrap();
             let record2 = record2.unwrap();
-            let line = self.line.fetch_add(4, Ordering::SeqCst);
+            let line = self.line.fetch_add(4, Ordering::Relaxed);
 
             res.push(Read::from_fastq2(
                 record1.id(),
@@ -85,6 +87,8 @@ impl Reads for Fastq2Reads {
 
         res
     }
+
+    fn finish(&self) {}
 }
 
 #[must_use]

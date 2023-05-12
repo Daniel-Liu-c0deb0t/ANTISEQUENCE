@@ -2,6 +2,7 @@ use crate::expr;
 use crate::inline_string::*;
 use crate::read::*;
 
+#[derive(Debug, Clone)]
 pub struct SelectorExpr {
     expr: Expr,
 }

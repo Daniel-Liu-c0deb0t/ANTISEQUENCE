@@ -42,4 +42,8 @@ impl<R: Reads> Reads for CutReads<R> {
 
         reads
     }
+
+    fn finish(&self) {
+        self.reads.finish();
+    }
 }

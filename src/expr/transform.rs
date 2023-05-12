@@ -1,5 +1,6 @@
 use crate::expr::Label;
 
+#[derive(Debug, Clone)]
 pub struct TransformExpr {
     before: Vec<Label>,
     after: Vec<Option<Label>>,

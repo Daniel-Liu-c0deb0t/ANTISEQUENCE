@@ -20,4 +20,8 @@ impl<R: Reads> Reads for RetainReads<R> {
         reads.retain(|r| self.selector_expr.matches(r));
         reads
     }
+
+    fn finish(&self) {
+        self.reads.finish();
+    }
 }
