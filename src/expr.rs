@@ -70,6 +70,18 @@ impl LabelOrAttr {
     }
 }
 
+impl From<Label> for LabelOrAttr {
+    fn from(label: Label) -> Self {
+        LabelOrAttr::Label(label)
+    }
+}
+
+impl From<Attr> for LabelOrAttr {
+    fn from(attr: Attr) -> Self {
+        LabelOrAttr::Attr(attr)
+    }
+}
+
 #[macro_export]
 macro_rules! sel {
     ($($t:tt)*) => {
@@ -106,16 +118,6 @@ macro_rules! attr {
         {
             let s = stringify!($($t)+);
             $crate::expr::Attr::new(s.as_bytes())
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! label_or_attr {
-    ($($t:tt)+) => {
-        {
-            let s = stringify!($($t)+);
-            $crate::expr::LabelOrAttr::new(s.as_bytes())
         }
     };
 }

@@ -84,13 +84,13 @@ pub trait Reads: Sized + std::marker::Sync {
     fn set(
         self,
         selector_expr: SelectorExpr,
-        label_or_attr: LabelOrAttr,
+        label_or_attr: impl Into<LabelOrAttr>,
         format_expr: &str,
     ) -> SetReads<Self> {
         SetReads::new(
             self,
             selector_expr,
-            label_or_attr,
+            label_or_attr.into(),
             FormatExpr::new(format_expr.as_bytes()),
         )
     }
