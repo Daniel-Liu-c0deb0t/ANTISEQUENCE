@@ -1,6 +1,7 @@
 use rustc_hash::FxHashMap;
 
 use std::fmt;
+use std::sync::Arc;
 
 use crate::inline_string::*;
 
@@ -32,22 +33,30 @@ pub struct StrMappings {
     mappings: Vec<Mapping>,
     string: Vec<u8>,
     qual: Option<Vec<u8>>,
+
+    // tracks where this string came from
+    file: Arc<String>,
+    line: usize,
 }
 
 impl StrMappings {
-    pub fn new(string: Vec<u8>) -> Self {
+    pub fn new(string: Vec<u8>, file: Arc<String>, line: usize) -> Self {
         Self {
             mappings: vec![Mapping::new_default(string.len())],
             string,
             qual: None,
+            file,
+            line,
         }
     }
 
-    pub fn new_with_qual(string: Vec<u8>, qual: Vec<u8>) -> Self {
+    pub fn new_with_qual(string: Vec<u8>, qual: Vec<u8>, file: Arc<String>, line: usize) -> Self {
         Self {
             mappings: vec![Mapping::new_default(string.len())],
             string,
             qual: Some(qual),
+            file,
+            line,
         }
     }
 
@@ -330,9 +339,15 @@ impl Mapping {
 }
 
 impl Read {
-    pub fn from_fastq1(name: &[u8], seq: &[u8], qual: &[u8]) -> Self {
-        let name = StrMappings::new(name.to_owned());
-        let seq = StrMappings::new_with_qual(seq.to_owned(), qual.to_owned());
+    pub fn from_fastq1(
+        name: &[u8],
+        seq: &[u8],
+        qual: &[u8],
+        file: Arc<String>,
+        line: usize,
+    ) -> Self {
+        let name = StrMappings::new(name.to_owned(), Arc::clone(&file), line);
+        let seq = StrMappings::new_with_qual(seq.to_owned(), qual.to_owned(), file, line + 1);
 
         Self {
             str_mappings: vec![(StrType::Name1, name), (StrType::Seq1, seq)],
@@ -343,14 +358,18 @@ impl Read {
         name1: &[u8],
         seq1: &[u8],
         qual1: &[u8],
+        file1: Arc<String>,
+        line1: usize,
         name2: &[u8],
         seq2: &[u8],
         qual2: &[u8],
+        file2: Arc<String>,
+        line2: usize,
     ) -> Self {
-        let name1 = StrMappings::new(name1.to_owned());
-        let seq1 = StrMappings::new_with_qual(seq1.to_owned(), qual1.to_owned());
-        let name2 = StrMappings::new(name2.to_owned());
-        let seq2 = StrMappings::new_with_qual(seq2.to_owned(), qual2.to_owned());
+        let name1 = StrMappings::new(name1.to_owned(), Arc::clone(&file1), line1);
+        let seq1 = StrMappings::new_with_qual(seq1.to_owned(), qual1.to_owned(), file1, line1 + 1);
+        let name2 = StrMappings::new(name2.to_owned(), Arc::clone(&file2), line2);
+        let seq2 = StrMappings::new_with_qual(seq2.to_owned(), qual2.to_owned(), file2, line2 + 1);
 
         Self {
             str_mappings: vec![
@@ -477,6 +496,8 @@ impl fmt::Display for StrMappings {
                 std::str::from_utf8(&qual).unwrap()
             )?;
         }
+
+        writeln!(f, "(from line {} in file {})", self.line, &*self.file)?;
 
         Ok(())
     }

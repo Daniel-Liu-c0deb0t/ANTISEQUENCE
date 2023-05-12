@@ -85,13 +85,13 @@ pub trait Reads: Sized + std::marker::Sync {
         self,
         selector_expr: SelectorExpr,
         label_or_attr: impl Into<LabelOrAttr>,
-        format_expr: &str,
+        format_expr: impl AsRef<str>,
     ) -> SetReads<Self> {
         SetReads::new(
             self,
             selector_expr,
             label_or_attr.into(),
-            FormatExpr::new(format_expr.as_bytes()),
+            FormatExpr::new(format_expr.as_ref().as_bytes()),
         )
     }
 
@@ -100,9 +100,9 @@ pub trait Reads: Sized + std::marker::Sync {
         self,
         selector_expr: SelectorExpr,
         attr: Attr,
-        regex: &str,
+        regex: impl AsRef<str>,
     ) -> MatchRegexReads<Self> {
-        MatchRegexReads::new(self, selector_expr, attr, regex)
+        MatchRegexReads::new(self, selector_expr, attr, regex.as_ref())
     }
 
     #[must_use]
@@ -110,14 +110,14 @@ pub trait Reads: Sized + std::marker::Sync {
         self,
         selector_expr: SelectorExpr,
         label: Label,
-        patterns_yaml: &str,
+        patterns_yaml: impl AsRef<str>,
         match_type: MatchType,
     ) -> MatchAnyReads<Self> {
         MatchAnyReads::new(
             self,
             selector_expr,
             label,
-            Patterns::from_yaml(patterns_yaml.as_bytes()),
+            Patterns::from_yaml(patterns_yaml.as_ref().as_bytes()),
             match_type,
         )
     }
@@ -126,29 +126,33 @@ pub trait Reads: Sized + std::marker::Sync {
     fn collect_fastq1(
         self,
         selector_expr: SelectorExpr,
-        file_expr: &str,
+        file_expr: impl AsRef<str>,
     ) -> CollectFastqReads<Self> {
-        CollectFastqReads::new1(self, selector_expr, FormatExpr::new(file_expr.as_bytes()))
+        CollectFastqReads::new1(
+            self,
+            selector_expr,
+            FormatExpr::new(file_expr.as_ref().as_bytes()),
+        )
     }
 
     #[must_use]
     fn collect_fastq2(
         self,
         selector_expr: SelectorExpr,
-        file_expr1: &str,
-        file_expr2: &str,
+        file_expr1: impl AsRef<str>,
+        file_expr2: impl AsRef<str>,
     ) -> CollectFastqReads<Self> {
         CollectFastqReads::new2(
             self,
             selector_expr,
-            FormatExpr::new(file_expr1.as_bytes()),
-            FormatExpr::new(file_expr2.as_bytes()),
+            FormatExpr::new(file_expr1.as_ref().as_bytes()),
+            FormatExpr::new(file_expr2.as_ref().as_bytes()),
         )
     }
 
     #[must_use]
-    fn retain(self, selector_expr: &str) -> RetainReads<Self> {
-        RetainReads::new(self, SelectorExpr::new(selector_expr.as_bytes()))
+    fn retain(self, selector_expr: impl AsRef<str>) -> RetainReads<Self> {
+        RetainReads::new(self, SelectorExpr::new(selector_expr.as_ref().as_bytes()))
     }
 
     fn next_chunk(&self) -> Vec<Read>;
