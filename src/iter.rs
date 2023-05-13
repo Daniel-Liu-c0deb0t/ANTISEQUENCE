@@ -62,12 +62,11 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn count<F>(self, selector_exprs: impl AsRef<[SelectorExpr]>, func: F) -> CountReads<Self, F>
+    fn count<F>(self, selector_exprs: impl Into<Vec<SelectorExpr>>, func: F) -> CountReads<Self, F>
     where
         F: Fn(&[usize]) + std::marker::Sync,
     {
-        let selector_exprs = selector_exprs.as_ref().to_owned();
-        CountReads::new(self, selector_exprs, func)
+        CountReads::new(self, selector_exprs.into(), func)
     }
 
     #[must_use]
@@ -94,9 +93,8 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn trim(self, selector_expr: SelectorExpr, labels: impl AsRef<[Label]>) -> TrimReads<Self> {
-        let labels = labels.as_ref().to_owned();
-        TrimReads::new(self, selector_expr, labels)
+    fn trim(self, selector_expr: SelectorExpr, labels: impl Into<Vec<Label>>) -> TrimReads<Self> {
+        TrimReads::new(self, selector_expr, labels.into())
     }
 
     #[must_use]
