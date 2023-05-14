@@ -121,19 +121,24 @@ fn parse(expr: &[u8]) -> Vec<Expr> {
 
                 let idx = find_skip_quotes(&curr, b';');
                 let end = idx.unwrap_or(curr.len());
+                let left = &curr[..end];
 
-                let v = curr[..end].split(|&b| b == b'.').collect::<Vec<_>>();
-                let e = match v.as_slice() {
-                    &[str_type, label] => Expr::Label(expr::Label {
-                        str_type: StrType::new(str_type),
-                        label: InlineString::new(label),
-                    }),
-                    &[str_type, label, attr] => Expr::Attr(expr::Attr {
-                        str_type: StrType::new(str_type),
-                        label: InlineString::new(label),
-                        attr: InlineString::new(attr),
-                    }),
-                    _ => panic!("Expected type.label or type.label.attr!"),
+                let e = if left[0] == b'\'' && left[left.len() - 1] == b'\'' {
+                    Expr::Literal(left[1..left.len() - 1].to_owned())
+                } else {
+                    let v = curr[..end].split(|&b| b == b'.').collect::<Vec<_>>();
+                    match v.as_slice() {
+                        &[str_type, label] => Expr::Label(expr::Label {
+                            str_type: StrType::new(str_type),
+                            label: InlineString::new(label),
+                        }),
+                        &[str_type, label, attr] => Expr::Attr(expr::Attr {
+                            str_type: StrType::new(str_type),
+                            label: InlineString::new(label),
+                            attr: InlineString::new(attr),
+                        }),
+                        _ => panic!("Expected type.label or type.label.attr!"),
+                    }
                 };
 
                 if let Some(idx) = idx {
