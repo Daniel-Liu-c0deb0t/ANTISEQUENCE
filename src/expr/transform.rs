@@ -1,9 +1,9 @@
-use crate::expr::Label;
+use crate::expr::{Label, LabelOrAttr};
 
 #[derive(Debug, Clone)]
 pub struct TransformExpr {
     before: Vec<Label>,
-    after: Vec<Option<Label>>,
+    after: Vec<Option<LabelOrAttr>>,
 }
 
 impl TransformExpr {
@@ -20,9 +20,9 @@ impl TransformExpr {
     pub fn check_same_str_type(&self) {
         let str_type = self.before[0].str_type;
         assert!(self.before.iter().all(|l| l.str_type == str_type));
-        assert!(self.after.iter().all(|label| label
+        assert!(self.after.iter().all(|label_or_attr| label_or_attr
             .as_ref()
-            .map(|l| l.str_type == str_type)
+            .map(|l| l.str_type() == str_type)
             .unwrap_or(true)));
     }
 
@@ -30,12 +30,12 @@ impl TransformExpr {
         &self.before
     }
 
-    pub fn after(&self) -> &[Option<Label>] {
+    pub fn after(&self) -> &[Option<LabelOrAttr>] {
         &self.after
     }
 }
 
-fn parse(expr: &[u8]) -> (Vec<Label>, Vec<Option<Label>>) {
+fn parse(expr: &[u8]) -> (Vec<Label>, Vec<Option<LabelOrAttr>>) {
     let split_idx = expr
         .windows(2)
         .position(|w| w == b"->")
@@ -64,7 +64,7 @@ fn parse(expr: &[u8]) -> (Vec<Label>, Vec<Option<Label>>) {
             if s.iter().all(|&c| c == b'_') {
                 None
             } else {
-                Some(Label::new(s))
+                Some(LabelOrAttr::new(s))
             }
         })
         .collect::<Vec<_>>();

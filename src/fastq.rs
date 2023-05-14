@@ -176,7 +176,7 @@ pub fn iter_fastq1_bytes<'a>(bytes: &'a [u8]) -> Fastq1Reads<'a> {
         reader,
         origin: Arc::new(Origin::Bytes),
         line: AtomicUsize::new(0),
-        chunk_size: 1,
+        chunk_size: 256,
         interleaved: false,
     }
 }
@@ -188,7 +188,7 @@ pub fn iter_fastq_interleaved_bytes<'a>(bytes: &'a [u8]) -> Fastq1Reads<'a> {
         reader,
         origin: Arc::new(Origin::Bytes),
         line: AtomicUsize::new(0),
-        chunk_size: 1,
+        chunk_size: 256,
         interleaved: true,
     }
 }

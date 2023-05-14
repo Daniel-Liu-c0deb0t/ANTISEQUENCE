@@ -41,11 +41,28 @@ pub trait Reads: Sized + std::marker::Sync {
 
         thread::scope(|s| {
             for _ in 0..threads {
-                s.spawn(|| while self.next_chunk().len() > 0 {});
+                s.spawn(|| while !self.next_chunk().is_empty() {});
             }
         });
 
         self.finish();
+    }
+
+    fn run_collect_reads(self) -> Vec<Read> {
+        let mut res = Vec::new();
+
+        loop {
+            let reads = self.next_chunk();
+
+            if reads.is_empty() {
+                break;
+            }
+
+            res.extend(reads);
+        }
+
+        self.finish();
+        res
     }
 
     #[must_use]
@@ -73,13 +90,13 @@ pub trait Reads: Sized + std::marker::Sync {
     fn length_in_bounds<B>(
         self,
         selector_expr: SelectorExpr,
-        attr: Attr,
+        transform_expr: TransformExpr,
         bounds: B,
     ) -> LengthInBoundsReads<Self, B>
     where
         B: RangeBounds<usize> + std::marker::Sync,
     {
-        LengthInBoundsReads::new(self, selector_expr, attr, bounds)
+        LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
     }
 
     #[must_use]
@@ -116,10 +133,10 @@ pub trait Reads: Sized + std::marker::Sync {
     fn match_regex(
         self,
         selector_expr: SelectorExpr,
-        attr: Attr,
+        transform_expr: TransformExpr,
         regex: impl AsRef<str>,
     ) -> MatchRegexReads<Self> {
-        MatchRegexReads::new(self, selector_expr, attr, regex.as_ref())
+        MatchRegexReads::new(self, selector_expr, transform_expr, regex.as_ref())
     }
 
     #[must_use]

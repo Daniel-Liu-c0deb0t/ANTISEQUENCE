@@ -68,6 +68,20 @@ impl LabelOrAttr {
             _ => panic!("Expected either type.label or type.label.attr!"),
         }
     }
+
+    pub fn str_type(&self) -> StrType {
+        match self {
+            LabelOrAttr::Label(l) => l.str_type,
+            LabelOrAttr::Attr(a) => a.str_type,
+        }
+    }
+
+    pub fn label(&self) -> InlineString {
+        match self {
+            LabelOrAttr::Label(l) => l.label,
+            LabelOrAttr::Attr(a) => a.label,
+        }
+    }
 }
 
 impl From<Label> for LabelOrAttr {

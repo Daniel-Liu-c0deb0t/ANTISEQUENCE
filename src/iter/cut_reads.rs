@@ -34,8 +34,14 @@ impl<R: Reads> Reads for CutReads<R> {
             read.cut(
                 self.transform_expr.before()[0].str_type,
                 self.transform_expr.before()[0].label,
-                self.transform_expr.after()[0].as_ref().map(|l| l.label),
-                self.transform_expr.after()[1].as_ref().map(|l| l.label),
+                self.transform_expr.after()[0].as_ref().map(|l| match l {
+                    LabelOrAttr::Label(l) => l.label,
+                    _ => panic!("Expected type.label!"),
+                }),
+                self.transform_expr.after()[1].as_ref().map(|l| match l {
+                    LabelOrAttr::Label(l) => l.label,
+                    _ => panic!("Expected type.label!"),
+                }),
                 self.cut_idx,
             );
         }
