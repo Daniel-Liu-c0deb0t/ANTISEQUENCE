@@ -452,6 +452,21 @@ impl Data {
             Bytes(x) => !x.is_empty(),
         }
     }
+
+    pub fn as_uint(&self) -> usize {
+        use Data::*;
+        match self {
+            Bool(x) => {
+                if *x {
+                    1
+                } else {
+                    0
+                }
+            }
+            UInt(x) => *x,
+            Bytes(x) => x.len(),
+        }
+    }
 }
 
 impl fmt::Display for StrMappings {
