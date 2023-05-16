@@ -8,6 +8,7 @@ pub mod transform;
 pub use transform::*;
 
 use crate::inline_string::*;
+use crate::parse_utils::*;
 use crate::read::*;
 
 #[derive(Debug, Clone, PartialEq, Hash)]
@@ -35,8 +36,10 @@ impl Label {
 
         match split.as_slice() {
             &[str_type, label] => Self {
-                str_type: StrType::new(str_type),
-                label: InlineString::new(label),
+                str_type: StrType::new(trim_ascii_whitespace(str_type).unwrap()),
+                label: InlineString::new(
+                    check_valid_name(trim_ascii_whitespace(label).unwrap()).unwrap(),
+                ),
             },
             _ => panic!("Expected type.label!"),
         }
@@ -49,9 +52,13 @@ impl Attr {
 
         match split.as_slice() {
             &[str_type, label, attr] => Self {
-                str_type: StrType::new(str_type),
-                label: InlineString::new(label),
-                attr: InlineString::new(attr),
+                str_type: StrType::new(trim_ascii_whitespace(str_type).unwrap()),
+                label: InlineString::new(
+                    check_valid_name(trim_ascii_whitespace(label).unwrap()).unwrap(),
+                ),
+                attr: InlineString::new(
+                    check_valid_name(trim_ascii_whitespace(attr).unwrap()).unwrap(),
+                ),
             },
             _ => panic!("Expected type.label.attr!"),
         }

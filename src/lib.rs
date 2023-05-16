@@ -7,6 +7,7 @@ pub mod patterns;
 pub mod read;
 
 mod inline_string;
+mod parse_utils;
 
 /// Commonly used functions and types.
 pub use crate::fastq::*;

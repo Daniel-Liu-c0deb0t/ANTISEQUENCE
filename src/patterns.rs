@@ -31,7 +31,7 @@ impl Patterns {
     pub fn from_yaml(yaml: impl AsRef<[u8]>) -> Self {
         let patterns: PatternsSchema = serde_yaml::from_slice(yaml.as_ref()).unwrap();
 
-        let pattern_name = InlineString::new(patterns.pattern_name.as_bytes());
+        let pattern_name = InlineString::new(patterns.name.as_bytes());
 
         let attr_names = patterns.patterns[0]
             .attrs
@@ -85,7 +85,7 @@ pub struct Pattern {
 
 #[derive(Serialize, Deserialize)]
 struct PatternsSchema {
-    pub pattern_name: String,
+    pub name: String,
     pub patterns: Vec<PatternSchema>,
 }
 

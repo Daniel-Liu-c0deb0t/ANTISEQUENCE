@@ -1,4 +1,5 @@
 use crate::expr::{Label, LabelOrAttr};
+use crate::parse_utils::*;
 
 #[derive(Debug, Clone)]
 pub struct TransformExpr {
@@ -40,27 +41,19 @@ fn parse(expr: &[u8]) -> (Vec<Label>, Vec<Option<LabelOrAttr>>) {
         .windows(2)
         .position(|w| w == b"->")
         .expect("Expected '->' in transform expression!");
-    let before_str = &expr[..split_idx];
-    let after_str = &expr[split_idx + 2..];
+    let before_str = expr[..split_idx].to_owned();
+    let after_str = expr[split_idx + 2..].to_owned();
 
-    let before_str = before_str
-        .iter()
-        .cloned()
-        .filter(|c| !c.is_ascii_whitespace())
-        .collect::<Vec<_>>();
     let before = before_str
         .split(|&b| b == b',')
         .map(|s| Label::new(s))
         .collect::<Vec<_>>();
 
-    let after_str = after_str
-        .iter()
-        .cloned()
-        .filter(|c| !c.is_ascii_whitespace())
-        .collect::<Vec<_>>();
     let after = after_str
         .split(|&b| b == b',')
         .map(|s| {
+            let s = trim_ascii_whitespace(s).unwrap();
+
             if s.iter().all(|&c| c == b'_') {
                 None
             } else {
