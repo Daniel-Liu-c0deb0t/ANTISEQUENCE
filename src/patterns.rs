@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::expr::FormatExpr;
 use crate::inline_string::*;
 use crate::read::*;
+use crate::errors::*;
 
 pub struct Patterns {
     pattern_name: InlineString,
@@ -28,8 +29,9 @@ impl Patterns {
         }
     }
 
-    pub fn from_yaml(yaml: impl AsRef<[u8]>) -> Self {
-        let patterns: PatternsSchema = serde_yaml::from_slice(yaml.as_ref()).unwrap();
+    pub fn from_yaml(yaml: impl AsRef<[u8]>) -> Result<Self> {
+        let patterns: PatternsSchema = serde_yaml::from_slice(yaml.as_ref())
+            .map_err(|e| Error::ParsePatterns { patterns: utf8(yaml.as_ref()), source: Box::new(e) })?;
 
         let pattern_name = InlineString::new(patterns.name.as_bytes());
 
@@ -58,11 +60,11 @@ impl Patterns {
 
         let attr_names = attr_names.into_iter().collect::<Vec<_>>();
 
-        Self {
+        Ok(Self {
             pattern_name,
             attr_names,
             patterns,
-        }
+        })
     }
 
     pub fn pattern_name(&self) -> InlineString {

@@ -10,6 +10,7 @@ pub use transform::*;
 use crate::inline_string::*;
 use crate::parse_utils::*;
 use crate::read::*;
+use crate::errors::*;
 
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Label {
@@ -31,17 +32,24 @@ pub enum LabelOrAttr {
 }
 
 impl Label {
-    pub fn new(s: &[u8]) -> Self {
+    pub fn new(s: &[u8]) -> Result<Self> {
         let split = s.split(|&b| b == b'.').collect::<Vec<_>>();
 
         match split.as_slice() {
-            &[str_type, label] => Self {
-                str_type: StrType::new(trim_ascii_whitespace(str_type).unwrap()),
-                label: InlineString::new(
-                    check_valid_name(trim_ascii_whitespace(label).unwrap()).unwrap(),
-                ),
+            &[str_type, label] => {
+                let str_type = trim_ascii_whitespace(str_type)
+                    .ok_or_else(|| Error::InvalidName { string: utf8(str_type), context: utf8(s) })?;
+                let label = trim_ascii_whitespace(label)
+                    .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
+                let label = check_valid_name(label)
+                    .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
+
+                Ok(Self {
+                    str_type: StrType::new(str_type),
+                    label: InlineString::new(label),
+                })
             },
-            _ => panic!("Expected type.label!"),
+            _ => Err(Error::Parse { string: utf8(s), context: utf8(s), reason: "expected type.label" }),
         }
     }
 }
@@ -51,28 +59,38 @@ impl Attr {
         let split = s.split(|&b| b == b'.').collect::<Vec<_>>();
 
         match split.as_slice() {
-            &[str_type, label, attr] => Self {
-                str_type: StrType::new(trim_ascii_whitespace(str_type).unwrap()),
-                label: InlineString::new(
-                    check_valid_name(trim_ascii_whitespace(label).unwrap()).unwrap(),
-                ),
-                attr: InlineString::new(
-                    check_valid_name(trim_ascii_whitespace(attr).unwrap()).unwrap(),
-                ),
+            &[str_type, label, attr] => {
+                let str_type = trim_ascii_whitespace(str_type)
+                    .ok_or_else(|| Error::InvalidName { string: utf8(str_type), context: utf8(s) })?;
+                let label = trim_ascii_whitespace(label)
+                    .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
+                let label = check_valid_name(label)
+                    .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
+
+                let attr = trim_ascii_whitespace(attr)
+                    .ok_or_else(|| Error::InvalidName { string: utf8(attr), context: utf8(s) })?;
+                let attr = check_valid_name(attr)
+                    .ok_or_else(|| Error::InvalidName { string: utf8(attr), context: utf8(s) })?;
+
+                Ok(Self {
+                    str_type: StrType::new(str_type),
+                    label: InlineString::new(label),
+                    attr: InlineString::new(attr),
+                })
             },
-            _ => panic!("Expected type.label.attr!"),
+            _ => Err(Error::Parse { string: utf8(s), context: utf8(s), reason: "expected type.label.attr" }),
         }
     }
 }
 
 impl LabelOrAttr {
-    pub fn new(s: &[u8]) -> Self {
+    pub fn new(s: &[u8]) -> Result<Self> {
         let count = s.iter().filter(|&&c| c == b'.').count();
 
         match count {
-            1 => LabelOrAttr::Label(Label::new(s)),
-            2 => LabelOrAttr::Attr(Attr::new(s)),
-            _ => panic!("Expected either type.label or type.label.attr!"),
+            1 => Ok(LabelOrAttr::Label(Label::new(s)?)),
+            2 => Ok(LabelOrAttr::Attr(Attr::new(s)?)),
+            _ => Err(Error::Parse { string: utf8(s), context: utf8(s), reason: "expected type.label or type.label.attr" }),
         }
     }
 
@@ -109,6 +127,7 @@ macro_rules! sel {
         {
             let s = stringify!($($t)*);
             $crate::expr::SelectorExpr::new(s.as_bytes())
+                .unwrap_or_else(|e| panic!("Error constructing selector expression:\n{e}\non line {} column {} in file {}", line!(), column!(), file!()))
         }
     };
 }
@@ -119,6 +138,7 @@ macro_rules! tr {
         {
             let s = stringify!($($t)+);
             $crate::expr::TransformExpr::new(s.as_bytes())
+                .unwrap_or_else(|e| panic!("Error constructing transform expression:\n{e}\non line {} column {} in file {}", line!(), column!(), file!()))
         }
     };
 }
@@ -129,6 +149,7 @@ macro_rules! label {
         {
             let s = stringify!($($t)+);
             $crate::expr::Label::new(s.as_bytes())
+                .unwrap_or_else(|e| panic!("Error constructing label:\n{e}\non line {} column {} in file {}", line!(), column!(), file!()))
         }
     };
 }
@@ -139,6 +160,7 @@ macro_rules! attr {
         {
             let s = stringify!($($t)+);
             $crate::expr::Attr::new(s.as_bytes())
+                .unwrap_or_else(|e| panic!("Error constructing attr:\n{e}\non line {} column {} in file {}", line!(), column!(), file!()))
         }
     };
 }

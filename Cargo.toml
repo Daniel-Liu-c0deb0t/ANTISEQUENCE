@@ -10,6 +10,7 @@ flate2 = { version = "1.0", features = ["zlib-ng"], default-features = false }
 regex = "1.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
+thiserror = "1.0"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 block-aligner = { git = "https://github.com/Daniel-Liu-c0deb0t/block-aligner", branch = "dev", features = ["simd_avx2"] }

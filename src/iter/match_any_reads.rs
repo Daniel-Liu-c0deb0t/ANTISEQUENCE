@@ -176,8 +176,8 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
         reads
     }
 
-    fn finish(&self) {
-        self.reads.finish();
+    fn finish(&self) -> Result<()> {
+        self.reads.finish()
     }
 }
 

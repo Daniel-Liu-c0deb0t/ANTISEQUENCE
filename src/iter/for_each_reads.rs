@@ -26,7 +26,7 @@ impl<R: Reads, F: Fn(&mut Read) + std::marker::Sync> Reads for ForEachReads<R, F
         reads
     }
 
-    fn finish(&self) {
-        self.reads.finish();
+    fn finish(&self) -> Result<()> {
+        self.reads.finish()
     }
 }

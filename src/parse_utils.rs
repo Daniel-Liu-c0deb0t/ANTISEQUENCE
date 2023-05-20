@@ -1,11 +1,7 @@
 pub fn trim_ascii_whitespace(b: &[u8]) -> Option<&[u8]> {
-    b.iter()
-        .position(|&c| !c.is_ascii_whitespace())
-        .and_then(|start| {
-            b.iter()
-                .rposition(|&c| !c.is_ascii_whitespace())
-                .map(|end| &b[start..=end])
-        })
+    let start = b.iter().position(|&c| !c.is_ascii_whitespace())?;
+    let end = b.iter().rposition(|&c| !c.is_ascii_whitespace())?;
+    Some(&b[start..=end])
 }
 
 pub fn check_valid_name(b: &[u8]) -> Option<&[u8]> {

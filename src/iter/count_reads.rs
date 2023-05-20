@@ -38,8 +38,8 @@ impl<R: Reads, F: Fn(&[usize]) + std::marker::Sync> Reads for CountReads<R, F> {
         reads
     }
 
-    fn finish(&self) {
-        self.reads.finish();
+    fn finish(&self) -> Result<()> {
+        self.reads.finish()?;
 
         let counts = self
             .counts
@@ -47,5 +47,6 @@ impl<R: Reads, F: Fn(&[usize]) + std::marker::Sync> Reads for CountReads<R, F> {
             .map(|c| c.load(Ordering::Relaxed))
             .collect::<Vec<_>>();
         (self.func)(&counts);
+        Ok(())
     }
 }

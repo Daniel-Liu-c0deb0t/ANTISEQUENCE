@@ -4,6 +4,7 @@ use std::thread;
 use crate::expr::*;
 use crate::patterns::*;
 use crate::read::*;
+use crate::errors::*;
 
 pub mod trim_reads;
 use trim_reads::*;
@@ -36,23 +37,28 @@ pub mod count_reads;
 use count_reads::*;
 
 pub trait Reads: Sized + std::marker::Sync {
-    fn run(self, threads: usize) {
-        assert!(threads >= 1);
+    fn run(self) -> Result<()> {
+        while !self.next_chunk()?.is_empty() {}
+        self.finish()
+    }
+
+    fn run_with_threads(self, threads: usize) {
+        assert!(threads >= 1, "Number of threads must be greater than zero");
 
         thread::scope(|s| {
             for _ in 0..threads {
-                s.spawn(|| while !self.next_chunk().is_empty() {});
+                s.spawn(|| while !self.next_chunk().unwrap().is_empty() {});
             }
         });
 
-        self.finish();
+        self.finish().unwrap();
     }
 
-    fn run_collect_reads(self) -> Vec<Read> {
+    fn run_collect_reads(self) -> Result<Vec<Read>> {
         let mut res = Vec::new();
 
         loop {
-            let reads = self.next_chunk();
+            let reads = self.next_chunk()?;
 
             if reads.is_empty() {
                 break;
@@ -61,8 +67,8 @@ pub trait Reads: Sized + std::marker::Sync {
             res.extend(reads);
         }
 
-        self.finish();
-        res
+        self.finish()?;
+        Ok(res)
     }
 
     #[must_use]
@@ -151,7 +157,7 @@ pub trait Reads: Sized + std::marker::Sync {
             self,
             selector_expr,
             label,
-            Patterns::from_yaml(patterns_yaml.as_ref().as_bytes()),
+            Patterns::from_yaml(patterns_yaml.as_ref().as_bytes()).unwrap(),
             match_type,
         )
     }
@@ -189,9 +195,9 @@ pub trait Reads: Sized + std::marker::Sync {
         RetainReads::new(self, SelectorExpr::new(selector_expr.as_ref().as_bytes()))
     }
 
-    fn next_chunk(&self) -> Vec<Read>;
+    fn next_chunk(&self) -> Result<Vec<Read>>;
 
-    fn finish(&self);
+    fn finish(&self) -> Result<()>;
 }
 
 pub use MatchType::*;

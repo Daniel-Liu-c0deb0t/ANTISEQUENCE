@@ -5,6 +5,7 @@ pub mod fastq;
 pub mod iter;
 pub mod patterns;
 pub mod read;
+pub mod errors;
 
 mod inline_string;
 mod parse_utils;
