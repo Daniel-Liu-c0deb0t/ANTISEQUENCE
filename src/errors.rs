@@ -42,9 +42,9 @@ pub enum Error {
         context: String,
     },
 
-    #[error("Cannot find the {name} in the read:\n{read}\nwhen {context}")]
-    NameNotInRead {
-        name: Name,
+    #[error("{source}\nwith read:\n{read}when {context}")]
+    NameError {
+        source: NameError,
         read: Read,
         context: &'static str,
     },
@@ -57,8 +57,12 @@ pub enum Error {
 }
 
 #[derive(thiserror::Error, Debug)]
-#[error("Name not found in read: {0}")]
-pub struct NameNotInReadError(pub Name);
+pub enum NameError {
+    #[error("Name not found in read: {0}")]
+    NotInRead(Name),
+    #[error("Duplicate name in read: {0}")]
+    Duplicate(Name),
+}
 
 #[derive(Debug)]
 pub enum Name {

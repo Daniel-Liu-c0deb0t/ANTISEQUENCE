@@ -131,7 +131,7 @@ pub trait Reads: Sized + std::marker::Sync {
             self,
             selector_expr,
             label_or_attr.into(),
-            FormatExpr::new(format_expr.as_ref().as_bytes()),
+            FormatExpr::new(format_expr.as_ref().as_bytes()).expect("Error in parsing format expression for the set operation"),
         )
     }
 
@@ -157,7 +157,7 @@ pub trait Reads: Sized + std::marker::Sync {
             self,
             selector_expr,
             label,
-            Patterns::from_yaml(patterns_yaml.as_ref().as_bytes()).unwrap(),
+            Patterns::from_yaml(patterns_yaml.as_ref().as_bytes()).expect("Error in parsing patterns"),
             match_type,
         )
     }
@@ -171,7 +171,7 @@ pub trait Reads: Sized + std::marker::Sync {
         CollectFastqReads::new1(
             self,
             selector_expr,
-            FormatExpr::new(file_expr.as_ref().as_bytes()),
+            FormatExpr::new(file_expr.as_ref().as_bytes()).expect("Error in parsing format expression for the collect_fastq1 operation"),
         )
     }
 
@@ -185,8 +185,8 @@ pub trait Reads: Sized + std::marker::Sync {
         CollectFastqReads::new2(
             self,
             selector_expr,
-            FormatExpr::new(file_expr1.as_ref().as_bytes()),
-            FormatExpr::new(file_expr2.as_ref().as_bytes()),
+            FormatExpr::new(file_expr1.as_ref().as_bytes()).expect("Error in parsing format expression for the collect_fastq2 operation"),
+            FormatExpr::new(file_expr2.as_ref().as_bytes()).expect("Error in parsing format expression for the collect_fastq2 operation"),
         )
     }
 

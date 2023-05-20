@@ -45,7 +45,7 @@ impl Label {
                     .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
 
                 Ok(Self {
-                    str_type: StrType::new(str_type),
+                    str_type: StrType::new(str_type)?,
                     label: InlineString::new(label),
                 })
             },
@@ -55,7 +55,7 @@ impl Label {
 }
 
 impl Attr {
-    pub fn new(s: &[u8]) -> Self {
+    pub fn new(s: &[u8]) -> Result<Self> {
         let split = s.split(|&b| b == b'.').collect::<Vec<_>>();
 
         match split.as_slice() {
@@ -73,7 +73,7 @@ impl Attr {
                     .ok_or_else(|| Error::InvalidName { string: utf8(attr), context: utf8(s) })?;
 
                 Ok(Self {
-                    str_type: StrType::new(str_type),
+                    str_type: StrType::new(str_type)?,
                     label: InlineString::new(label),
                     attr: InlineString::new(attr),
                 })

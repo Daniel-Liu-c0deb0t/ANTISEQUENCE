@@ -45,7 +45,7 @@ impl Patterns {
             .patterns
             .into_iter()
             .map(|PatternSchema { pattern, attrs }| {
-                let expr = FormatExpr::new(pattern.as_bytes());
+                let expr = FormatExpr::new(pattern.as_bytes())?;
                 let attrs = attrs
                     .iter()
                     .map(|(k, v)| {
@@ -54,9 +54,9 @@ impl Patterns {
                         v.to_data()
                     })
                     .collect::<Vec<_>>();
-                Pattern { expr, attrs }
+                Ok(Pattern { expr, attrs })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
 
         let attr_names = attr_names.into_iter().collect::<Vec<_>>();
 

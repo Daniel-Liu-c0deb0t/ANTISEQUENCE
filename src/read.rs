@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use crate::fastq::Origin;
 use crate::inline_string::*;
-use crate::errors::{self, Name, NameNotInReadError};
+use crate::errors::{self, Name, NameError};
 
 pub use EndIdx::*;
 
@@ -78,14 +78,15 @@ impl StrMappings {
         self.mappings.iter_mut().find(|m| m.label == label)
     }
 
-    pub fn add_mapping(&mut self, label: Option<InlineString>, start: usize, len: usize) {
+    pub fn add_mapping(&mut self, label: Option<InlineString>, start: usize, len: usize) -> Result<(), NameError> {
         let Some(label) = label else {
-            return;
+            return Ok(());
         };
         if self.mapping(label).is_some() {
-            panic!("Label already exists: {}", label);
+            Err(NameError::Duplicate(Name::Label(label)))?
         }
         self.mappings.push(Mapping::new(label, start, len));
+        Ok(())
     }
 
     pub fn string(&self) -> &[u8] {
@@ -112,34 +113,34 @@ impl StrMappings {
         new_label1: Option<InlineString>,
         new_label2: Option<InlineString>,
         cut_idx: EndIdx,
-    ) -> Result<(), NameNotInReadError> {
+    ) -> Result<(), NameError> {
         let (start, len) = {
             let mapping = self
                 .mapping(label)
-                .ok_or_else(|| NameNotInReadError(Name::Label(label)))?;
+                .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?;
             (mapping.start, mapping.len)
         };
 
         match cut_idx {
             LeftEnd(idx) => {
                 let cut = idx.min(len);
-                self.add_mapping(new_label1, start, cut);
-                self.add_mapping(new_label2, start + cut, len - cut);
+                self.add_mapping(new_label1, start, cut)?;
+                self.add_mapping(new_label2, start + cut, len - cut)?;
             }
             RightEnd(idx) => {
                 let cut = idx.min(len);
-                self.add_mapping(new_label1, start, len - cut);
-                self.add_mapping(new_label2, start + len - cut, cut);
+                self.add_mapping(new_label1, start, len - cut)?;
+                self.add_mapping(new_label2, start + len - cut, cut)?;
             }
         }
 
         Ok(())
     }
 
-    pub fn set(&mut self, label: InlineString, new_str: &[u8], new_qual: Option<&[u8]>) -> Result<(), NameNotInReadError> {
+    pub fn set(&mut self, label: InlineString, new_str: &[u8], new_qual: Option<&[u8]>) -> Result<(), NameError> {
         let prev = self
             .mapping(label)
-            .ok_or_else(|| NameNotInReadError(Name::Label(label)))?
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
             .clone();
 
         self.mappings.iter_mut().for_each(|m| {
@@ -210,10 +211,10 @@ impl StrMappings {
         Ok(())
     }
 
-    pub fn trim(&mut self, label: InlineString) -> Result<(), NameNotInReadError> {
+    pub fn trim(&mut self, label: InlineString) -> Result<(), NameError> {
         let trimmed = self
             .mapping(label)
-            .ok_or_else(|| NameNotInReadError(Name::Label(label)))?
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
             .clone();
 
         self.mappings.iter_mut().for_each(|m| {
@@ -397,11 +398,11 @@ impl Read {
         (name.string(), seq.string(), seq.qual().unwrap())
     }
 
-    pub fn to_fastq2(&self) -> Result<((&[u8], &[u8], &[u8]), (&[u8], &[u8], &[u8])), NameNotInReadError> {
+    pub fn to_fastq2(&self) -> Result<((&[u8], &[u8], &[u8]), (&[u8], &[u8], &[u8])), NameError> {
         let name1 = self.str_mappings(StrType::Name1).unwrap();
         let seq1 = self.str_mappings(StrType::Seq1).unwrap();
         let name2 = self.str_mappings(StrType::Name2)
-            .ok_or_else(|| NameNotInReadError(Name::StrType(StrType::Name2)))?;
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(StrType::Name2)))?;
         let seq2 = self.str_mappings(StrType::Seq2).unwrap();
         Ok((
             (name1.string(), seq1.string(), seq1.qual().unwrap()),
@@ -421,6 +422,53 @@ impl Read {
             .find_map(|(t, m)| if *t == str_type { Some(m) } else { None })
     }
 
+    pub fn mapping(&self, str_type: StrType, label: InlineString) -> Result<&Mapping, NameError> {
+        self.str_mappings(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))
+    }
+
+    pub fn mapping_mut(&mut self, str_type: StrType, label: InlineString) -> Result<&mut Mapping, NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .mapping_mut(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))
+    }
+
+    pub fn data(&self, str_type: StrType, label: InlineString, attr: InlineString) -> Result<&Data, NameError> {
+        self.str_mappings(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .data(attr)
+            .ok_or_else(|| NameError::NotInRead(Name::Attr(attr)))
+    }
+
+    pub fn data_mut(&mut self, str_type: StrType, label: InlineString, attr: InlineString) -> Result<&mut Data, NameError> {
+        Ok(self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .mapping_mut(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .data_mut(attr))
+    }
+
+    pub fn substring(&self, str_type: StrType, label: InlineString) -> Result<&[u8], NameError> {
+        let str_mappings = self.str_mappings(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?;
+        let mapping = str_mappings.mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?;
+        Ok(str_mappings.substring(mapping))
+    }
+
+    pub fn substring_qual(&self, str_type: StrType, label: InlineString) -> Result<Option<&[u8]>, NameError> {
+        let str_mappings = self.str_mappings(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?;
+        let mapping = str_mappings.mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?;
+        Ok(str_mappings.substring_qual(mapping))
+    }
+
     pub fn cut(
         &mut self,
         str_type: StrType,
@@ -428,9 +476,9 @@ impl Read {
         new_label1: Option<InlineString>,
         new_label2: Option<InlineString>,
         cut_idx: EndIdx,
-    ) -> Result<(), NameNotInReadError> {
+    ) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
-            .ok_or_else(|| NameNotInReadError(Name::StrType(str_type)))?
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .cut(label, new_label1, new_label2, cut_idx);
         Ok(())
     }
@@ -441,16 +489,16 @@ impl Read {
         label: InlineString,
         new_str: &[u8],
         new_qual: Option<&[u8]>,
-    ) -> Result<(), NameNotInReadError> {
+    ) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
-            .ok_or_else(|| NameNotInReadError(Name::StrType(str_type)))?
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .set(label, new_str, new_qual);
         Ok(())
     }
 
-    pub fn trim(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameNotInReadError> {
+    pub fn trim(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
-            .ok_or_else(|| NameNotInReadError(Name::StrType(str_type)))?
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .trim(label);
         Ok(())
     }
