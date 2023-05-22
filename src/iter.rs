@@ -192,7 +192,7 @@ pub trait Reads: Sized + std::marker::Sync {
 
     #[must_use]
     fn retain(self, selector_expr: impl AsRef<str>) -> RetainReads<Self> {
-        RetainReads::new(self, SelectorExpr::new(selector_expr.as_ref().as_bytes()))
+        RetainReads::new(self, SelectorExpr::new(selector_expr.as_ref().as_bytes()).expect("Error in parsing selector expression for the retain operation"))
     }
 
     fn next_chunk(&self) -> Result<Vec<Read>>;

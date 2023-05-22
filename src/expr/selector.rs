@@ -45,8 +45,20 @@ fn matches_rec(expr: &Expr, read: &Read) -> std::result::Result<bool, NameError>
     use Expr::*;
     match expr {
         True => Ok(true),
-        And(v) => v.iter().all(|e| matches_rec(e, read)),
-        Or(v) => v.iter().any(|e| matches_rec(e, read)),
+        And(v) => {
+            let mut res = true;
+            for e in v {
+                res &= matches_rec(e, read)?;
+            }
+            Ok(res)
+        }
+        Or(v) => {
+            let mut res = false;
+            for e in v {
+                res |= matches_rec(e, read)?;
+            }
+            Ok(res)
+        }
         Not(e) => Ok(!(matches_rec(&e, read)?)),
         Label(expr::Label { str_type, label }) => Ok(read.str_mappings(*str_type).ok_or_else(|| NameError::NotInRead(Name::StrType(*str_type)))?.mapping(*label).is_some()),
         Attr(expr::Attr {

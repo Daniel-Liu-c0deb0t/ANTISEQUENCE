@@ -17,16 +17,21 @@ impl<R: Reads> TrimReads<R> {
 }
 
 impl<R: Reads> Reads for TrimReads<R> {
-    fn next_chunk(&self) -> Vec<Read> {
-        let mut reads = self.reads.next_chunk();
+    fn next_chunk(&self) -> Result<Vec<Read>> {
+        let mut reads = self.reads.next_chunk()?;
 
-        for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
+        for read in reads.iter_mut() {
+            if !(self.selector_expr.matches(read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "trim reads" })?) {
+                continue;
+            }
+
             self.labels
                 .iter()
-                .for_each(|l| read.trim(l.str_type, l.label));
+                .try_for_each(|l| read.trim(l.str_type, l.label))
+                .map_err(|e| Error::NameError { source: e, read: read.clone(), context: "trim reads" })?;
         }
 
-        reads
+        Ok(reads)
     }
 
     fn finish(&self) -> Result<()> {

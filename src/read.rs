@@ -202,10 +202,17 @@ impl StrMappings {
             .splice(prev.start..prev.start + prev.len, new_str.iter().cloned());
 
         if let Some(qual) = &mut self.qual {
-            qual.splice(
-                prev.start..prev.start + prev.len,
-                new_qual.unwrap().iter().cloned(),
-            );
+            if let Some(new_qual) = new_qual {
+                qual.splice(
+                    prev.start..prev.start + prev.len,
+                    new_qual.iter().cloned(),
+                );
+            } else {
+                qual.splice(
+                    prev.start..prev.start + prev.len,
+                    (0..new_str.len()).map(|_| b'I'),
+                );
+            }
         }
 
         Ok(())

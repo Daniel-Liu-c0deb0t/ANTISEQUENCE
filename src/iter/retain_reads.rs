@@ -15,10 +15,15 @@ impl<R: Reads> RetainReads<R> {
 }
 
 impl<R: Reads> Reads for RetainReads<R> {
-    fn next_chunk(&self) -> Vec<Read> {
-        let mut reads = self.reads.next_chunk();
-        reads.retain(|r| self.selector_expr.matches(r));
-        reads
+    fn next_chunk(&self) -> Result<Vec<Read>> {
+        let reads = self.reads.next_chunk()?;
+        let mut res = Vec::new();
+        for read in reads.into_iter() {
+            if self.selector_expr.matches(&read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "retain reads" })? {
+                res.push(read);
+            }
+        }
+        Ok(res)
     }
 
     fn finish(&self) -> Result<()> {

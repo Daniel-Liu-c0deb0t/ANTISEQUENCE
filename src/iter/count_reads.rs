@@ -24,18 +24,18 @@ impl<R: Reads, F: Fn(&[usize]) + std::marker::Sync> CountReads<R, F> {
 }
 
 impl<R: Reads, F: Fn(&[usize]) + std::marker::Sync> Reads for CountReads<R, F> {
-    fn next_chunk(&self) -> Vec<Read> {
-        let reads = self.reads.next_chunk();
+    fn next_chunk(&self) -> Result<Vec<Read>> {
+        let reads = self.reads.next_chunk()?;
 
         for read in &reads {
             for (c, s) in self.counts.iter().zip(&self.selector_exprs) {
-                if s.matches(&read) {
+                if s.matches(&read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "counting reads" })? {
                     c.fetch_add(1, Ordering::Relaxed);
                 }
             }
         }
 
-        reads
+        Ok(reads)
     }
 
     fn finish(&self) -> Result<()> {

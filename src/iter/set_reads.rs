@@ -24,11 +24,16 @@ impl<R: Reads> SetReads<R> {
 }
 
 impl<R: Reads> Reads for SetReads<R> {
-    fn next_chunk(&self) -> Vec<Read> {
-        let mut reads = self.reads.next_chunk();
+    fn next_chunk(&self) -> Result<Vec<Read>> {
+        let mut reads = self.reads.next_chunk()?;
 
-        for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
-            let new_str = self.format_expr.format(read, false);
+        for read in reads.iter_mut() {
+            if self.selector_expr.matches(&read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "setting reads" })? {
+                continue;
+            }
+
+            let new_str = self.format_expr.format(read, false)
+                .map_err(|e| Error::NameError { source: e, read: read.clone(), context: "setting reads" })?;
 
             match &self.label_or_attr {
                 LabelOrAttr::Label(label) => {
@@ -40,17 +45,14 @@ impl<R: Reads> Reads for SetReads<R> {
                     }
                 }
                 LabelOrAttr::Attr(attr) => {
-                    *read
-                        .str_mappings_mut(attr.str_type)
-                        .unwrap()
-                        .mapping_mut(attr.label)
-                        .unwrap()
-                        .data_mut(attr.attr) = Data::Bytes(new_str)
+                    *read.
+                        data_mut(attr.str_type, attr.label, attr.attr)
+                        .map_err(|e| Error::NameError { source: e, read: read.clone(), context: "setting reads" }) = Data::Bytes(new_str);
                 }
             }
         }
 
-        reads
+        Ok(reads)
     }
 
     fn finish(&self) -> Result<()> {
