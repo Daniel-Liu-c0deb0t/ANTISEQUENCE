@@ -45,67 +45,113 @@ impl<R: Reads> CollectFastqReads<R> {
 }
 
 impl<R: Reads> Reads for CollectFastqReads<R> {
-    fn next_chunk(&self) -> Vec<Read> {
-        let reads = self.reads.next_chunk();
+    fn next_chunk(&self) -> Result<Vec<Read>> {
+        let reads = self.reads.next_chunk()?;
         let mut locked_writers = Vec::with_capacity(reads.len());
 
         {
             let mut file_writers = self.file_writers.lock().unwrap();
 
-            let mut get_writer = |file_expr: &FormatExpr, read: &Read| {
-                let file_name = file_expr.format(read, false);
+            let mut get_writer = |file_name: &[u8]| -> std::io::Result<()> {
+                use std::collections::hash_map::Entry::*;
+                match file_writers.entry(file_name.to_owned()) {
+                    Occupied(e) => {
+                        locked_writers.push(Arc::clone(e.get()));
+                    }
+                    Vacant(e) => {
+                        let file_path = std::str::from_utf8(file_name).unwrap();
 
-                let locked_writer = file_writers.entry(file_name.clone()).or_insert_with(|| {
-                    let file_path = std::str::from_utf8(&file_name).unwrap();
-                    std::fs::create_dir_all(std::path::Path::new(file_path).parent().unwrap())
-                        .unwrap();
+                        if let Some(parent) = std::path::Path::new(file_path).parent() {
+                            std::fs::create_dir_all(parent)?;
+                        }
 
-                    let writer: Arc<Mutex<dyn Write + std::marker::Send>> =
-                        if file_path.ends_with(".gz") {
-                            Arc::new(Mutex::new(BufWriter::new(GzEncoder::new(
-                                File::create(file_path).unwrap(),
-                                Compression::default(),
-                            ))))
-                        } else {
-                            Arc::new(Mutex::new(BufWriter::new(File::create(file_path).unwrap())))
-                        };
-                    writer
-                });
+                        let writer: Arc<Mutex<dyn Write + std::marker::Send>> =
+                            if file_path.ends_with(".gz") {
+                                Arc::new(Mutex::new(BufWriter::new(GzEncoder::new(
+                                    File::create(file_path)?,
+                                    Compression::default(),
+                                ))))
+                            } else {
+                                Arc::new(Mutex::new(BufWriter::new(File::create(file_path)?)))
+                            };
+                        locked_writers.push(Arc::clone(e.insert(writer)));
+                    }
+                }
 
-                locked_writers.push(Arc::clone(locked_writer));
+                Ok(())
             };
 
-            for read in reads.iter().filter(|r| self.selector_expr.matches(r)) {
-                get_writer(&self.file_expr1, read);
+            for read in reads.iter() {
+                if !(self
+                    .selector_expr
+                    .matches(read)
+                    .map_err(|e| Error::NameError {
+                        source: e,
+                        read: read.clone(),
+                        context: "collecting into fastq file(s)",
+                    })?)
+                {
+                    continue;
+                }
+
+                let file_name =
+                    self.file_expr1
+                        .format(read, false)
+                        .map_err(|e| Error::NameError {
+                            source: e,
+                            read: read.clone(),
+                            context: "collecting into fastq file(s)",
+                        })?;
+                get_writer(&file_name).map_err(|e| Error::FileIo {
+                    file: utf8(&file_name),
+                    source: Box::new(e),
+                })?;
 
                 if let Some(file_expr2) = &self.file_expr2 {
-                    get_writer(file_expr2, read);
+                    let file_name =
+                        file_expr2
+                            .format(read, false)
+                            .map_err(|e| Error::NameError {
+                                source: e,
+                                read: read.clone(),
+                                context: "collecting into fastq file(s)",
+                            })?;
+                    get_writer(&file_name).map_err(|e| Error::FileIo {
+                        file: utf8(&file_name),
+                        source: Box::new(e),
+                    })?;
                 }
             }
         }
 
         if self.file_expr2.is_some() {
-            for (locked_writer, read) in locked_writers
-                .chunks(2)
-                .zip(reads.iter().filter(|r| self.selector_expr.matches(r)))
-            {
+            for (locked_writer, read) in locked_writers.chunks(2).zip(
+                reads
+                    .iter()
+                    .filter(|r| self.selector_expr.matches(r).unwrap()),
+            ) {
                 let mut writer1 = locked_writer[0].lock().unwrap();
                 let mut writer2 = locked_writer[1].lock().unwrap();
-                let (record1, record2) = read.to_fastq2();
+                let (record1, record2) = read.to_fastq2().map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "collecting into fastq file(s)",
+                })?;
                 write_fastq_record(&mut *writer1, record1);
                 write_fastq_record(&mut *writer2, record2);
             }
         } else {
-            for (locked_writer, read) in locked_writers
-                .into_iter()
-                .zip(reads.iter().filter(|r| self.selector_expr.matches(r)))
-            {
+            for (locked_writer, read) in locked_writers.into_iter().zip(
+                reads
+                    .iter()
+                    .filter(|r| self.selector_expr.matches(r).unwrap()),
+            ) {
                 let mut writer = locked_writer.lock().unwrap();
                 write_fastq_record(&mut *writer, read.to_fastq1());
             }
         }
 
-        reads
+        Ok(reads)
     }
 
     fn finish(&self) -> Result<()> {

@@ -1,10 +1,10 @@
 use std::ops::RangeBounds;
 use std::thread;
 
+use crate::errors::*;
 use crate::expr::*;
 use crate::patterns::*;
 use crate::read::*;
-use crate::errors::*;
 
 pub mod trim_reads;
 use trim_reads::*;
@@ -131,7 +131,8 @@ pub trait Reads: Sized + std::marker::Sync {
             self,
             selector_expr,
             label_or_attr.into(),
-            FormatExpr::new(format_expr.as_ref().as_bytes()).expect("Error in parsing format expression for the set operation"),
+            FormatExpr::new(format_expr.as_ref().as_bytes())
+                .expect("Error in parsing format expression for the set operation"),
         )
     }
 
@@ -157,7 +158,8 @@ pub trait Reads: Sized + std::marker::Sync {
             self,
             selector_expr,
             label,
-            Patterns::from_yaml(patterns_yaml.as_ref().as_bytes()).expect("Error in parsing patterns"),
+            Patterns::from_yaml(patterns_yaml.as_ref().as_bytes())
+                .expect("Error in parsing patterns"),
             match_type,
         )
     }
@@ -171,7 +173,8 @@ pub trait Reads: Sized + std::marker::Sync {
         CollectFastqReads::new1(
             self,
             selector_expr,
-            FormatExpr::new(file_expr.as_ref().as_bytes()).expect("Error in parsing format expression for the collect_fastq1 operation"),
+            FormatExpr::new(file_expr.as_ref().as_bytes())
+                .expect("Error in parsing format expression for the collect_fastq1 operation"),
         )
     }
 
@@ -185,14 +188,20 @@ pub trait Reads: Sized + std::marker::Sync {
         CollectFastqReads::new2(
             self,
             selector_expr,
-            FormatExpr::new(file_expr1.as_ref().as_bytes()).expect("Error in parsing format expression for the collect_fastq2 operation"),
-            FormatExpr::new(file_expr2.as_ref().as_bytes()).expect("Error in parsing format expression for the collect_fastq2 operation"),
+            FormatExpr::new(file_expr1.as_ref().as_bytes())
+                .expect("Error in parsing format expression for the collect_fastq2 operation"),
+            FormatExpr::new(file_expr2.as_ref().as_bytes())
+                .expect("Error in parsing format expression for the collect_fastq2 operation"),
         )
     }
 
     #[must_use]
     fn retain(self, selector_expr: impl AsRef<str>) -> RetainReads<Self> {
-        RetainReads::new(self, SelectorExpr::new(selector_expr.as_ref().as_bytes()).expect("Error in parsing selector expression for the retain operation"))
+        RetainReads::new(
+            self,
+            SelectorExpr::new(selector_expr.as_ref().as_bytes())
+                .expect("Error in parsing selector expression for the retain operation"),
+        )
     }
 
     fn next_chunk(&self) -> Result<Vec<Read>>;

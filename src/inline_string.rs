@@ -10,7 +10,11 @@ pub struct InlineString {
 
 impl InlineString {
     pub fn new(s: &[u8]) -> Self {
-        assert!(s.len() <= LEN, "The length of the string \"{}\" must be less than or equal to {LEN}", std::str::from_utf8(s).unwrap());
+        assert!(
+            s.len() <= LEN,
+            "The length of the string \"{}\" must be less than or equal to {LEN}",
+            std::str::from_utf8(s).unwrap()
+        );
 
         let mut data = [0u8; LEN];
         s.iter().enumerate().for_each(|(i, &b)| data[i] = b);

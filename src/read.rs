@@ -3,9 +3,9 @@ use rustc_hash::FxHashMap;
 use std::fmt;
 use std::sync::Arc;
 
+use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
-use crate::errors::{self, Name, NameError};
 
 pub use EndIdx::*;
 
@@ -78,7 +78,12 @@ impl StrMappings {
         self.mappings.iter_mut().find(|m| m.label == label)
     }
 
-    pub fn add_mapping(&mut self, label: Option<InlineString>, start: usize, len: usize) -> Result<(), NameError> {
+    pub fn add_mapping(
+        &mut self,
+        label: Option<InlineString>,
+        start: usize,
+        len: usize,
+    ) -> Result<(), NameError> {
         let Some(label) = label else {
             return Ok(());
         };
@@ -137,7 +142,12 @@ impl StrMappings {
         Ok(())
     }
 
-    pub fn set(&mut self, label: InlineString, new_str: &[u8], new_qual: Option<&[u8]>) -> Result<(), NameError> {
+    pub fn set(
+        &mut self,
+        label: InlineString,
+        new_str: &[u8],
+        new_qual: Option<&[u8]>,
+    ) -> Result<(), NameError> {
         let prev = self
             .mapping(label)
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
@@ -202,17 +212,10 @@ impl StrMappings {
             .splice(prev.start..prev.start + prev.len, new_str.iter().cloned());
 
         if let Some(qual) = &mut self.qual {
-            if let Some(new_qual) = new_qual {
-                qual.splice(
-                    prev.start..prev.start + prev.len,
-                    new_qual.iter().cloned(),
-                );
-            } else {
-                qual.splice(
-                    prev.start..prev.start + prev.len,
-                    (0..new_str.len()).map(|_| b'I'),
-                );
-            }
+            qual.splice(
+                prev.start..prev.start + prev.len,
+                new_qual.unwrap().iter().cloned(),
+            );
         }
 
         Ok(())
@@ -408,7 +411,8 @@ impl Read {
     pub fn to_fastq2(&self) -> Result<((&[u8], &[u8], &[u8]), (&[u8], &[u8], &[u8])), NameError> {
         let name1 = self.str_mappings(StrType::Name1).unwrap();
         let seq1 = self.str_mappings(StrType::Seq1).unwrap();
-        let name2 = self.str_mappings(StrType::Name2)
+        let name2 = self
+            .str_mappings(StrType::Name2)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(StrType::Name2)))?;
         let seq2 = self.str_mappings(StrType::Seq2).unwrap();
         Ok((
@@ -436,14 +440,23 @@ impl Read {
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))
     }
 
-    pub fn mapping_mut(&mut self, str_type: StrType, label: InlineString) -> Result<&mut Mapping, NameError> {
+    pub fn mapping_mut(
+        &mut self,
+        str_type: StrType,
+        label: InlineString,
+    ) -> Result<&mut Mapping, NameError> {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .mapping_mut(label)
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))
     }
 
-    pub fn data(&self, str_type: StrType, label: InlineString, attr: InlineString) -> Result<&Data, NameError> {
+    pub fn data(
+        &self,
+        str_type: StrType,
+        label: InlineString,
+        attr: InlineString,
+    ) -> Result<&Data, NameError> {
         self.str_mappings(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .mapping(label)
@@ -452,8 +465,14 @@ impl Read {
             .ok_or_else(|| NameError::NotInRead(Name::Attr(attr)))
     }
 
-    pub fn data_mut(&mut self, str_type: StrType, label: InlineString, attr: InlineString) -> Result<&mut Data, NameError> {
-        Ok(self.str_mappings_mut(str_type)
+    pub fn data_mut(
+        &mut self,
+        str_type: StrType,
+        label: InlineString,
+        attr: InlineString,
+    ) -> Result<&mut Data, NameError> {
+        Ok(self
+            .str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .mapping_mut(label)
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
@@ -461,17 +480,25 @@ impl Read {
     }
 
     pub fn substring(&self, str_type: StrType, label: InlineString) -> Result<&[u8], NameError> {
-        let str_mappings = self.str_mappings(str_type)
+        let str_mappings = self
+            .str_mappings(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?;
-        let mapping = str_mappings.mapping(label)
+        let mapping = str_mappings
+            .mapping(label)
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?;
         Ok(str_mappings.substring(mapping))
     }
 
-    pub fn substring_qual(&self, str_type: StrType, label: InlineString) -> Result<Option<&[u8]>, NameError> {
-        let str_mappings = self.str_mappings(str_type)
+    pub fn substring_qual(
+        &self,
+        str_type: StrType,
+        label: InlineString,
+    ) -> Result<Option<&[u8]>, NameError> {
+        let str_mappings = self
+            .str_mappings(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?;
-        let mapping = str_mappings.mapping(label)
+        let mapping = str_mappings
+            .mapping(label)
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?;
         Ok(str_mappings.substring_qual(mapping))
     }
@@ -486,8 +513,7 @@ impl Read {
     ) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
-            .cut(label, new_label1, new_label2, cut_idx);
-        Ok(())
+            .cut(label, new_label1, new_label2, cut_idx)
     }
 
     pub fn set(
@@ -499,15 +525,13 @@ impl Read {
     ) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
-            .set(label, new_str, new_qual);
-        Ok(())
+            .set(label, new_str, new_qual)
     }
 
     pub fn trim(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
-            .trim(label);
-        Ok(())
+            .trim(label)
     }
 }
 
@@ -619,7 +643,11 @@ impl StrType {
             b"seq2" => Ok(Seq2),
             b"index1" => Ok(Index1),
             b"index2" => Ok(Index2),
-            _ => Err(errors::Error::Parse { string: errors::utf8(str_type), context: errors::utf8(str_type), reason: "not a known valid string type. Expected \"name1\", \"seq1\", etc." }),
+            _ => Err(errors::Error::Parse {
+                string: errors::utf8(str_type),
+                context: errors::utf8(str_type),
+                reason: "not a known valid string type. Expected \"name1\", \"seq1\", etc.",
+            }),
         }
     }
 }

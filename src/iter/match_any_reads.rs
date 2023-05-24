@@ -29,31 +29,45 @@ impl<R: Reads> MatchAnyReads<R> {
 }
 
 impl<R: Reads> Reads for MatchAnyReads<R> {
-    fn next_chunk(&self) -> Vec<Read> {
-        let mut reads = self.reads.next_chunk();
+    fn next_chunk(&self) -> Result<Vec<Read>> {
+        let mut reads = self.reads.next_chunk()?;
         let mut aligner: Option<Box<dyn Aligner>> = None;
 
-        for read in reads.iter_mut().filter(|r| self.selector_expr.matches(r)) {
-            let str_mappings = read.str_mappings(self.label.str_type).unwrap();
-            let mapping = str_mappings.mapping(self.label.label).unwrap();
-            let substring = str_mappings.substring(mapping);
+        for read in reads.iter_mut() {
+            if !(self
+                .selector_expr
+                .matches(read)
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "matching patterns",
+                })?)
+            {
+                continue;
+            }
+
+            let string = read
+                .substring(self.label.str_type, self.label.label)
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "matching patterns",
+                })?;
 
             if aligner.is_none() {
                 match self.match_type {
                     MatchType::GlobalAln(_) => {
                         aligner = Some(Box::new(MatchAligner::<false, false>::new(
-                            substring.len() * 2,
+                            string.len() * 2,
                         )));
                     }
                     MatchType::LocalAln(_) => {
-                        aligner = Some(Box::new(MatchAligner::<true, false>::new(
-                            substring.len() * 2,
-                        )));
+                        aligner =
+                            Some(Box::new(MatchAligner::<true, false>::new(string.len() * 2)));
                     }
                     MatchType::PrefixAln(_) | MatchType::SuffixAln(_) => {
-                        aligner = Some(Box::new(MatchAligner::<false, true>::new(
-                            substring.len() * 2,
-                        )));
+                        aligner =
+                            Some(Box::new(MatchAligner::<false, true>::new(string.len() * 2)));
                     }
                     _ => (),
                 }
@@ -63,30 +77,36 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
             let mut max_pattern = None;
 
             for pattern in self.patterns.patterns() {
-                let pattern_str = pattern.expr.format(read, false);
+                let pattern_str =
+                    pattern
+                        .expr
+                        .format(read, false)
+                        .map_err(|e| Error::NameError {
+                            source: e,
+                            read: read.clone(),
+                            context: "matching patterns",
+                        })?;
                 let pattern_len = pattern_str.len();
 
                 use MatchType::*;
                 let matches = match self.match_type {
                     Exact => {
-                        if substring == pattern_str {
+                        if string == pattern_str {
                             Some(pattern_str.len())
                         } else {
                             None
                         }
                     }
                     ExactPrefix => {
-                        if pattern_len <= substring.len()
-                            && &substring[..pattern_len] == &pattern_str
-                        {
+                        if pattern_len <= string.len() && &string[..pattern_len] == &pattern_str {
                             Some(pattern_str.len())
                         } else {
                             None
                         }
                     }
                     ExactSuffix => {
-                        if pattern_len <= substring.len()
-                            && &substring[substring.len() - pattern_len..] == &pattern_str
+                        if pattern_len <= string.len()
+                            && &string[string.len() - pattern_len..] == &pattern_str
                         {
                             Some(pattern_str.len())
                         } else {
@@ -95,20 +115,20 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                     }
                     Hamming(t) => {
                         let t = t.get(pattern_len);
-                        hamming(substring, &pattern_str, t)
+                        hamming(string, &pattern_str, t)
                     }
                     HammingPrefix(t) => {
-                        if pattern_len <= substring.len() {
+                        if pattern_len <= string.len() {
                             let t = t.get(pattern_len);
-                            hamming(&substring[..pattern_len], &pattern_str, t)
+                            hamming(&string[..pattern_len], &pattern_str, t)
                         } else {
                             None
                         }
                     }
                     HammingSuffix(t) => {
-                        if pattern_len <= substring.len() {
+                        if pattern_len <= string.len() {
                             let t = t.get(pattern_len);
-                            hamming(&substring[substring.len() - pattern_len..], &pattern_str, t)
+                            hamming(&string[string.len() - pattern_len..], &pattern_str, t)
                         } else {
                             None
                         }
@@ -118,28 +138,28 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                         aligner
                             .as_mut()
                             .unwrap()
-                            .align(substring, &pattern_str, t, false)
+                            .align(string, &pattern_str, t, false)
                     }
                     LocalAln(t) => {
                         let t = t.get(pattern_len);
                         aligner
                             .as_mut()
                             .unwrap()
-                            .align(substring, &pattern_str, t, false)
+                            .align(string, &pattern_str, t, false)
                     }
                     PrefixAln(t) => {
                         let t = t.get(pattern_len);
-                        let len = substring.len().min(pattern_len * 2);
+                        let len = string.len().min(pattern_len * 2);
                         aligner
                             .as_mut()
                             .unwrap()
-                            .align(&substring[..len], &pattern_str, t, true)
+                            .align(&string[..len], &pattern_str, t, true)
                     }
                     SuffixAln(t) => {
                         let t = t.get(pattern_len);
-                        let len = substring.len().min(pattern_len * 2);
+                        let len = string.len().min(pattern_len * 2);
                         aligner.as_mut().unwrap().align(
-                            &substring[substring.len() - len..],
+                            &string[string.len() - len..],
                             &pattern_str,
                             t,
                             false,
@@ -159,8 +179,9 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                 }
             }
 
-            let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
-            let mapping = str_mappings.mapping_mut(self.label.label).unwrap();
+            let mapping = read
+                .mapping_mut(self.label.str_type, self.label.label)
+                .unwrap();
 
             if let Some((pattern_str, pattern_attrs)) = max_pattern {
                 *mapping.data_mut(self.patterns.pattern_name()) = Data::Bytes(pattern_str);
@@ -173,7 +194,7 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
             }
         }
 
-        reads
+        Ok(reads)
     }
 
     fn finish(&self) -> Result<()> {

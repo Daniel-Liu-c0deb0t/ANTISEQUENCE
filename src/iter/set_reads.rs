@@ -28,26 +28,66 @@ impl<R: Reads> Reads for SetReads<R> {
         let mut reads = self.reads.next_chunk()?;
 
         for read in reads.iter_mut() {
-            if self.selector_expr.matches(&read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "setting reads" })? {
+            if self
+                .selector_expr
+                .matches(&read)
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "setting reads",
+                })?
+            {
                 continue;
             }
 
-            let new_str = self.format_expr.format(read, false)
-                .map_err(|e| Error::NameError { source: e, read: read.clone(), context: "setting reads" })?;
+            let new_str = self
+                .format_expr
+                .format(read, false)
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "setting reads",
+                })?;
 
             match &self.label_or_attr {
                 LabelOrAttr::Label(label) => {
-                    if read.str_mappings(label.str_type).unwrap().qual().is_some() {
-                        let new_qual = self.format_expr.format(read, true);
-                        read.set(label.str_type, label.label, &new_str, Some(&new_qual));
+                    let str_mappings =
+                        read.str_mappings(label.str_type)
+                            .ok_or_else(|| Error::NameError {
+                                source: NameError::NotInRead(Name::StrType(label.str_type)),
+                                read: read.clone(),
+                                context: "setting reads",
+                            })?;
+
+                    if str_mappings.qual().is_some() {
+                        let new_qual =
+                            self.format_expr
+                                .format(read, true)
+                                .map_err(|e| Error::NameError {
+                                    source: e,
+                                    read: read.clone(),
+                                    context: "setting reads",
+                                })?;
+                        read.set(label.str_type, label.label, &new_str, Some(&new_qual))
+                            .map_err(|e| Error::NameError {
+                                source: e,
+                                read: read.clone(),
+                                context: "setting reads",
+                            })?;
                     } else {
-                        read.set(label.str_type, label.label, &new_str, None);
+                        read.set(label.str_type, label.label, &new_str, None)
+                            .map_err(|e| Error::NameError {
+                                source: e,
+                                read: read.clone(),
+                                context: "setting reads",
+                            })?;
                     }
                 }
                 LabelOrAttr::Attr(attr) => {
-                    *read.
-                        data_mut(attr.str_type, attr.label, attr.attr)
-                        .map_err(|e| Error::NameError { source: e, read: read.clone(), context: "setting reads" }) = Data::Bytes(new_str);
+                    // use expect to make borrow checker happy
+                    *read
+                        .data_mut(attr.str_type, attr.label, attr.attr)
+                        .expect("Setting reads") = Data::Bytes(new_str);
                 }
             }
         }

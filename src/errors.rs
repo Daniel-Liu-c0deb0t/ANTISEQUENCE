@@ -2,9 +2,9 @@ use thiserror;
 
 use std::fmt;
 
-use crate::read::{StrType, Read};
-use crate::inline_string::*;
 use crate::fastq::Origin;
+use crate::inline_string::*;
+use crate::read::{Read, StrType};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -37,10 +37,7 @@ pub enum Error {
     },
 
     #[error("Could not parse \"{string}\" in \"{context}\". Names must contain one or more alphanumeric characters, '_', or '*'.")]
-    InvalidName {
-        string: String,
-        context: String,
-    },
+    InvalidName { string: String, context: String },
 
     #[error("{source}\nwith read:\n{read}when {context}")]
     NameError {

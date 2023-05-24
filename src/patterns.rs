@@ -3,10 +3,10 @@ use serde_yaml;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use crate::errors::*;
 use crate::expr::FormatExpr;
 use crate::inline_string::*;
 use crate::read::*;
-use crate::errors::*;
 
 pub struct Patterns {
     pattern_name: InlineString,
@@ -30,8 +30,11 @@ impl Patterns {
     }
 
     pub fn from_yaml(yaml: impl AsRef<[u8]>) -> Result<Self> {
-        let patterns: PatternsSchema = serde_yaml::from_slice(yaml.as_ref())
-            .map_err(|e| Error::ParsePatterns { patterns: utf8(yaml.as_ref()), source: Box::new(e) })?;
+        let patterns: PatternsSchema =
+            serde_yaml::from_slice(yaml.as_ref()).map_err(|e| Error::ParsePatterns {
+                patterns: utf8(yaml.as_ref()),
+                source: Box::new(e),
+            })?;
 
         let pattern_name = InlineString::new(patterns.name.as_bytes());
 

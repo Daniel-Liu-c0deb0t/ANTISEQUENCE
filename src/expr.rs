@@ -7,10 +7,10 @@ pub use format::*;
 pub mod transform;
 pub use transform::*;
 
+use crate::errors::*;
 use crate::inline_string::*;
 use crate::parse_utils::*;
 use crate::read::*;
-use crate::errors::*;
 
 #[derive(Debug, Clone, PartialEq, Hash)]
 pub struct Label {
@@ -37,19 +37,30 @@ impl Label {
 
         match split.as_slice() {
             &[str_type, label] => {
-                let str_type = trim_ascii_whitespace(str_type)
-                    .ok_or_else(|| Error::InvalidName { string: utf8(str_type), context: utf8(s) })?;
-                let label = trim_ascii_whitespace(label)
-                    .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
-                let label = check_valid_name(label)
-                    .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
+                let str_type =
+                    trim_ascii_whitespace(str_type).ok_or_else(|| Error::InvalidName {
+                        string: utf8(str_type),
+                        context: utf8(s),
+                    })?;
+                let label = trim_ascii_whitespace(label).ok_or_else(|| Error::InvalidName {
+                    string: utf8(label),
+                    context: utf8(s),
+                })?;
+                let label = check_valid_name(label).ok_or_else(|| Error::InvalidName {
+                    string: utf8(label),
+                    context: utf8(s),
+                })?;
 
                 Ok(Self {
                     str_type: StrType::new(str_type)?,
                     label: InlineString::new(label),
                 })
-            },
-            _ => Err(Error::Parse { string: utf8(s), context: utf8(s), reason: "expected type.label" }),
+            }
+            _ => Err(Error::Parse {
+                string: utf8(s),
+                context: utf8(s),
+                reason: "expected type.label",
+            }),
         }
     }
 }
@@ -60,25 +71,40 @@ impl Attr {
 
         match split.as_slice() {
             &[str_type, label, attr] => {
-                let str_type = trim_ascii_whitespace(str_type)
-                    .ok_or_else(|| Error::InvalidName { string: utf8(str_type), context: utf8(s) })?;
-                let label = trim_ascii_whitespace(label)
-                    .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
-                let label = check_valid_name(label)
-                    .ok_or_else(|| Error::InvalidName { string: utf8(label), context: utf8(s) })?;
+                let str_type =
+                    trim_ascii_whitespace(str_type).ok_or_else(|| Error::InvalidName {
+                        string: utf8(str_type),
+                        context: utf8(s),
+                    })?;
+                let label = trim_ascii_whitespace(label).ok_or_else(|| Error::InvalidName {
+                    string: utf8(label),
+                    context: utf8(s),
+                })?;
+                let label = check_valid_name(label).ok_or_else(|| Error::InvalidName {
+                    string: utf8(label),
+                    context: utf8(s),
+                })?;
 
-                let attr = trim_ascii_whitespace(attr)
-                    .ok_or_else(|| Error::InvalidName { string: utf8(attr), context: utf8(s) })?;
-                let attr = check_valid_name(attr)
-                    .ok_or_else(|| Error::InvalidName { string: utf8(attr), context: utf8(s) })?;
+                let attr = trim_ascii_whitespace(attr).ok_or_else(|| Error::InvalidName {
+                    string: utf8(attr),
+                    context: utf8(s),
+                })?;
+                let attr = check_valid_name(attr).ok_or_else(|| Error::InvalidName {
+                    string: utf8(attr),
+                    context: utf8(s),
+                })?;
 
                 Ok(Self {
                     str_type: StrType::new(str_type)?,
                     label: InlineString::new(label),
                     attr: InlineString::new(attr),
                 })
-            },
-            _ => Err(Error::Parse { string: utf8(s), context: utf8(s), reason: "expected type.label.attr" }),
+            }
+            _ => Err(Error::Parse {
+                string: utf8(s),
+                context: utf8(s),
+                reason: "expected type.label.attr",
+            }),
         }
     }
 }
@@ -90,7 +116,11 @@ impl LabelOrAttr {
         match count {
             1 => Ok(LabelOrAttr::Label(Label::new(s)?)),
             2 => Ok(LabelOrAttr::Attr(Attr::new(s)?)),
-            _ => Err(Error::Parse { string: utf8(s), context: utf8(s), reason: "expected type.label or type.label.attr" }),
+            _ => Err(Error::Parse {
+                string: utf8(s),
+                context: utf8(s),
+                reason: "expected type.label or type.label.attr",
+            }),
         }
     }
 

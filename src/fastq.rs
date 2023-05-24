@@ -5,9 +5,9 @@ use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
+use crate::errors::*;
 use crate::iter::*;
 use crate::read::*;
-use crate::errors::*;
 
 pub struct Fastq1Reads<'a> {
     reader: Mutex<Box<dyn FastxReader + 'a>>,
@@ -28,8 +28,11 @@ impl<'a> Reads for Fastq1Reads<'a> {
 
         for _ in 0..self.chunk_size {
             if let Some(record1) = reader.next() {
-                let record1 = record1
-                    .map_err(|e| Error::ParseRecord { origin: (*self.origin).clone(), line: self.line.load(Ordering::Relaxed), source: Box::new(e) })?;
+                let record1 = record1.map_err(|e| Error::ParseRecord {
+                    origin: (*self.origin).clone(),
+                    line: self.line.load(Ordering::Relaxed),
+                    source: Box::new(e),
+                })?;
 
                 if self.interleaved {
                     record1_id.clear();
@@ -57,8 +60,11 @@ impl<'a> Reads for Fastq1Reads<'a> {
                 let Some(record2) = reader.next() else {
                     Err(Error::UnpairedRead(format!("\"{}\"", &*self.origin)))?
                 };
-                let record2 = record2
-                    .map_err(|e| Error::ParseRecord { origin: (*self.origin).clone(), line: self.line.load(Ordering::Relaxed) + 4, source: Box::new(e) })?;
+                let record2 = record2.map_err(|e| Error::ParseRecord {
+                    origin: (*self.origin).clone(),
+                    line: self.line.load(Ordering::Relaxed) + 4,
+                    source: Box::new(e),
+                })?;
                 let line = self.line.fetch_add(8, Ordering::Relaxed);
 
                 res.push(Read::from_fastq2(
@@ -79,7 +85,9 @@ impl<'a> Reads for Fastq1Reads<'a> {
         Ok(res)
     }
 
-    fn finish(&self) -> Result<()> { Ok(()) }
+    fn finish(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 pub struct Fastq2Reads {
@@ -106,10 +114,16 @@ impl Reads for Fastq2Reads {
                 Err(Error::UnpairedRead(format!("\"{}\" and \"{}\"", &*self.origin1, &*self.origin2)))?
             };
 
-            let record1 = record1
-                    .map_err(|e| Error::ParseRecord { origin: (*self.origin1).clone(), line: self.line.load(Ordering::Relaxed), source: Box::new(e) })?;
-            let record2 = record2
-                    .map_err(|e| Error::ParseRecord { origin: (*self.origin2).clone(), line: self.line.load(Ordering::Relaxed), source: Box::new(e) })?;
+            let record1 = record1.map_err(|e| Error::ParseRecord {
+                origin: (*self.origin1).clone(),
+                line: self.line.load(Ordering::Relaxed),
+                source: Box::new(e),
+            })?;
+            let record2 = record2.map_err(|e| Error::ParseRecord {
+                origin: (*self.origin2).clone(),
+                line: self.line.load(Ordering::Relaxed),
+                source: Box::new(e),
+            })?;
             let line = self.line.fetch_add(4, Ordering::Relaxed);
 
             res.push(Read::from_fastq2(
@@ -129,13 +143,17 @@ impl Reads for Fastq2Reads {
         Ok(res)
     }
 
-    fn finish(&self) -> Result<()> { Ok(()) }
+    fn finish(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 #[must_use]
 pub fn iter_fastq1(file: impl AsRef<str>, chunk_size: usize) -> Result<Fastq1Reads<'static>> {
-    let reader = Mutex::new(parse_fastx_file(file.as_ref())
-                            .map_err(|e| Error::FileIo { file: file.as_ref().to_owned(), source: Box::new(e) })?);
+    let reader = Mutex::new(parse_fastx_file(file.as_ref()).map_err(|e| Error::FileIo {
+        file: file.as_ref().to_owned(),
+        source: Box::new(e),
+    })?);
     Ok(Fastq1Reads::<'static> {
         reader,
         origin: Arc::new(Origin::File(file.as_ref().to_owned())),
@@ -146,9 +164,14 @@ pub fn iter_fastq1(file: impl AsRef<str>, chunk_size: usize) -> Result<Fastq1Rea
 }
 
 #[must_use]
-pub fn iter_fastq_interleaved(file: impl AsRef<str>, chunk_size: usize) -> Result<Fastq1Reads<'static>> {
-    let reader = Mutex::new(parse_fastx_file(file.as_ref())
-                            .map_err(|e| Error::FileIo { file: file.as_ref().to_owned(), source: Box::new(e) })?);
+pub fn iter_fastq_interleaved(
+    file: impl AsRef<str>,
+    chunk_size: usize,
+) -> Result<Fastq1Reads<'static>> {
+    let reader = Mutex::new(parse_fastx_file(file.as_ref()).map_err(|e| Error::FileIo {
+        file: file.as_ref().to_owned(),
+        source: Box::new(e),
+    })?);
     Ok(Fastq1Reads::<'static> {
         reader,
         origin: Arc::new(Origin::File(file.as_ref().to_owned())),
@@ -164,10 +187,14 @@ pub fn iter_fastq2(
     file2: impl AsRef<str>,
     chunk_size: usize,
 ) -> Result<Fastq2Reads> {
-    let reader1 = Mutex::new(parse_fastx_file(file1.as_ref())
-                             .map_err(|e| Error::FileIo { file: file1.as_ref().to_owned(), source: Box::new(e) })?);
-    let reader2 = Mutex::new(parse_fastx_file(file2.as_ref())
-                             .map_err(|e| Error::FileIo { file: file2.as_ref().to_owned(), source: Box::new(e) })?);
+    let reader1 = Mutex::new(parse_fastx_file(file1.as_ref()).map_err(|e| Error::FileIo {
+        file: file1.as_ref().to_owned(),
+        source: Box::new(e),
+    })?);
+    let reader2 = Mutex::new(parse_fastx_file(file2.as_ref()).map_err(|e| Error::FileIo {
+        file: file2.as_ref().to_owned(),
+        source: Box::new(e),
+    })?);
     Ok(Fastq2Reads {
         reader1,
         reader2,
@@ -180,8 +207,7 @@ pub fn iter_fastq2(
 
 #[must_use]
 pub fn iter_fastq1_bytes<'a>(bytes: &'a [u8]) -> Result<Fastq1Reads<'a>> {
-    let reader = Mutex::new(parse_fastx_reader(bytes)
-                            .map_err(|e| Error::BytesIo(Box::new(e)))?);
+    let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
     Ok(Fastq1Reads::<'a> {
         reader,
         origin: Arc::new(Origin::Bytes),
@@ -193,8 +219,7 @@ pub fn iter_fastq1_bytes<'a>(bytes: &'a [u8]) -> Result<Fastq1Reads<'a>> {
 
 #[must_use]
 pub fn iter_fastq_interleaved_bytes<'a>(bytes: &'a [u8]) -> Result<Fastq1Reads<'a>> {
-    let reader = Mutex::new(parse_fastx_reader(bytes)
-                            .map_err(|e| Error::BytesIo(Box::new(e)))?);
+    let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
     Ok(Fastq1Reads::<'a> {
         reader,
         origin: Arc::new(Origin::Bytes),

@@ -1,7 +1,9 @@
+use crate::errors::*;
 use crate::expr;
 use crate::parse_utils::*;
 use crate::read::*;
-use crate::errors::*;
+
+const UNKNOWN_QUAL: u8 = b'I';
 
 #[derive(Debug, Clone)]
 pub struct FormatExpr {
@@ -37,27 +39,34 @@ impl FormatExpr {
     }
 }
 
-fn format_expr(read: &Read, use_qual: bool, e: &Expr, res: &mut Vec<u8>) -> std::result::Result<(), NameError> {
+fn format_expr(
+    read: &Read,
+    use_qual: bool,
+    e: &Expr,
+    res: &mut Vec<u8>,
+) -> std::result::Result<(), NameError> {
     use Expr::*;
     match e {
         Literal(s) => res.extend(s),
         LabelOrAttr(l) => match l {
             expr::LabelOrAttr::Label(expr::Label { str_type, label }) => {
-                let string = if use_qual {
-                    read.substring_qual(*str_type, *label)?.unwrap()
+                if use_qual {
+                    if let Some(qual) = read.substring_qual(*str_type, *label)? {
+                        res.extend(qual);
+                    } else {
+                        let len = read.mapping(*str_type, *label)?.len;
+                        res.extend((0..len).map(|_| UNKNOWN_QUAL));
+                    }
                 } else {
-                    read.substring(*str_type, *label)?
-                };
-                res.extend(string);
+                    res.extend(read.substring(*str_type, *label)?);
+                }
             }
             expr::LabelOrAttr::Attr(expr::Attr {
                 str_type,
                 label,
                 attr,
             }) => {
-                res.extend(
-                    read.data(*str_type, *label, *attr)?.to_string().as_bytes()
-                );
+                res.extend(read.data(*str_type, *label, *attr)?.to_string().as_bytes());
             }
         },
         Repeat(expr, num) => {
@@ -101,7 +110,11 @@ fn parse(expr: &[u8]) -> Result<Vec<Expr>> {
         match c {
             b'{' if !escape => {
                 if in_label {
-                    Err(Error::Parse { string: utf8(expr), context: utf8(expr), reason: "cannot have nested braces" })?;
+                    Err(Error::Parse {
+                        string: utf8(expr),
+                        context: utf8(expr),
+                        reason: "cannot have nested braces",
+                    })?;
                 }
                 res.push(Expr::Literal(curr.clone()));
                 in_label = true;
@@ -109,13 +122,20 @@ fn parse(expr: &[u8]) -> Result<Vec<Expr>> {
             }
             b'}' if !escape => {
                 if !in_label {
-                    Err(Error::Parse { string: utf8(expr), context: utf8(expr), reason: "unbalanced braces" })?;
+                    Err(Error::Parse {
+                        string: utf8(expr),
+                        context: utf8(expr),
+                        reason: "unbalanced braces",
+                    })?;
                 }
 
                 let idx = find_skip_quotes(&curr, b';');
                 let end = idx.unwrap_or(curr.len());
-                let left = trim_ascii_whitespace(&curr[..end])
-                    .ok_or_else(|| Error::InvalidName { string: utf8(&curr[..end]), context: utf8(expr) })?;
+                let left =
+                    trim_ascii_whitespace(&curr[..end]).ok_or_else(|| Error::InvalidName {
+                        string: utf8(&curr[..end]),
+                        context: utf8(expr),
+                    })?;
 
                 let e = if left[0] == b'\'' && left[left.len() - 1] == b'\'' {
                     Expr::Literal(left[1..left.len() - 1].to_owned())
@@ -129,7 +149,9 @@ fn parse(expr: &[u8]) -> Result<Vec<Expr>> {
                         .parse::<usize>()
                         .map(|n| Ok(Num::Literal(n)))
                         .unwrap_or_else(|_| {
-                            Ok(Num::LabelOrAttr(expr::LabelOrAttr::new(num_str.as_bytes())?))
+                            Ok(Num::LabelOrAttr(expr::LabelOrAttr::new(
+                                num_str.as_bytes(),
+                            )?))
                         })?;
 
                     res.push(Expr::Repeat(Box::new(e), num));
@@ -150,7 +172,11 @@ fn parse(expr: &[u8]) -> Result<Vec<Expr>> {
 
     if !curr.is_empty() {
         if in_label {
-            Err(Error::Parse { string: utf8(expr), context: utf8(expr), reason: "unbalanced braces" })?;
+            Err(Error::Parse {
+                string: utf8(expr),
+                context: utf8(expr),
+                reason: "unbalanced braces",
+            })?;
         }
         res.push(Expr::Literal(curr));
     }

@@ -41,17 +41,30 @@ impl<R: Reads> Reads for CutReads<R> {
         let mut reads = self.reads.next_chunk()?;
 
         for read in reads.iter_mut() {
-            if !(self.selector_expr.matches(read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "cutting reads" })?) {
+            if !(self
+                .selector_expr
+                .matches(read)
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "cutting reads",
+                })?)
+            {
                 continue;
             }
 
             read.cut(
                 self.cut_label.str_type,
                 self.cut_label.label,
-                self.new_label1.map(|l| l.label),
-                self.new_label2.map(|l| l.label),
+                self.new_label1.as_ref().map(|l| l.label),
+                self.new_label2.as_ref().map(|l| l.label),
                 self.cut_idx,
-            ).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "cutting read" })?;
+            )
+            .map_err(|e| Error::NameError {
+                source: e,
+                read: read.clone(),
+                context: "cutting read",
+            })?;
         }
 
         Ok(reads)

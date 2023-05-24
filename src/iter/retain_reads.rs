@@ -19,7 +19,15 @@ impl<R: Reads> Reads for RetainReads<R> {
         let reads = self.reads.next_chunk()?;
         let mut res = Vec::new();
         for read in reads.into_iter() {
-            if self.selector_expr.matches(&read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "retain reads" })? {
+            if self
+                .selector_expr
+                .matches(&read)
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "retain reads",
+                })?
+            {
                 res.push(read);
             }
         }

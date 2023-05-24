@@ -21,14 +21,26 @@ impl<R: Reads> Reads for TrimReads<R> {
         let mut reads = self.reads.next_chunk()?;
 
         for read in reads.iter_mut() {
-            if !(self.selector_expr.matches(read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "trim reads" })?) {
+            if !(self
+                .selector_expr
+                .matches(read)
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "trim reads",
+                })?)
+            {
                 continue;
             }
 
             self.labels
                 .iter()
                 .try_for_each(|l| read.trim(l.str_type, l.label))
-                .map_err(|e| Error::NameError { source: e, read: read.clone(), context: "trim reads" })?;
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "trim reads",
+                })?;
         }
 
         Ok(reads)

@@ -38,16 +38,32 @@ impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> Reads for LengthInBoun
         let mut reads = self.reads.next_chunk()?;
 
         for read in reads.iter_mut() {
-            if !(self.selector_expr.matches(read).map_err(|e| Error::NameError { source: e, read: read.clone(), context: "checking length in bounds" })?) {
+            if !(self
+                .selector_expr
+                .matches(read)
+                .map_err(|e| Error::NameError {
+                    source: e,
+                    read: read.clone(),
+                    context: "checking length in bounds",
+                })?)
+            {
                 continue;
             }
 
-            if let Some(attr) = self.attr {
-                let len = read.mapping(self.label.str_type, self.label.label)
-                    .map_err(|e| Error::NameError { source: e, read: read.clone(), context: "checking length in bounds" })?.len;
+            if let Some(attr) = &self.attr {
+                let len = read
+                    .mapping(self.label.str_type, self.label.label)
+                    .map_err(|e| Error::NameError {
+                        source: e,
+                        read: read.clone(),
+                        context: "checking length in bounds",
+                    })?
+                    .len;
 
-                *read.data_mut(attr.str_type, attr.label, attr.attr)
-                    .map_err(|e| Error::NameError { source: e, read: read.clone(), context: "checking length in bounds" })? = Data::Bool(self.bounds.contains(&len));
+                // use expect to make borrow checker happy
+                *read
+                    .data_mut(attr.str_type, attr.label, attr.attr)
+                    .expect("Checking length in bounds") = Data::Bool(self.bounds.contains(&len));
             }
         }
 

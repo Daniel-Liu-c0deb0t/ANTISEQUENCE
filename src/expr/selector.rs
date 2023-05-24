@@ -1,7 +1,7 @@
+use crate::errors::*;
 use crate::expr;
 use crate::inline_string::*;
 use crate::read::*;
-use crate::errors::*;
 
 #[derive(Debug, Clone)]
 pub struct SelectorExpr {
@@ -60,7 +60,11 @@ fn matches_rec(expr: &Expr, read: &Read) -> std::result::Result<bool, NameError>
             Ok(res)
         }
         Not(e) => Ok(!(matches_rec(&e, read)?)),
-        Label(expr::Label { str_type, label }) => Ok(read.str_mappings(*str_type).ok_or_else(|| NameError::NotInRead(Name::StrType(*str_type)))?.mapping(*label).is_some()),
+        Label(expr::Label { str_type, label }) => Ok(read
+            .str_mappings(*str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(*str_type)))?
+            .mapping(*label)
+            .is_some()),
         Attr(expr::Attr {
             str_type,
             label,
@@ -77,7 +81,11 @@ fn lex(expr_str: &[u8]) -> Result<Vec<Item>> {
 
     let write_curr = |res: &mut Vec<Item>, curr: &mut Vec<u8>, expect_empty| {
         if (expect_empty && !curr.is_empty()) || (!expect_empty && curr.is_empty()) {
-            Err(Error::Parse { string: utf8(expr_str), context: utf8(expr_str), reason: "invalid boolean expression" })?;
+            Err(Error::Parse {
+                string: utf8(expr_str),
+                context: utf8(expr_str),
+                reason: "invalid boolean expression",
+            })?;
         }
 
         if !curr.is_empty() {
@@ -116,7 +124,11 @@ fn lex(expr_str: &[u8]) -> Result<Vec<Item>> {
             }
             b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'_' | b'*' => curr.push(c),
             _ if c.is_ascii_whitespace() => (),
-            _ => Err(Error::Parse { string: (c as char).to_string() , context: utf8(expr_str), reason: "invalid character" })?,
+            _ => Err(Error::Parse {
+                string: (c as char).to_string(),
+                context: utf8(expr_str),
+                reason: "invalid character",
+            })?,
         }
     }
 
@@ -178,7 +190,11 @@ fn parse(items: &[Item]) -> Result<Expr> {
     if let Item::Not = items[0] {
         Ok(Expr::Not(Box::new(parse(&items[1..])?)))
     } else {
-        Err(Error::Parse { string: "".to_owned(), context: "".to_owned(), reason: "invalid boolean expression" })
+        Err(Error::Parse {
+            string: "".to_owned(),
+            context: "".to_owned(),
+            reason: "invalid boolean expression",
+        })
     }
 }
 
@@ -195,12 +211,16 @@ where
             LeftParens => layer += 1,
             RightParens => {
                 if layer == 0 {
-                    Err(Error::Parse { string: "".to_owned(), context: "".to_owned(), reason: "mismatched parentheses" })?;
+                    Err(Error::Parse {
+                        string: "".to_owned(),
+                        context: "".to_owned(),
+                        reason: "mismatched parentheses",
+                    })?;
                 }
                 layer -= 1;
             }
             _ if layer == 0 && item == &delim => {
-                f(&items[prev_idx..idx]);
+                f(&items[prev_idx..idx])?;
                 prev_idx = idx + 1;
             }
             _ => (),
