@@ -84,10 +84,11 @@ impl<R: Reads> Reads for SetReads<R> {
                     }
                 }
                 LabelOrAttr::Attr(attr) => {
-                    // use expect to make borrow checker happy
+                    // panic to make borrow checker happy
                     *read
                         .data_mut(attr.str_type, attr.label, attr.attr)
-                        .expect("Setting reads") = Data::Bytes(new_str);
+                        .unwrap_or_else(|e| panic!("Error setting reads: {e}")) =
+                        Data::Bytes(new_str);
                 }
             }
         }

@@ -60,10 +60,11 @@ impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> Reads for LengthInBoun
                     })?
                     .len;
 
-                // use expect to make borrow checker happy
+                // panic to make borrow checker happy
                 *read
                     .data_mut(attr.str_type, attr.label, attr.attr)
-                    .expect("Checking length in bounds") = Data::Bool(self.bounds.contains(&len));
+                    .unwrap_or_else(|e| panic!("Error checking length in bounds: {e}")) =
+                    Data::Bool(self.bounds.contains(&len));
             }
         }
 

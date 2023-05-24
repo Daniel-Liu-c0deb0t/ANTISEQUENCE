@@ -47,11 +47,18 @@ pub trait Reads: Sized + std::marker::Sync {
 
         thread::scope(|s| {
             for _ in 0..threads {
-                s.spawn(|| while !self.next_chunk().unwrap().is_empty() {});
+                s.spawn(|| {
+                    while !self
+                        .next_chunk()
+                        .unwrap_or_else(|e| panic!("Error when running: {e}"))
+                        .is_empty()
+                    {}
+                });
             }
         });
 
-        self.finish().unwrap();
+        self.finish()
+            .unwrap_or_else(|e| panic!("Error when running: {e}"));
     }
 
     fn run_collect_reads(self) -> Result<Vec<Read>> {
@@ -131,8 +138,9 @@ pub trait Reads: Sized + std::marker::Sync {
             self,
             selector_expr,
             label_or_attr.into(),
-            FormatExpr::new(format_expr.as_ref().as_bytes())
-                .expect("Error in parsing format expression for the set operation"),
+            FormatExpr::new(format_expr.as_ref().as_bytes()).unwrap_or_else(|e| {
+                panic!("Error in parsing format expression for the set operation: {e}")
+            }),
         )
     }
 
@@ -159,7 +167,7 @@ pub trait Reads: Sized + std::marker::Sync {
             selector_expr,
             label,
             Patterns::from_yaml(patterns_yaml.as_ref().as_bytes())
-                .expect("Error in parsing patterns"),
+                .unwrap_or_else(|e| panic!("Error in parsing patterns: {e}")),
             match_type,
         )
     }
@@ -173,8 +181,9 @@ pub trait Reads: Sized + std::marker::Sync {
         CollectFastqReads::new1(
             self,
             selector_expr,
-            FormatExpr::new(file_expr.as_ref().as_bytes())
-                .expect("Error in parsing format expression for the collect_fastq1 operation"),
+            FormatExpr::new(file_expr.as_ref().as_bytes()).unwrap_or_else(|e| {
+                panic!("Error in parsing format expression for the collect_fastq1 operation: {e}")
+            }),
         )
     }
 
@@ -188,10 +197,12 @@ pub trait Reads: Sized + std::marker::Sync {
         CollectFastqReads::new2(
             self,
             selector_expr,
-            FormatExpr::new(file_expr1.as_ref().as_bytes())
-                .expect("Error in parsing format expression for the collect_fastq2 operation"),
-            FormatExpr::new(file_expr2.as_ref().as_bytes())
-                .expect("Error in parsing format expression for the collect_fastq2 operation"),
+            FormatExpr::new(file_expr1.as_ref().as_bytes()).unwrap_or_else(|e| {
+                panic!("Error in parsing format expression for the collect_fastq2 operation: {e}")
+            }),
+            FormatExpr::new(file_expr2.as_ref().as_bytes()).unwrap_or_else(|e| {
+                panic!("Error in parsing format expression for the collect_fastq2 operation: {e}")
+            }),
         )
     }
 
@@ -199,8 +210,9 @@ pub trait Reads: Sized + std::marker::Sync {
     fn retain(self, selector_expr: impl AsRef<str>) -> RetainReads<Self> {
         RetainReads::new(
             self,
-            SelectorExpr::new(selector_expr.as_ref().as_bytes())
-                .expect("Error in parsing selector expression for the retain operation"),
+            SelectorExpr::new(selector_expr.as_ref().as_bytes()).unwrap_or_else(|e| {
+                panic!("Error in parsing selector expression for the retain operation: {e}")
+            }),
         )
     }
 

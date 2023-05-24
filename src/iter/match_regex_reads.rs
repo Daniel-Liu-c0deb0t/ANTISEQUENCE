@@ -29,7 +29,7 @@ impl<R: Reads> MatchRegexReads<R> {
                 LabelOrAttr::Attr(a) => a,
                 _ => panic!("Expected type.label.attr after the \"->\" in the transform expression when matching regex"),
             }),
-            regex: Regex::new(regex).expect("Error compiling regex pattern"),
+            regex: Regex::new(regex).unwrap_or_else(|e| panic!("Error compiling regex: {e}")),
         }
     }
 }
@@ -80,17 +80,17 @@ impl<R: Reads> Reads for MatchRegexReads<R> {
             let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
 
             for (label, start, len) in new_mappings.drain(..) {
-                // use expect to make borrow checker happy
+                // panic to make borrow checker happy
                 str_mappings
                     .add_mapping(Some(label), start, len)
-                    .expect("Matching regex");
+                    .unwrap_or_else(|e| panic!("Error matching regex: {e}"));
             }
 
             if let Some(attr) = &self.attr {
-                // use expect to make borrow checker happy
+                // panic to make borrow checker happy
                 *read
                     .data_mut(attr.str_type, attr.label, attr.attr)
-                    .expect("Matching regex") = Data::Bool(matched);
+                    .unwrap_or_else(|e| panic!("Error matching regex: {e}")) = Data::Bool(matched);
             }
         }
 

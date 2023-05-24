@@ -2,6 +2,7 @@ use antisequence::*;
 
 fn main() {
     iter_fastq1("example_data/simple.fastq", 256)
+        .unwrap_or_else(|e| panic!("{e}"))
         .cut(sel!(), tr!(seq1.* -> seq1.a, seq1.b), LeftEnd(3))
         .cut(sel!(), tr!(seq1.b -> _, seq1.c), RightEnd(4))
         .dbg(sel!())
@@ -9,5 +10,6 @@ fn main() {
         .trim(sel!(), [label!(seq1.a)])
         .dbg(sel!())
         .collect_fastq1(sel!(), "example_output/simple.fastq")
-        .run(1);
+        .run()
+        .unwrap_or_else(|e| panic!("{e}"));
 }
