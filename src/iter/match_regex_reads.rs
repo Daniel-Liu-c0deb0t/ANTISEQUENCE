@@ -78,11 +78,12 @@ impl<R: Reads> Reads for MatchRegexReads<R> {
             }
 
             let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
+            let offset = str_mappings.mapping(self.label.label).start;
 
             for (label, start, len) in new_mappings.drain(..) {
                 // panic to make borrow checker happy
                 str_mappings
-                    .add_mapping(Some(label), start, len)
+                    .add_mapping(Some(label), offset + start, len)
                     .unwrap_or_else(|e| panic!("Error matching regex: {e}"));
             }
 

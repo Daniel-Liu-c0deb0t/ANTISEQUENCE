@@ -232,10 +232,21 @@ pub enum MatchType {
     Hamming(Threshold),
     HammingPrefix(Threshold),
     HammingSuffix(Threshold),
-    GlobalAln(Threshold),
-    LocalAln(Threshold),
-    PrefixAln(Threshold),
-    SuffixAln(Threshold),
+    GlobalAln(f64),
+    LocalAln { identity: f64, overlap: f64 },
+    PrefixAln { identity: f64, overlap: f64 },
+    SuffixAln { identity: f64, overlap: f64 },
+}
+
+impl MatchType {
+    pub fn num_mappings(&self) -> usize {
+        use MatchType::*;
+        match self {
+            Exact | Hamming(_) | GlobalAln(_) => 1,
+            ExactPrefix | ExactSuffix | HammingPrefix(_) | HammingSuffix(_) | PrefixAln(_) | SuffixAln(_) => 2,
+            LocalAln(_) => 3,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
