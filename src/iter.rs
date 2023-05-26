@@ -158,14 +158,14 @@ pub trait Reads: Sized + std::marker::Sync {
     fn match_any(
         self,
         selector_expr: SelectorExpr,
-        label: Label,
+        transform_expr: TransformExpr,
         patterns_yaml: impl AsRef<str>,
         match_type: MatchType,
     ) -> MatchAnyReads<Self> {
         MatchAnyReads::new(
             self,
             selector_expr,
-            label,
+            transform_expr,
             Patterns::from_yaml(patterns_yaml.as_ref().as_bytes())
                 .unwrap_or_else(|e| panic!("Error in parsing patterns: {e}")),
             match_type,
@@ -243,8 +243,8 @@ impl MatchType {
         use MatchType::*;
         match self {
             Exact | Hamming(_) | GlobalAln(_) => 1,
-            ExactPrefix | ExactSuffix | HammingPrefix(_) | HammingSuffix(_) | PrefixAln(_) | SuffixAln(_) => 2,
-            LocalAln(_) => 3,
+            ExactPrefix | ExactSuffix | HammingPrefix(_) | HammingSuffix(_) | PrefixAln { .. } | SuffixAln { .. } => 2,
+            LocalAln { .. } => 3,
         }
     }
 }

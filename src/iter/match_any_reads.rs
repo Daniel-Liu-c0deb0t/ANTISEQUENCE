@@ -19,7 +19,7 @@ impl<R: Reads> MatchAnyReads<R> {
         patterns: Patterns,
         match_type: MatchType,
     ) -> Self {
-        let mut new_labels = [None; 3];
+        let mut new_labels = [None, None, None];
 
         transform_expr.check_size(1, match_type.num_mappings(), "matching patterns");
         for i in 0..match_type.num_mappings() {
@@ -70,17 +70,17 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
             if aligner.is_none() {
                 match self.match_type {
                     MatchType::GlobalAln(_) => {
-                        aligner = Some(Box::new(MatchAligner::<false, false>::new(
+                        aligner = Some(Box::new(MatchAligner::<false, false, false>::new(
                             string.len() * 2,
                         )));
                     }
-                    MatchType::LocalAln(_) => {
+                    MatchType::LocalAln { .. } => {
                         aligner =
-                            Some(Box::new(MatchAligner::<true, false>::new(string.len() * 2)));
+                            Some(Box::new(MatchAligner::<true, false, true>::new(string.len() * 2)));
                     }
-                    MatchType::PrefixAln(_) | MatchType::SuffixAln(_) => {
+                    MatchType::PrefixAln { .. } | MatchType::SuffixAln { .. } => {
                         aligner =
-                            Some(Box::new(MatchAligner::<false, true>::new(string.len() * 2)));
+                            Some(Box::new(MatchAligner::<false, true, true>::new(string.len() * 2)));
                     }
                     _ => (),
                 }
@@ -102,23 +102,19 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                             context: "matching patterns",
                         })?;
                 let pattern_len = pattern_str.len();
-                let mut cut_pos1 = 0;
-                let mut cut_pos2 = 0;
 
                 use MatchType::*;
                 let matches = match self.match_type {
                     Exact => {
                         if string == pattern_str {
-                            cut_pos1 = pattern_len;
-                            Some(pattern_str.len())
+                            Some((pattern_len, pattern_len, 0))
                         } else {
                             None
                         }
                     }
                     ExactPrefix => {
                         if pattern_len <= string.len() && &string[..pattern_len] == &pattern_str {
-                            cut_pos1 = pattern_len;
-                            Some(pattern_len)
+                            Some((pattern_len, pattern_len, 0))
                         } else {
                             None
                         }
@@ -127,89 +123,67 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                         if pattern_len <= string.len()
                             && &string[string.len() - pattern_len..] == &pattern_str
                         {
-                            cut_pos1 = string.len() - pattern_len;
-                            Some(pattern_len)
+                            Some((pattern_len, string.len() - pattern_len, 0))
                         } else {
                             None
                         }
                     }
                     Hamming(t) => {
-                        cut_pos1 = pattern_len;
                         let t = t.get(pattern_len);
-                        hamming(string, &pattern_str, t)
+                        hamming(string, &pattern_str, t).map(|m| (m, pattern_len, 0))
                     }
                     HammingPrefix(t) => {
                         if pattern_len <= string.len() {
-                            cut_pos1 = pattern_len;
                             let t = t.get(pattern_len);
-                            hamming(&string[..pattern_len], &pattern_str, t)
+                            hamming(&string[..pattern_len], &pattern_str, t).map(|m| (m, pattern_len, 0))
                         } else {
                             None
                         }
                     }
                     HammingSuffix(t) => {
                         if pattern_len <= string.len() {
-                            cut_pos1 = string.len() - pattern_len;
                             let t = t.get(pattern_len);
-                            hamming(&string[string.len() - pattern_len..], &pattern_str, t)
+                            hamming(&string[string.len() - pattern_len..], &pattern_str, t).map(|m| (m, string.len() - pattern_len, 0))
                         } else {
                             None
                         }
                     }
                     GlobalAln(identity) => {
-                        cut_pos1 = string.len();
                         aligner
                             .as_mut()
                             .unwrap()
                             .align(string, &pattern_str, identity, identity, false)
+                            .map(|(m, _, end_idx)| (m, end_idx, 0))
                     }
                     LocalAln { identity, overlap } => {
-                        let res = aligner
+                        aligner
                             .as_mut()
                             .unwrap()
-                            .align(string, &pattern_str, identity, overlap, false);
-                        if let Some(res) = res {
-                            cut_pos1 = res.1;
-                            cut_pos2 = res.2;
-                            Some(res.0)
-                        } else {
-                            None
-                        }
+                            .align(string, &pattern_str, identity, overlap, false)
                     }
                     PrefixAln { identity, overlap } => {
-                        let additional = ((1.0 - identity) * (pattern_len as f64)).ceil() as usize;
+                        let additional = ((1.0 - identity).max(0.0) * (pattern_len as f64)).ceil() as usize;
                         let len = string.len().min(pattern_len + additional);
-                        let res = aligner
+                        aligner
                             .as_mut()
                             .unwrap()
-                            .align(&string[..len], &pattern_str, identity, overlap, true);
-                        if let Some(res) = res {
-                            cut_pos1 = res.2;
-                            Some(res.0)
-                        } else {
-                            None
-                        }
+                            .align(&string[..len], &pattern_str, identity, overlap, true)
+                            .map(|(m, _, end_idx)| (m, end_idx, 0))
                     }
                     SuffixAln { identity, overlap } => {
-                        let additional = ((1.0 - identity) * (pattern_len as f64)).ceil() as usize;
+                        let additional = ((1.0 - identity).max(0.0) * (pattern_len as f64)).ceil() as usize;
                         let len = string.len().min(pattern_len + additional);
-                        let res = aligner.as_mut().unwrap().align(
+                        aligner.as_mut().unwrap().align(
                             &string[string.len() - len..],
                             &pattern_str,
                             identity,
                             overlap,
                             false,
-                        );
-                        if let Some(res) = res {
-                            cut_pos1 = res.1;
-                            Some(res.0)
-                        } else {
-                            None
-                        }
+                        ).map(|(m, start_idx, _)| (m, string.len() - len + start_idx, 0))
                     }
                 };
 
-                if let Some(matches) = matches {
+                if let Some((matches, cut_pos1, cut_pos2)) = matches {
                     if matches > max_matches {
                         max_matches = matches;
                         max_pattern = Some((pattern_str, &pattern.attrs));
@@ -239,11 +213,12 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                         let start = mapping.start;
                         let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
                         // panic to make borrow checker happy
-                        str_mappings.add_mapping(self.label.new_labels[0], start, max_cut_pos1)
+                        str_mappings.add_mapping(self.new_labels[0].as_ref().map(|l| l.label), start, max_cut_pos1)
                             .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
                     }
                     2 => {
-                        read.cut(self.label.str_type, self.label.label, self.label.new_labels[0], self.label.new_labels[1], LeftEnd(max_cut_pos1));
+                        read.cut(self.label.str_type, self.label.label, self.new_labels[0].as_ref().map(|l| l.label), self.new_labels[1].as_ref().map(|l| l.label), LeftEnd(max_cut_pos1))
+                            .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
                     }
                     3 => {
                         let offset = mapping.start;
@@ -251,11 +226,11 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
 
                         let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
                         // panic to make borrow checker happy
-                        str_mappings.add_mapping(self.label.new_labels[0], offset, max_cut_pos1)
+                        str_mappings.add_mapping(self.new_labels[0].as_ref().map(|l| l.label), offset, max_cut_pos1)
                             .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
-                        str_mappings.add_mapping(self.label.new_labels[1], offset + max_cut_pos1, max_cut_pos2 - max_cut_pos1)
+                        str_mappings.add_mapping(self.new_labels[1].as_ref().map(|l| l.label), offset + max_cut_pos1, max_cut_pos2 - max_cut_pos1)
                             .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
-                        str_mappings.add_mapping(self.label.new_labels[2], offset + max_cut_pos2, mapping_len)
+                        str_mappings.add_mapping(self.new_labels[2].as_ref().map(|l| l.label), offset + max_cut_pos2, mapping_len - max_cut_pos2)
                             .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
                     }
                     _ => unreachable!(),
@@ -315,27 +290,29 @@ fn hamming(a: &[u8], b: &[u8], threshold: usize) -> Option<usize> {
 }
 
 trait Aligner {
-    fn align(&mut self, a: &[u8], pattern: &[u8], identity_threshold: f64, overlap_threshold: f64, prefix: bool) -> Option<(usize, usize, usize)>;
+    fn align(&mut self, read: &[u8], pattern: &[u8], identity_threshold: f64, overlap_threshold: f64, prefix: bool) -> Option<(usize, usize, usize)>;
 }
 
-struct MatchAligner<const LOCAL: bool, const PREFIX_SUFFIX: bool> {
-    a_vec: Vec<u8>,
-    a_padded: PaddedBytes,
-    b_padded: PaddedBytes,
+struct MatchAligner<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bool> {
+    read_vec: Vec<u8>,
+    read_padded: PaddedBytes,
+    pattern_padded: PaddedBytes,
     matrix: NucMatrix,
     // always store trace
-    block: Block<true, { LOCAL || PREFIX_SUFFIX }, LOCAL, PREFIX_SUFFIX>,
+    block: Block<true, LOCAL_PREFIX_SUFFIX, LOCAL, PREFIX_SUFFIX>,
     cigar: Cigar,
     len: usize,
 }
 
-impl<const LOCAL: bool, const PREFIX_SUFFIX: bool> MatchAligner<LOCAL, PREFIX_SUFFIX> {
+impl<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bool> MatchAligner<LOCAL, PREFIX_SUFFIX, LOCAL_PREFIX_SUFFIX> {
     const MIN_SIZE: usize = 32;
     const MAX_SIZE: usize = 512;
     const GAP_OPEN: i8 = -2;
     const GAP_EXTEND: i8 = -1;
 
     pub fn new(len: usize) -> Self {
+        assert_eq!(LOCAL_PREFIX_SUFFIX, LOCAL || PREFIX_SUFFIX);
+
         let read_vec = Vec::with_capacity(len);
         let read_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
         let pattern_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
@@ -346,7 +323,7 @@ impl<const LOCAL: bool, const PREFIX_SUFFIX: bool> MatchAligner<LOCAL, PREFIX_SU
             matrix.set(c, b'X', 0);
         }
 
-        let block = Block::<true, LOCAL, LOCAL, PREFIX_SUFFIX>::new(len, len, Self::MAX_SIZE);
+        let block = Block::<true, LOCAL_PREFIX_SUFFIX, LOCAL, PREFIX_SUFFIX>::new(len, len, Self::MAX_SIZE);
         let cigar = Cigar::new(len, len);
 
         Self {
@@ -364,33 +341,33 @@ impl<const LOCAL: bool, const PREFIX_SUFFIX: bool> MatchAligner<LOCAL, PREFIX_SU
         if len > self.len {
             self.read_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
             self.pattern_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
-            self.block = Block::<true, LOCAL, LOCAL, PREFIX_SUFFIX>::new(len, len, Self::MAX_SIZE);
+            self.block = Block::<true, LOCAL_PREFIX_SUFFIX, LOCAL, PREFIX_SUFFIX>::new(len, len, Self::MAX_SIZE);
             self.cigar = Cigar::new(len, len);
             self.len = len;
         }
     }
 }
 
-impl<const LOCAL: bool, const PREFIX_SUFFIX: bool> Aligner for MatchAligner<LOCAL, PREFIX_SUFFIX> {
+impl<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bool> Aligner for MatchAligner<LOCAL, PREFIX_SUFFIX, LOCAL_PREFIX_SUFFIX> {
     fn align(&mut self, read: &[u8], pattern: &[u8], identity_threshold: f64, overlap_threshold: f64, prefix: bool) -> Option<(usize, usize, usize)> {
         let padding_len = if PREFIX_SUFFIX {
-            ((1.0 - overlap_threshold).max(0) * (pattern.len() as f64)).ceil() as usize
+            ((1.0 - overlap_threshold).max(0.0) * (pattern.len() as f64)).ceil() as usize
         } else {
             0
         };
 
-        self.resize_if_needed(read.len().max(pattern.len()));
+        self.resize_if_needed(pattern.len().max(read.len() + padding_len));
         self.read_vec.clear();
 
         if prefix {
             self.read_vec.extend((0..padding_len).map(|_| b'X'));
-            self.read_vec.extend_from_slice(a);
+            self.read_vec.extend_from_slice(read);
 
             self.read_padded.set_bytes_rev::<NucMatrix>(&self.read_vec, Self::MAX_SIZE);
             self.pattern_padded
                 .set_bytes_rev::<NucMatrix>(pattern, Self::MAX_SIZE);
         } else {
-            self.read_vec.extend_from_slice(a);
+            self.read_vec.extend_from_slice(read);
             self.read_vec.extend((0..padding_len).map(|_| b'X'));
 
             self.read_padded.set_bytes::<NucMatrix>(&self.read_vec, Self::MAX_SIZE);

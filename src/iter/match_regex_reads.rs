@@ -78,7 +78,7 @@ impl<R: Reads> Reads for MatchRegexReads<R> {
             }
 
             let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
-            let offset = str_mappings.mapping(self.label.label).start;
+            let offset = str_mappings.mapping(self.label.label).unwrap().start;
 
             for (label, start, len) in new_mappings.drain(..) {
                 // panic to make borrow checker happy

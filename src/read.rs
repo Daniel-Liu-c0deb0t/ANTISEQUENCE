@@ -574,13 +574,13 @@ impl fmt::Display for StrMappings {
         for m in &self.mappings {
             let curr = if m.len == 0 {
                 let mut c = vec![b' '; self.string.len() + 1];
-                c[m.start] = b'|';
+                c[m.start] = b'.';
                 String::from_utf8(c).unwrap()
             } else {
                 let mut c = vec![b' '; self.string.len() + 1];
-                c[m.start] = b'[';
-                c[m.start + m.len - 1] = b']';
-                c[m.start + 1..m.start + m.len - 1].fill(b'-');
+                c[m.start..m.start + m.len].fill(b'-');
+                c[m.start] = b'|';
+                c[m.start + m.len - 1] = b'|';
                 String::from_utf8(c).unwrap()
             };
             write!(f, "{: <len$} {}", m.label.to_string(), curr)?;
