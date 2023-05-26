@@ -243,7 +243,12 @@ impl MatchType {
         use MatchType::*;
         match self {
             Exact | Hamming(_) | GlobalAln(_) => 1,
-            ExactPrefix | ExactSuffix | HammingPrefix(_) | HammingSuffix(_) | PrefixAln { .. } | SuffixAln { .. } => 2,
+            ExactPrefix
+            | ExactSuffix
+            | HammingPrefix(_)
+            | HammingSuffix(_)
+            | PrefixAln { .. }
+            | SuffixAln { .. } => 2,
             LocalAln { .. } => 3,
         }
     }
