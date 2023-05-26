@@ -28,14 +28,14 @@ impl<R: Reads> Reads for SetReads<R> {
         let mut reads = self.reads.next_chunk()?;
 
         for read in reads.iter_mut() {
-            if self
+            if !(self
                 .selector_expr
                 .matches(&read)
                 .map_err(|e| Error::NameError {
                     source: e,
                     read: read.clone(),
                     context: "setting reads",
-                })?
+                })?)
             {
                 continue;
             }

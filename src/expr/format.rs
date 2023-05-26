@@ -20,7 +20,8 @@ enum Expr {
 #[derive(Debug, Clone)]
 enum Num {
     Literal(usize),
-    LabelOrAttr(expr::LabelOrAttr),
+    LabelOrAttrLen(expr::LabelOrAttr),
+    LabelOrAttrCoerce(expr::Attr),
 }
 
 impl FormatExpr {
@@ -72,7 +73,7 @@ fn format_expr(
         Repeat(expr, num) => {
             let repeats = match num {
                 Num::Literal(n) => *n,
-                Num::LabelOrAttr(l) => match l {
+                Num::LabelOrAttrLen(l) => match l {
                     expr::LabelOrAttr::Label(expr::Label { str_type, label }) => {
                         read.mapping(*str_type, *label)?.len
                     }
@@ -80,8 +81,13 @@ fn format_expr(
                         str_type,
                         label,
                         attr,
-                    }) => read.data(*str_type, *label, *attr)?.as_uint(),
+                    }) => read.data(*str_type, *label, *attr)?.len()?,
                 },
+                Num::LabelOrAttrCoerce(expr::Attr {
+                    str_type,
+                    label,
+                    attr,
+                }) => read.data(*str_type, *label, *attr)?.as_uint()?,
             };
 
             if repeats >= 1 {
@@ -144,14 +150,24 @@ fn parse(expr: &[u8]) -> Result<Vec<Expr>> {
                 };
 
                 if let Some(idx) = idx {
-                    let num_str = std::str::from_utf8(&curr[idx + 1..]).unwrap();
+                    let right = trim_ascii_whitespace(&curr[idx + 1..]).ok_or_else(|| {
+                        Error::InvalidName {
+                            string: utf8(&curr[idx + 1..]),
+                            context: utf8(expr),
+                        }
+                    })?;
+                    let num_str = std::str::from_utf8(right).unwrap();
                     let num = num_str
                         .parse::<usize>()
                         .map(|n| Ok(Num::Literal(n)))
                         .unwrap_or_else(|_| {
-                            Ok(Num::LabelOrAttr(expr::LabelOrAttr::new(
-                                num_str.as_bytes(),
-                            )?))
+                            if right[0] == b'|' && right[right.len() - 1] == b'|' {
+                                Ok(Num::LabelOrAttrLen(expr::LabelOrAttr::new(
+                                    &right[1..right.len() - 1],
+                                )?))
+                            } else {
+                                Ok(Num::LabelOrAttrCoerce(expr::Attr::new(right)?))
+                            }
                         })?;
 
                     res.push(Expr::Repeat(Box::new(e), num));

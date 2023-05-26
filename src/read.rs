@@ -273,7 +273,7 @@ pub struct Mapping {
     data: FxHashMap<InlineString, Data>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub enum Data {
     Bool(bool),
     UInt(usize),
@@ -545,18 +545,21 @@ impl Data {
         }
     }
 
-    pub fn as_uint(&self) -> usize {
+    pub fn as_uint(&self) -> Result<usize, NameError> {
         use Data::*;
         match self {
-            Bool(x) => {
-                if *x {
-                    1
-                } else {
-                    0
-                }
-            }
-            UInt(x) => *x,
-            Bytes(x) => x.len(),
+            Bool(x) => Ok(if *x { 1 } else { 0 }),
+            UInt(x) => Ok(*x),
+            Bytes(_) => Err(NameError::Type("bool or uint", self.clone())),
+        }
+    }
+
+    pub fn len(&self) -> Result<usize, NameError> {
+        use Data::*;
+        match self {
+            Bool(_) => Err(NameError::Type("bytes", self.clone())),
+            UInt(_) => Err(NameError::Type("bytes", self.clone())),
+            Bytes(x) => Ok(x.len()),
         }
     }
 }
@@ -629,6 +632,17 @@ impl fmt::Display for Data {
             Bool(x) => write!(f, "{}", x),
             UInt(x) => write!(f, "{}", x),
             Bytes(x) => write!(f, "{}", std::str::from_utf8(x).unwrap()),
+        }
+    }
+}
+
+impl fmt::Debug for Data {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use Data::*;
+        match self {
+            Bool(x) => write!(f, "bool {}", x),
+            UInt(x) => write!(f, "uint {}", x),
+            Bytes(x) => write!(f, "bytes \"{}\"", std::str::from_utf8(x).unwrap()),
         }
     }
 }

@@ -4,7 +4,7 @@ use std::fmt;
 
 use crate::fastq::Origin;
 use crate::inline_string::*;
-use crate::read::{Read, StrType};
+use crate::read::{Data, Read, StrType};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -59,6 +59,8 @@ pub enum NameError {
     NotInRead(Name),
     #[error("Duplicate name in read: {0}")]
     Duplicate(Name),
+    #[error("Expected {0}, but found {1:?}")]
+    Type(&'static str, Data),
 }
 
 #[derive(Debug)]
