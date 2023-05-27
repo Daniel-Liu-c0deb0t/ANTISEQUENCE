@@ -36,6 +36,9 @@ use match_any_reads::*;
 pub mod count_reads;
 use count_reads::*;
 
+pub mod bernoulli_reads;
+use bernoulli_reads::*;
+
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self) -> Result<()> {
         while !self.next_chunk()?.is_empty() {}
@@ -110,6 +113,17 @@ pub trait Reads: Sized + std::marker::Sync {
         B: RangeBounds<usize> + std::marker::Sync,
     {
         LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
+    }
+
+    #[must_use]
+    fn bernoulli(
+        self,
+        selector_expr: SelectorExpr,
+        attr: Attr,
+        prob: f64,
+        seed: u64,
+    ) -> BernoulliReads<Self> {
+        BernoulliReads::new(self, selector_expr, attr, prob, seed)
     }
 
     #[must_use]
@@ -207,13 +221,8 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn retain(self, selector_expr: impl AsRef<str>) -> RetainReads<Self> {
-        RetainReads::new(
-            self,
-            SelectorExpr::new(selector_expr.as_ref().as_bytes()).unwrap_or_else(|e| {
-                panic!("Error in parsing selector expression for the retain operation: {e}")
-            }),
-        )
+    fn retain(self, selector_expr: SelectorExpr) -> RetainReads<Self> {
+        RetainReads::new(self, selector_expr)
     }
 
     fn next_chunk(&self) -> Result<Vec<Read>>;

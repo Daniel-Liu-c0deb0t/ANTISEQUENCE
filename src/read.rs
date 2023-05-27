@@ -533,6 +533,10 @@ impl Read {
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .trim(label)
     }
+
+    pub fn first_line(&self) -> Option<usize> {
+        self.str_mappings.iter().map(|(_, s)| s.line).min()
+    }
 }
 
 impl Data {
