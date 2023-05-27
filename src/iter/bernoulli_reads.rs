@@ -31,7 +31,7 @@ impl<R: Reads> Reads for BernoulliReads<R> {
 
         let seed = self
             .seed
-            .wrapping_add(reads.get(0).and_then(|r| r.first_line()).unwrap_or(0) as u64);
+            .wrapping_add(reads.first().map(|r| r.first_idx() as u64).unwrap_or(0u64));
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
         for read in reads.iter_mut() {

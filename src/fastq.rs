@@ -12,7 +12,7 @@ use crate::read::*;
 pub struct Fastq1Reads<'a> {
     reader: Mutex<Box<dyn FastxReader + 'a>>,
     origin: Arc<Origin>,
-    line: AtomicUsize,
+    idx: AtomicUsize,
     chunk_size: usize,
     interleaved: bool,
 }
@@ -30,7 +30,7 @@ impl<'a> Reads for Fastq1Reads<'a> {
             if let Some(record1) = reader.next() {
                 let record1 = record1.map_err(|e| Error::ParseRecord {
                     origin: (*self.origin).clone(),
-                    line: self.line.load(Ordering::Relaxed),
+                    idx: self.idx.load(Ordering::Relaxed),
                     source: Box::new(e),
                 })?;
 
@@ -42,14 +42,14 @@ impl<'a> Reads for Fastq1Reads<'a> {
                     record1_qual.clear();
                     record1_qual.extend_from_slice(record1.qual().unwrap());
                 } else {
-                    let line = self.line.fetch_add(4, Ordering::Relaxed);
+                    let idx = self.idx.fetch_add(1, Ordering::Relaxed);
 
                     res.push(Read::from_fastq1(
                         record1.id(),
                         &record1.seq(),
                         record1.qual().unwrap(),
                         Arc::clone(&self.origin),
-                        line,
+                        idx,
                     ));
                 }
             } else {
@@ -62,22 +62,22 @@ impl<'a> Reads for Fastq1Reads<'a> {
                 };
                 let record2 = record2.map_err(|e| Error::ParseRecord {
                     origin: (*self.origin).clone(),
-                    line: self.line.load(Ordering::Relaxed) + 4,
+                    idx: self.idx.load(Ordering::Relaxed) + 1,
                     source: Box::new(e),
                 })?;
-                let line = self.line.fetch_add(8, Ordering::Relaxed);
+                let idx = self.idx.fetch_add(2, Ordering::Relaxed);
 
                 res.push(Read::from_fastq2(
                     &record1_id,
                     &record1_seq,
                     &record1_qual,
                     Arc::clone(&self.origin),
-                    line,
+                    idx,
                     record2.id(),
                     &record2.seq(),
                     record2.qual().unwrap(),
                     Arc::clone(&self.origin),
-                    line + 4,
+                    idx + 1,
                 ));
             }
         }
@@ -95,7 +95,7 @@ pub struct Fastq2Reads {
     reader2: Mutex<Box<dyn FastxReader>>,
     origin1: Arc<Origin>,
     origin2: Arc<Origin>,
-    line: AtomicUsize,
+    idx: AtomicUsize,
     chunk_size: usize,
 }
 
@@ -116,27 +116,27 @@ impl Reads for Fastq2Reads {
 
             let record1 = record1.map_err(|e| Error::ParseRecord {
                 origin: (*self.origin1).clone(),
-                line: self.line.load(Ordering::Relaxed),
+                idx: self.idx.load(Ordering::Relaxed),
                 source: Box::new(e),
             })?;
             let record2 = record2.map_err(|e| Error::ParseRecord {
                 origin: (*self.origin2).clone(),
-                line: self.line.load(Ordering::Relaxed),
+                idx: self.idx.load(Ordering::Relaxed),
                 source: Box::new(e),
             })?;
-            let line = self.line.fetch_add(4, Ordering::Relaxed);
+            let idx = self.idx.fetch_add(1, Ordering::Relaxed);
 
             res.push(Read::from_fastq2(
                 record1.id(),
                 &record1.seq(),
                 record1.qual().unwrap(),
                 Arc::clone(&self.origin1),
-                line,
+                idx,
                 record2.id(),
                 &record2.seq(),
                 record2.qual().unwrap(),
                 Arc::clone(&self.origin2),
-                line,
+                idx,
             ));
         }
 
@@ -157,7 +157,7 @@ pub fn iter_fastq1(file: impl AsRef<str>, chunk_size: usize) -> Result<Fastq1Rea
     Ok(Fastq1Reads::<'static> {
         reader,
         origin: Arc::new(Origin::File(file.as_ref().to_owned())),
-        line: AtomicUsize::new(0),
+        idx: AtomicUsize::new(0),
         chunk_size,
         interleaved: false,
     })
@@ -175,7 +175,7 @@ pub fn iter_fastq_interleaved(
     Ok(Fastq1Reads::<'static> {
         reader,
         origin: Arc::new(Origin::File(file.as_ref().to_owned())),
-        line: AtomicUsize::new(0),
+        idx: AtomicUsize::new(0),
         chunk_size,
         interleaved: true,
     })
@@ -200,7 +200,7 @@ pub fn iter_fastq2(
         reader2,
         origin1: Arc::new(Origin::File(file1.as_ref().to_owned())),
         origin2: Arc::new(Origin::File(file2.as_ref().to_owned())),
-        line: AtomicUsize::new(0),
+        idx: AtomicUsize::new(0),
         chunk_size,
     })
 }
@@ -211,7 +211,7 @@ pub fn iter_fastq1_bytes<'a>(bytes: &'a [u8]) -> Result<Fastq1Reads<'a>> {
     Ok(Fastq1Reads::<'a> {
         reader,
         origin: Arc::new(Origin::Bytes),
-        line: AtomicUsize::new(0),
+        idx: AtomicUsize::new(0),
         chunk_size: 256,
         interleaved: false,
     })
@@ -223,7 +223,7 @@ pub fn iter_fastq_interleaved_bytes<'a>(bytes: &'a [u8]) -> Result<Fastq1Reads<'
     Ok(Fastq1Reads::<'a> {
         reader,
         origin: Arc::new(Origin::Bytes),
-        line: AtomicUsize::new(0),
+        idx: AtomicUsize::new(0),
         chunk_size: 256,
         interleaved: true,
     })

@@ -7,12 +7,19 @@ use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
 
+pub use End::*;
 pub use EndIdx::*;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum EndIdx {
     LeftEnd(usize),
     RightEnd(usize),
+}
+
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum End {
+    Left,
+    Right,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
@@ -38,27 +45,27 @@ pub struct StrMappings {
 
     // tracks where this string came from
     origin: Arc<Origin>,
-    line: usize,
+    idx: usize,
 }
 
 impl StrMappings {
-    pub fn new(string: Vec<u8>, origin: Arc<Origin>, line: usize) -> Self {
+    pub fn new(string: Vec<u8>, origin: Arc<Origin>, idx: usize) -> Self {
         Self {
             mappings: vec![Mapping::new_default(string.len())],
             string,
             qual: None,
             origin,
-            line,
+            idx,
         }
     }
 
-    pub fn new_with_qual(string: Vec<u8>, qual: Vec<u8>, origin: Arc<Origin>, line: usize) -> Self {
+    pub fn new_with_qual(string: Vec<u8>, qual: Vec<u8>, origin: Arc<Origin>, idx: usize) -> Self {
         Self {
             mappings: vec![Mapping::new_default(string.len())],
             string,
             qual: Some(qual),
             origin,
-            line,
+            idx,
         }
     }
 
@@ -363,10 +370,10 @@ impl Read {
         seq: &[u8],
         qual: &[u8],
         origin: Arc<Origin>,
-        line: usize,
+        idx: usize,
     ) -> Self {
-        let name = StrMappings::new(name.to_owned(), Arc::clone(&origin), line);
-        let seq = StrMappings::new_with_qual(seq.to_owned(), qual.to_owned(), origin, line + 1);
+        let name = StrMappings::new(name.to_owned(), Arc::clone(&origin), idx);
+        let seq = StrMappings::new_with_qual(seq.to_owned(), qual.to_owned(), origin, idx);
 
         Self {
             str_mappings: vec![(StrType::Name1, name), (StrType::Seq1, seq)],
@@ -378,19 +385,17 @@ impl Read {
         seq1: &[u8],
         qual1: &[u8],
         origin1: Arc<Origin>,
-        line1: usize,
+        idx1: usize,
         name2: &[u8],
         seq2: &[u8],
         qual2: &[u8],
         origin2: Arc<Origin>,
-        line2: usize,
+        idx2: usize,
     ) -> Self {
-        let name1 = StrMappings::new(name1.to_owned(), Arc::clone(&origin1), line1);
-        let seq1 =
-            StrMappings::new_with_qual(seq1.to_owned(), qual1.to_owned(), origin1, line1 + 1);
-        let name2 = StrMappings::new(name2.to_owned(), Arc::clone(&origin2), line2);
-        let seq2 =
-            StrMappings::new_with_qual(seq2.to_owned(), qual2.to_owned(), origin2, line2 + 1);
+        let name1 = StrMappings::new(name1.to_owned(), Arc::clone(&origin1), idx1);
+        let seq1 = StrMappings::new_with_qual(seq1.to_owned(), qual1.to_owned(), origin1, idx1);
+        let name2 = StrMappings::new(name2.to_owned(), Arc::clone(&origin2), idx2);
+        let seq2 = StrMappings::new_with_qual(seq2.to_owned(), qual2.to_owned(), origin2, idx2);
 
         Self {
             str_mappings: vec![
@@ -534,8 +539,8 @@ impl Read {
             .trim(label)
     }
 
-    pub fn first_line(&self) -> Option<usize> {
-        self.str_mappings.iter().map(|(_, s)| s.line).min()
+    pub fn first_idx(&self) -> usize {
+        self.str_mappings.iter().map(|(_, s)| s.idx).min().unwrap()
     }
 }
 
@@ -614,7 +619,7 @@ impl fmt::Display for StrMappings {
             )?;
         }
 
-        writeln!(f, "(from line {} in {})", self.line, &*self.origin)?;
+        writeln!(f, "(from record {} in {})", self.idx, &*self.origin)?;
 
         Ok(())
     }

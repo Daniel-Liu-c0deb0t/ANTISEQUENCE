@@ -39,6 +39,9 @@ use count_reads::*;
 pub mod bernoulli_reads;
 use bernoulli_reads::*;
 
+pub mod take_reads;
+use take_reads::*;
+
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self) -> Result<()> {
         while !self.next_chunk()?.is_empty() {}
@@ -223,6 +226,11 @@ pub trait Reads: Sized + std::marker::Sync {
     #[must_use]
     fn retain(self, selector_expr: SelectorExpr) -> RetainReads<Self> {
         RetainReads::new(self, selector_expr)
+    }
+
+    #[must_use]
+    fn take(self, count: usize) -> TakeReads<Self> {
+        TakeReads::new(self, count)
     }
 
     fn next_chunk(&self) -> Result<Vec<Read>>;

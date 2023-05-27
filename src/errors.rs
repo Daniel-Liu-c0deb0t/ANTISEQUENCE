@@ -22,10 +22,10 @@ pub enum Error {
     #[error("Unpaired read in {0}")]
     UnpairedRead(String),
 
-    #[error("Error parsing record on line {line} in {origin}: {source}")]
+    #[error("Error parsing record {idx} in {origin}: {source}")]
     ParseRecord {
         origin: Origin,
-        line: usize,
+        idx: usize,
         source: Box<dyn std::error::Error>,
     },
 
