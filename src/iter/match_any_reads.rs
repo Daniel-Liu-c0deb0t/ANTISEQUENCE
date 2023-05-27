@@ -70,17 +70,18 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
             if aligner.is_none() {
                 match self.match_type {
                     MatchType::GlobalAln(_) => {
-                        aligner = Some(Box::new(MatchAligner::<false, false, false>::new(
-                            string.len() * 2,
-                        )));
+                        aligner =
+                            Some(Box::new(GlobalLocalAligner::<false>::new(string.len() * 2)));
                     }
                     MatchType::LocalAln { .. } => {
-                        aligner = Some(Box::new(MatchAligner::<true, false, true>::new(
-                            string.len() * 2,
-                        )));
+                        aligner = Some(Box::new(GlobalLocalAligner::<true>::new(string.len() * 2)));
                     }
-                    MatchType::PrefixAln { .. } | MatchType::SuffixAln { .. } => {
-                        aligner = Some(Box::new(MatchAligner::<false, true, true>::new(
+                    MatchType::PrefixAln { .. } => {
+                        aligner =
+                            Some(Box::new(PrefixSuffixAligner::<true>::new(string.len() * 2)));
+                    }
+                    MatchType::SuffixAln { .. } => {
+                        aligner = Some(Box::new(PrefixSuffixAligner::<false>::new(
                             string.len() * 2,
                         )));
                     }
@@ -155,15 +156,14 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                     GlobalAln(identity) => aligner
                         .as_mut()
                         .unwrap()
-                        .align(string, &pattern_str, identity, identity, false)
+                        .align(string, &pattern_str, identity, identity)
                         .map(|(m, _, end_idx)| (m, end_idx, 0)),
-                    LocalAln { identity, overlap } => aligner.as_mut().unwrap().align(
-                        string,
-                        &pattern_str,
-                        identity,
-                        overlap,
-                        false,
-                    ),
+                    LocalAln { identity, overlap } => {
+                        aligner
+                            .as_mut()
+                            .unwrap()
+                            .align(string, &pattern_str, identity, overlap)
+                    }
                     PrefixAln { identity, overlap } => {
                         let additional =
                             ((1.0 - identity).max(0.0) * (pattern_len as f64)).ceil() as usize;
@@ -171,7 +171,7 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                         aligner
                             .as_mut()
                             .unwrap()
-                            .align(&string[..len], &pattern_str, identity, overlap, true)
+                            .align(&string[..len], &pattern_str, identity, overlap)
                             .map(|(m, _, end_idx)| (m, end_idx, 0))
                     }
                     SuffixAln { identity, overlap } => {
@@ -186,7 +186,6 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                                 &pattern_str,
                                 identity,
                                 overlap,
-                                false,
                             )
                             .map(|(m, start_idx, _)| (m, string.len() - len + start_idx, 0))
                     }
@@ -331,48 +330,36 @@ trait Aligner {
         pattern: &[u8],
         identity_threshold: f64,
         overlap_threshold: f64,
-        prefix: bool,
     ) -> Option<(usize, usize, usize)>;
 }
 
-struct MatchAligner<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bool> {
-    read_vec: Vec<u8>,
+struct GlobalLocalAligner<const LOCAL: bool> {
     read_padded: PaddedBytes,
     pattern_padded: PaddedBytes,
     matrix: NucMatrix,
     // always store trace
-    block: Block<true, LOCAL_PREFIX_SUFFIX, LOCAL, PREFIX_SUFFIX>,
+    block: Block<true, LOCAL, LOCAL, false>,
     cigar: Cigar,
     len: usize,
 }
 
-impl<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bool>
-    MatchAligner<LOCAL, PREFIX_SUFFIX, LOCAL_PREFIX_SUFFIX>
-{
+impl<const LOCAL: bool> GlobalLocalAligner<LOCAL> {
     const MIN_SIZE: usize = 32;
     const MAX_SIZE: usize = 512;
-    const GAP_OPEN: i8 = -2;
-    const GAP_EXTEND: i8 = -1;
+    const GAPS: Gaps = Gaps {
+        open: -2,
+        extend: -1,
+    };
 
     pub fn new(len: usize) -> Self {
-        assert_eq!(LOCAL_PREFIX_SUFFIX, LOCAL || PREFIX_SUFFIX);
-
-        let read_vec = Vec::with_capacity(len);
         let read_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
         let pattern_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
-        let mut matrix = NucMatrix::new_simple(1, -1);
+        let matrix = NucMatrix::new_simple(1, -1);
 
-        // use 'X' as padding
-        for c in [b'A', b'C', b'G', b'T', b'N'] {
-            matrix.set(c, b'X', 0);
-        }
-
-        let block =
-            Block::<true, LOCAL_PREFIX_SUFFIX, LOCAL, PREFIX_SUFFIX>::new(len, len, Self::MAX_SIZE);
+        let block = Block::<true, LOCAL, LOCAL, false>::new(len, len, Self::MAX_SIZE);
         let cigar = Cigar::new(len, len);
 
         Self {
-            read_vec,
             read_padded,
             pattern_padded,
             matrix,
@@ -386,61 +373,29 @@ impl<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bo
         if len > self.len {
             self.read_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
             self.pattern_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
-            self.block = Block::<true, LOCAL_PREFIX_SUFFIX, LOCAL, PREFIX_SUFFIX>::new(
-                len,
-                len,
-                Self::MAX_SIZE,
-            );
+            self.block = Block::<true, LOCAL, LOCAL, false>::new(len, len, Self::MAX_SIZE);
             self.cigar = Cigar::new(len, len);
             self.len = len;
         }
     }
 }
 
-impl<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bool> Aligner
-    for MatchAligner<LOCAL, PREFIX_SUFFIX, LOCAL_PREFIX_SUFFIX>
-{
+impl<const LOCAL: bool> Aligner for GlobalLocalAligner<LOCAL> {
     fn align(
         &mut self,
         read: &[u8],
         pattern: &[u8],
         identity_threshold: f64,
         overlap_threshold: f64,
-        prefix: bool,
     ) -> Option<(usize, usize, usize)> {
-        let padding_len = if PREFIX_SUFFIX {
-            ((1.0 - overlap_threshold).max(0.0) * (pattern.len() as f64)).ceil() as usize
-        } else {
-            0
-        };
+        self.resize_if_needed(pattern.len().max(read.len()));
 
-        self.resize_if_needed(pattern.len().max(read.len() + padding_len));
-        self.read_vec.clear();
+        self.read_padded
+            .set_bytes::<NucMatrix>(read, Self::MAX_SIZE);
+        self.pattern_padded
+            .set_bytes::<NucMatrix>(pattern, Self::MAX_SIZE);
 
-        if prefix {
-            self.read_vec.extend((0..padding_len).map(|_| b'X'));
-            self.read_vec.extend_from_slice(read);
-
-            self.read_padded
-                .set_bytes_rev::<NucMatrix>(&self.read_vec, Self::MAX_SIZE);
-            self.pattern_padded
-                .set_bytes_rev::<NucMatrix>(pattern, Self::MAX_SIZE);
-        } else {
-            self.read_vec.extend_from_slice(read);
-            self.read_vec.extend((0..padding_len).map(|_| b'X'));
-
-            self.read_padded
-                .set_bytes::<NucMatrix>(&self.read_vec, Self::MAX_SIZE);
-            self.pattern_padded
-                .set_bytes::<NucMatrix>(pattern, Self::MAX_SIZE);
-        }
-
-        let gaps = Gaps {
-            open: Self::GAP_OPEN,
-            extend: Self::GAP_EXTEND,
-        };
-
-        let min_size = if LOCAL || PREFIX_SUFFIX {
+        let min_size = if LOCAL {
             Self::MAX_SIZE
         } else {
             Self::MIN_SIZE
@@ -450,7 +405,7 @@ impl<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bo
             &self.pattern_padded,
             &self.read_padded,
             &self.matrix,
-            gaps,
+            Self::GAPS,
             min_size..=Self::MAX_SIZE,
             pattern.len() as i32,
         );
@@ -468,27 +423,21 @@ impl<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bo
         let mut total = 0;
 
         self.cigar.reverse();
-        let mut idx = res.reference_idx;
+        let mut read_start_idx = res.reference_idx;
 
         for i in 0..self.cigar.len() {
-            let OpLen { op, mut len } = self.cigar.get(i);
+            let OpLen { op, len } = self.cigar.get(i);
 
             match op {
                 Operation::Eq => {
-                    let prev_len = len;
-
-                    if i == self.cigar.len() - 1 {
-                        len -= idx.saturating_sub(read.len());
-                    }
-
-                    idx -= prev_len;
+                    read_start_idx -= len;
                     matches += len;
                 }
                 Operation::X => {
-                    idx -= len;
+                    read_start_idx -= len;
                 }
                 Operation::D => {
-                    idx -= len;
+                    read_start_idx -= len;
                 }
                 _ => (),
             }
@@ -500,11 +449,190 @@ impl<const LOCAL: bool, const PREFIX_SUFFIX: bool, const LOCAL_PREFIX_SUFFIX: bo
         let overlap = (matches as f64) / (pattern.len() as f64);
 
         if identity >= identity_threshold && overlap >= overlap_threshold {
-            let start_idx = if prefix { read.len() - idx } else { idx };
-            let end_idx = if prefix {
-                read.len() - res.reference_idx.min(read.len())
+            Some((matches, read_start_idx, res.reference_idx))
+        } else {
+            None
+        }
+    }
+}
+
+struct PrefixSuffixAligner<const PREFIX: bool> {
+    read_vec: Vec<u8>,
+    read_padded: PaddedBytes,
+    pattern_padded: PaddedBytes,
+    matrix: NucMatrix,
+    // always store trace
+    block1: Block<true, true, false, true>,  // X-drop
+    block2: Block<true, false, false, true>, // no X-drop
+    cigar: Cigar,
+    len: usize,
+}
+
+impl<const PREFIX: bool> PrefixSuffixAligner<PREFIX> {
+    const MAX_SIZE: usize = 512;
+    const GAPS: Gaps = Gaps {
+        open: -2,
+        extend: -1,
+    };
+
+    pub fn new(len: usize) -> Self {
+        let read_vec = Vec::with_capacity(len);
+        let read_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
+        let pattern_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
+        let mut matrix = NucMatrix::new_simple(1, -1);
+
+        // use 'X' as padding
+        for c in [b'A', b'C', b'G', b'T', b'N'] {
+            matrix.set(c, b'X', 0);
+        }
+
+        let block1 = Block::<true, true, false, true>::new(len, len, Self::MAX_SIZE);
+        let block2 = Block::<true, false, false, true>::new(len, len, Self::MAX_SIZE);
+        let cigar = Cigar::new(len, len);
+
+        Self {
+            read_vec,
+            read_padded,
+            pattern_padded,
+            matrix,
+            block1,
+            block2,
+            cigar,
+            len,
+        }
+    }
+
+    fn resize_if_needed(&mut self, len: usize) {
+        if len > self.len {
+            self.read_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
+            self.pattern_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
+            self.block1 = Block::<true, true, false, true>::new(len, len, Self::MAX_SIZE);
+            self.block2 = Block::<true, false, false, true>::new(len, len, Self::MAX_SIZE);
+            self.cigar = Cigar::new(len, len);
+            self.len = len;
+        }
+    }
+}
+
+impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
+    fn align(
+        &mut self,
+        read: &[u8],
+        pattern: &[u8],
+        identity_threshold: f64,
+        overlap_threshold: f64,
+    ) -> Option<(usize, usize, usize)> {
+        let padding_len =
+            ((1.0 - overlap_threshold).max(0.0) * (pattern.len() as f64)).ceil() as usize;
+        self.resize_if_needed(pattern.len().max(read.len() + padding_len));
+        self.read_vec.clear();
+
+        if PREFIX {
+            // reverse sequences to convert to aligning suffix
+            self.read_vec.extend((0..padding_len).map(|_| b'X'));
+            self.read_vec.extend_from_slice(read);
+
+            self.read_padded
+                .set_bytes_rev::<NucMatrix>(&self.read_vec, Self::MAX_SIZE);
+            self.pattern_padded
+                .set_bytes_rev::<NucMatrix>(pattern, Self::MAX_SIZE);
+        } else {
+            self.read_vec.extend_from_slice(read);
+            self.read_vec.extend((0..padding_len).map(|_| b'X'));
+
+            self.read_padded
+                .set_bytes::<NucMatrix>(&self.read_vec, Self::MAX_SIZE);
+            self.pattern_padded
+                .set_bytes::<NucMatrix>(pattern, Self::MAX_SIZE);
+        }
+
+        // first align to get where the pattern starts in the read
+        // padding is used to allow alignment to end beyond the end of the read sequence
+        // note that the start gaps in the pattern are free and the alignment
+        // can end whenever due to X-drop
+        self.block1.align(
+            &self.pattern_padded,
+            &self.read_padded,
+            &self.matrix,
+            Self::GAPS,
+            Self::MAX_SIZE..=Self::MAX_SIZE,
+            pattern.len() as i32,
+        );
+
+        let res = self.block1.res();
+        self.block1.trace().cigar_eq(
+            &self.pattern_padded,
+            &self.read_padded,
+            res.query_idx,
+            res.reference_idx,
+            &mut self.cigar,
+        );
+
+        // use traceback to compute where the alignment started
+        let mut read_start_idx = res.reference_idx;
+        for i in 0..self.cigar.len() {
+            let OpLen { op, len } = self.cigar.get(i);
+            match op {
+                Operation::Eq | Operation::X | Operation::D => read_start_idx -= len,
+                _ => (),
+            }
+        }
+        read_start_idx = read_start_idx.min(read.len());
+
+        // get the overlapping prefix/suffix region, no padding
+        if PREFIX {
+            self.read_padded
+                .set_bytes::<NucMatrix>(&read[..read.len() - read_start_idx], Self::MAX_SIZE);
+            self.pattern_padded
+                .set_bytes::<NucMatrix>(pattern, Self::MAX_SIZE);
+        } else {
+            self.read_padded
+                .set_bytes_rev::<NucMatrix>(&read[read_start_idx..], Self::MAX_SIZE);
+            self.pattern_padded
+                .set_bytes_rev::<NucMatrix>(pattern, Self::MAX_SIZE);
+        }
+
+        // align again with read and pattern switched and reversed so that end gaps in the read
+        // are free and the alignment ends at read_start_idx and spans the entire pattern
+        self.block2.align(
+            &self.read_padded,
+            &self.pattern_padded,
+            &self.matrix,
+            Self::GAPS,
+            Self::MAX_SIZE..=Self::MAX_SIZE,
+            pattern.len() as i32,
+        );
+
+        let res = self.block2.res();
+        self.block2.trace().cigar_eq(
+            &self.read_padded,
+            &self.pattern_padded,
+            res.query_idx,
+            res.reference_idx,
+            &mut self.cigar,
+        );
+
+        // count matches and total columns for calculating identity and overlap
+        let mut matches = 0;
+        let mut total = 0;
+
+        for i in 0..self.cigar.len() {
+            let OpLen { op, len } = self.cigar.get(i);
+            if op == Operation::Eq {
+                matches += len;
+            }
+            total += len;
+        }
+
+        let identity = (matches as f64) / (total as f64);
+        let overlap = (matches as f64) / (pattern.len() as f64);
+
+        if identity >= identity_threshold && overlap >= overlap_threshold {
+            let start_idx = if PREFIX { 0 } else { read_start_idx };
+            let end_idx = if PREFIX {
+                read.len() - read_start_idx
             } else {
-                res.reference_idx.min(read.len())
+                read.len()
             };
 
             Some((matches, start_idx, end_idx))
