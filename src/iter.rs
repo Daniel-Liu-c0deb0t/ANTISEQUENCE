@@ -42,6 +42,9 @@ use bernoulli_reads::*;
 pub mod take_reads;
 use take_reads::*;
 
+pub mod match_polyx_reads;
+use match_polyx_reads::*;
+
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self) -> Result<()> {
         while !self.next_chunk()?.is_empty() {}
@@ -187,6 +190,18 @@ pub trait Reads: Sized + std::marker::Sync {
                 .unwrap_or_else(|e| panic!("Error in parsing patterns: {e}")),
             match_type,
         )
+    }
+
+    #[must_use]
+    fn match_polyx(
+        self,
+        selector_expr: SelectorExpr,
+        transform_expr: TransformExpr,
+        x: char,
+        end: End,
+        identity: f64,
+    ) -> MatchPolyXReads<Self> {
+        MatchPolyXReads::new(self, selector_expr, transform_expr, x as u8, end, identity)
     }
 
     #[must_use]

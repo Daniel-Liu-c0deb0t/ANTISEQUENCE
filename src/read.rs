@@ -573,6 +573,15 @@ impl Data {
     }
 }
 
+impl EndIdx {
+    pub fn from_end(end: End, idx: usize) -> Self {
+        match end {
+            Left => LeftEnd(idx),
+            Right => RightEnd(idx),
+        }
+    }
+}
+
 impl fmt::Display for StrMappings {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let len = self
