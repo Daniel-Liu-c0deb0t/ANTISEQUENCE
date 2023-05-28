@@ -1,32 +1,20 @@
 use crate::iter::*;
 
-pub struct TakeReads<R: Reads> {
+pub struct TakeReads<R: Reads, B: RangeBounds<usize> + std::marker::Sync> {
     reads: R,
-    count: usize,
+    bounds: B,
 }
 
-impl<R: Reads> TakeReads<R> {
-    pub fn new(reads: R, count: usize) -> Self {
-        Self { reads, count }
+impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> TakeReads<R, B> {
+    pub fn new(reads: R, bounds: B) -> Self {
+        Self { reads, bounds }
     }
 }
 
-impl<R: Reads> Reads for TakeReads<R> {
+impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> Reads for TakeReads<R, B> {
     fn next_chunk(&self) -> Result<Vec<Read>> {
         let mut reads = self.reads.next_chunk()?;
-
-        if let Some(read) = reads.first() {
-            if read.first_idx() >= self.count {
-                return Ok(Vec::new());
-            }
-        }
-
-        if let Some(read) = reads.last() {
-            if read.first_idx() >= self.count {
-                reads.retain(|r| r.first_idx() < self.count);
-            }
-        }
-
+        reads.retain(|r| self.bounds.contains(&r.first_idx()));
         Ok(reads)
     }
 

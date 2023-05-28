@@ -45,6 +45,9 @@ use take_reads::*;
 pub mod match_polyx_reads;
 use match_polyx_reads::*;
 
+pub mod intersect_union_reads;
+use intersect_union_reads::*;
+
 pub trait Reads: Sized + std::marker::Sync {
     fn run(self) -> Result<()> {
         while !self.next_chunk()?.is_empty() {}
@@ -140,6 +143,20 @@ pub trait Reads: Sized + std::marker::Sync {
         cut_idx: EndIdx,
     ) -> CutReads<Self> {
         CutReads::new(self, selector_expr, transform_expr, cut_idx)
+    }
+
+    #[must_use]
+    fn intersect(
+        self,
+        selector_expr: SelectorExpr,
+        transform_expr: TransformExpr,
+    ) -> IntersectReads<Self> {
+        IntersectReads::new(self, selector_expr, transform_expr)
+    }
+
+    #[must_use]
+    fn union(self, selector_expr: SelectorExpr, transform_expr: TransformExpr) -> UnionReads<Self> {
+        UnionReads::new(self, selector_expr, transform_expr)
     }
 
     #[must_use]
@@ -244,8 +261,11 @@ pub trait Reads: Sized + std::marker::Sync {
     }
 
     #[must_use]
-    fn take(self, count: usize) -> TakeReads<Self> {
-        TakeReads::new(self, count)
+    fn take<B>(self, bounds: B) -> TakeReads<Self, B>
+    where
+        B: RangeBounds<usize> + std::marker::Sync,
+    {
+        TakeReads::new(self, bounds)
     }
 
     fn next_chunk(&self) -> Result<Vec<Read>>;

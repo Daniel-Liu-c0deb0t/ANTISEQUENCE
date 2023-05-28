@@ -149,6 +149,45 @@ impl StrMappings {
         Ok(())
     }
 
+    pub fn intersect(
+        &mut self,
+        label1: InlineString,
+        label2: InlineString,
+        new_label: Option<InlineString>,
+    ) -> Result<(), NameError> {
+        let mapping1 = self
+            .mapping(label1)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label1)))?;
+        let mapping2 = self
+            .mapping(label2)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label2)))?;
+
+        if let Some((start, len)) = mapping1.intersection_interval(mapping2) {
+            self.add_mapping(new_label, start, len)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn union(
+        &mut self,
+        label1: InlineString,
+        label2: InlineString,
+        new_label: Option<InlineString>,
+    ) -> Result<(), NameError> {
+        let mapping1 = self
+            .mapping(label1)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label1)))?;
+        let mapping2 = self
+            .mapping(label2)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label2)))?;
+
+        let (start, len) = mapping1.union_interval(mapping2);
+        self.add_mapping(new_label, start, len)?;
+
+        Ok(())
+    }
+
     pub fn set(
         &mut self,
         label: InlineString,
@@ -355,6 +394,32 @@ impl Mapping {
         }
     }
 
+    pub fn intersection_interval(&self, b: &Self) -> Option<(usize, usize)> {
+        let a_start = self.start;
+        let a_end = self.start + self.len;
+        let b_start = b.start;
+        let b_end = b.start + b.len;
+
+        if (b_start <= a_start && a_start < b_end) || (a_start <= b_start && b_start < a_end) {
+            let start = a_start.max(b_start);
+            let len = a_end.min(b_end) - start;
+            Some((start, len))
+        } else {
+            None
+        }
+    }
+
+    pub fn union_interval(&self, b: &Self) -> (usize, usize) {
+        let a_start = self.start;
+        let a_end = self.start + self.len;
+        let b_start = b.start;
+        let b_end = b.start + b.len;
+
+        let start = a_start.min(b_start);
+        let len = a_end.max(b_end) - start;
+        (start, len)
+    }
+
     pub fn data(&self, attr: InlineString) -> Option<&Data> {
         self.data.get(&attr)
     }
@@ -519,6 +584,30 @@ impl Read {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .cut(label, new_label1, new_label2, cut_idx)
+    }
+
+    pub fn intersect(
+        &mut self,
+        str_type: StrType,
+        label1: InlineString,
+        label2: InlineString,
+        new_label: Option<InlineString>,
+    ) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .intersect(label1, label2, new_label)
+    }
+
+    pub fn union(
+        &mut self,
+        str_type: StrType,
+        label1: InlineString,
+        label2: InlineString,
+        new_label: Option<InlineString>,
+    ) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .union(label1, label2, new_label)
     }
 
     pub fn set(
