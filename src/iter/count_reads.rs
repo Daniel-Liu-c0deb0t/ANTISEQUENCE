@@ -2,14 +2,14 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::iter::*;
 
-pub struct CountReads<R: Reads, F: Fn(&[usize]) + std::marker::Sync> {
+pub struct CountReads<R: Reads, F: Fn(&[usize]) + Send + Sync> {
     reads: R,
     selector_exprs: Vec<SelectorExpr>,
     counts: Vec<AtomicUsize>,
     func: F,
 }
 
-impl<R: Reads, F: Fn(&[usize]) + std::marker::Sync> CountReads<R, F> {
+impl<R: Reads, F: Fn(&[usize]) + Send + Sync> CountReads<R, F> {
     pub fn new(reads: R, selector_exprs: Vec<SelectorExpr>, func: F) -> Self {
         let counts = (0..selector_exprs.len())
             .map(|_| AtomicUsize::new(0))
@@ -23,7 +23,7 @@ impl<R: Reads, F: Fn(&[usize]) + std::marker::Sync> CountReads<R, F> {
     }
 }
 
-impl<R: Reads, F: Fn(&[usize]) + std::marker::Sync> Reads for CountReads<R, F> {
+impl<R: Reads, F: Fn(&[usize]) + Send + Sync> Reads for CountReads<R, F> {
     fn next_chunk(&self) -> Result<Vec<Read>> {
         let reads = self.reads.next_chunk()?;
 

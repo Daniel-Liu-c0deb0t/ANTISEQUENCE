@@ -2,7 +2,7 @@ use std::ops::RangeBounds;
 
 use crate::iter::*;
 
-pub struct LengthInBoundsReads<R: Reads, B: RangeBounds<usize> + std::marker::Sync> {
+pub struct LengthInBoundsReads<R: Reads, B: RangeBounds<usize> + Send + Sync> {
     reads: R,
     selector_expr: SelectorExpr,
     label: Label,
@@ -10,7 +10,7 @@ pub struct LengthInBoundsReads<R: Reads, B: RangeBounds<usize> + std::marker::Sy
     bounds: B,
 }
 
-impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> LengthInBoundsReads<R, B> {
+impl<R: Reads, B: RangeBounds<usize> + Send + Sync> LengthInBoundsReads<R, B> {
     pub fn new(
         reads: R,
         selector_expr: SelectorExpr,
@@ -33,7 +33,7 @@ impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> LengthInBoundsReads<R,
     }
 }
 
-impl<R: Reads, B: RangeBounds<usize> + std::marker::Sync> Reads for LengthInBoundsReads<R, B> {
+impl<R: Reads, B: RangeBounds<usize> + Send + Sync> Reads for LengthInBoundsReads<R, B> {
     fn next_chunk(&self) -> Result<Vec<Read>> {
         let mut reads = self.reads.next_chunk()?;
 

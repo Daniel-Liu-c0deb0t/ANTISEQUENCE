@@ -1,12 +1,12 @@
 use crate::iter::*;
 
-pub struct ForEachReads<R: Reads, F: Fn(&mut Read) + std::marker::Sync> {
+pub struct ForEachReads<R: Reads, F: Fn(&mut Read) + Send + Sync> {
     reads: R,
     selector_expr: SelectorExpr,
     func: F,
 }
 
-impl<R: Reads, F: Fn(&mut Read) + std::marker::Sync> ForEachReads<R, F> {
+impl<R: Reads, F: Fn(&mut Read) + Send + Sync> ForEachReads<R, F> {
     pub fn new(reads: R, selector_expr: SelectorExpr, func: F) -> Self {
         Self {
             reads,
@@ -16,7 +16,7 @@ impl<R: Reads, F: Fn(&mut Read) + std::marker::Sync> ForEachReads<R, F> {
     }
 }
 
-impl<R: Reads, F: Fn(&mut Read) + std::marker::Sync> Reads for ForEachReads<R, F> {
+impl<R: Reads, F: Fn(&mut Read) + Send + Sync> Reads for ForEachReads<R, F> {
     fn next_chunk(&self) -> Result<Vec<Read>> {
         let mut reads = self.reads.next_chunk()?;
         for read in reads.iter_mut() {

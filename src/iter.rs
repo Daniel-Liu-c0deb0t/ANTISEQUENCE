@@ -1,4 +1,6 @@
+use std::marker::{Send, Sync};
 use std::ops::RangeBounds;
+use std::sync::Arc;
 use std::thread;
 
 use crate::errors::*;
@@ -48,7 +50,10 @@ use match_polyx_reads::*;
 pub mod intersect_union_reads;
 use intersect_union_reads::*;
 
-pub trait Reads: Sized + std::marker::Sync {
+pub mod fork_reads;
+use fork_reads::*;
+
+pub trait Reads: Sized + Send + Sync {
     fn run(self) -> Result<()> {
         while !self.next_chunk()?.is_empty() {}
         self.finish()
@@ -93,7 +98,7 @@ pub trait Reads: Sized + std::marker::Sync {
     #[must_use]
     fn for_each<F>(self, selector_expr: SelectorExpr, func: F) -> ForEachReads<Self, F>
     where
-        F: Fn(&mut Read) + std::marker::Sync,
+        F: Fn(&mut Read) + Send + Sync,
     {
         ForEachReads::new(self, selector_expr, func)
     }
@@ -106,7 +111,7 @@ pub trait Reads: Sized + std::marker::Sync {
     #[must_use]
     fn count<F>(self, selector_exprs: impl Into<Vec<SelectorExpr>>, func: F) -> CountReads<Self, F>
     where
-        F: Fn(&[usize]) + std::marker::Sync,
+        F: Fn(&[usize]) + Send + Sync,
     {
         CountReads::new(self, selector_exprs.into(), func)
     }
@@ -119,7 +124,7 @@ pub trait Reads: Sized + std::marker::Sync {
         bounds: B,
     ) -> LengthInBoundsReads<Self, B>
     where
-        B: RangeBounds<usize> + std::marker::Sync,
+        B: RangeBounds<usize> + Send + Sync,
     {
         LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
     }
@@ -263,9 +268,18 @@ pub trait Reads: Sized + std::marker::Sync {
     #[must_use]
     fn take<B>(self, bounds: B) -> TakeReads<Self, B>
     where
-        B: RangeBounds<usize> + std::marker::Sync,
+        B: RangeBounds<usize> + Send + Sync,
     {
         TakeReads::new(self, bounds)
+    }
+
+    #[must_use]
+    fn fork(self) -> (ForkReads<Self>, ForkReads<Self>) {
+        let reads = Arc::new(self);
+        let buf = Arc::new(ForkBuf::new());
+        let left = ForkReads::new(Arc::clone(&reads), Arc::clone(&buf), false);
+        let right = ForkReads::new(reads, buf, true);
+        (left, right)
     }
 
     fn next_chunk(&self) -> Result<Vec<Read>>;

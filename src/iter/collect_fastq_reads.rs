@@ -14,7 +14,7 @@ pub struct CollectFastqReads<R: Reads> {
     selector_expr: SelectorExpr,
     file_expr1: FormatExpr,
     file_expr2: Option<FormatExpr>,
-    file_writers: Mutex<FxHashMap<Vec<u8>, Arc<Mutex<dyn Write + std::marker::Send>>>>,
+    file_writers: Mutex<FxHashMap<Vec<u8>, Arc<Mutex<dyn Write + Send>>>>,
 }
 
 impl<R: Reads> CollectFastqReads<R> {
@@ -65,15 +65,14 @@ impl<R: Reads> Reads for CollectFastqReads<R> {
                             std::fs::create_dir_all(parent)?;
                         }
 
-                        let writer: Arc<Mutex<dyn Write + std::marker::Send>> =
-                            if file_path.ends_with(".gz") {
-                                Arc::new(Mutex::new(BufWriter::new(GzEncoder::new(
-                                    File::create(file_path)?,
-                                    Compression::default(),
-                                ))))
-                            } else {
-                                Arc::new(Mutex::new(BufWriter::new(File::create(file_path)?)))
-                            };
+                        let writer: Arc<Mutex<dyn Write + Send>> = if file_path.ends_with(".gz") {
+                            Arc::new(Mutex::new(BufWriter::new(GzEncoder::new(
+                                File::create(file_path)?,
+                                Compression::default(),
+                            ))))
+                        } else {
+                            Arc::new(Mutex::new(BufWriter::new(File::create(file_path)?)))
+                        };
                         locked_writers.push(Arc::clone(e.insert(writer)));
                     }
                 }
