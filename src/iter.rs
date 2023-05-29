@@ -300,7 +300,7 @@ pub trait Reads: Sized + Send + Sync {
 
 #[macro_export]
 macro_rules! run {
-    ($($e:expr),+) => {
+    ($($e:expr),+ $(,)*) => {
         {
             let mut done = false;
 
@@ -311,7 +311,12 @@ macro_rules! run {
             run!(@finish $($e),+);
         }
     };
-    (@next_chunk ) => { true };
+    (@next_chunk $first:expr) => {
+        {
+            $first.next_chunk()
+                .unwrap_or_else(|e| panic!("Error when running: {e}")).is_empty()
+        }
+    };
     (@next_chunk $first:expr, $($e:expr),*) => {
         {
             let empty = $first.next_chunk()
@@ -319,7 +324,12 @@ macro_rules! run {
             empty & run!(@next_chunk $($e),*)
         }
     };
-    (@finish ) => {};
+    (@finish $first:expr) => {
+        {
+            $first.finish()
+                .unwrap_or_else(|e| panic!("Error when running: {e}"));
+        }
+    };
     (@finish $first:expr, $($e:expr),*) => {
         {
             $first.finish()
@@ -331,7 +341,7 @@ macro_rules! run {
 
 #[macro_export]
 macro_rules! run_with_threads {
-    ($threads:expr, $($e:expr),+) => {
+    ($threads:expr, $($e:expr),+ $(,)*) => {
         {
             assert!($threads >= 1, "Number of threads must be greater than zero");
 
@@ -350,7 +360,12 @@ macro_rules! run_with_threads {
             run_with_threads!(@finish $($e),+);
         }
     };
-    (@next_chunk ) => { true };
+    (@next_chunk $first:expr) => {
+        {
+            $first.next_chunk()
+                .unwrap_or_else(|e| panic!("Error when running: {e}")).is_empty()
+        }
+    };
     (@next_chunk $first:expr, $($e:expr),*) => {
         {
             let empty = $first.next_chunk()
@@ -358,7 +373,12 @@ macro_rules! run_with_threads {
             empty & run_with_threads!(@next_chunk $($e),*)
         }
     };
-    (@finish ) => {};
+    (@finish $first:expr) => {
+        {
+            $first.finish()
+                .unwrap_or_else(|e| panic!("Error when running: {e}"));
+        }
+    };
     (@finish $first:expr, $($e:expr),*) => {
         {
             $first.finish()
