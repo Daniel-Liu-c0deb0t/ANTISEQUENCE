@@ -53,6 +53,9 @@ use intersect_union_reads::*;
 pub mod fork_reads;
 use fork_reads::*;
 
+pub mod time_reads;
+use time_reads::*;
+
 pub trait Reads: Sized + Send + Sync {
     fn run(self) -> Result<()> {
         while !self.next_chunk()?.is_empty() {}
@@ -277,14 +280,22 @@ pub trait Reads: Sized + Send + Sync {
     fn fork(self) -> (ForkReads<Self>, ForkReads<Self>) {
         let reads = Arc::new(self);
         let buf = Arc::new(ForkBuf::new());
-        let left = ForkReads::new(Arc::clone(&reads), Arc::clone(&buf), false);
-        let right = ForkReads::new(reads, buf, true);
+        let left = ForkReads::new(Arc::clone(&reads), Arc::clone(&buf));
+        let right = ForkReads::new(reads, buf);
         (left, right)
+    }
+
+    #[must_use]
+    fn time<F>(self, func: F) -> TimeReads<Self, F>
+    where
+        F: Fn(f64) + Send + Sync,
+    {
+        TimeReads::new(self, func)
     }
 
     fn next_chunk(&self) -> Result<Vec<Read>>;
 
-    fn finish(&self) -> Result<()>;
+    fn finish(self) -> Result<()>;
 }
 
 pub use MatchType::*;

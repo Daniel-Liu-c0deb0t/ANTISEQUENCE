@@ -70,7 +70,7 @@ impl<R: Reads> Reads for CutReads<R> {
         Ok(reads)
     }
 
-    fn finish(&self) -> Result<()> {
+    fn finish(self) -> Result<()> {
         self.reads.finish()
     }
 }

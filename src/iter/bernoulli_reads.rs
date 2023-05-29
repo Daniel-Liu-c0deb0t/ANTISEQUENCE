@@ -59,7 +59,7 @@ impl<R: Reads> Reads for BernoulliReads<R> {
         Ok(reads)
     }
 
-    fn finish(&self) -> Result<()> {
+    fn finish(self) -> Result<()> {
         self.reads.finish()
     }
 }

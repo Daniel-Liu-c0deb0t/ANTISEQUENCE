@@ -34,7 +34,7 @@ impl<R: Reads> Reads for RetainReads<R> {
         Ok(res)
     }
 
-    fn finish(&self) -> Result<()> {
+    fn finish(self) -> Result<()> {
         self.reads.finish()
     }
 }

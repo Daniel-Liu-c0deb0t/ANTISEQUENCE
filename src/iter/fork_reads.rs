@@ -10,16 +10,11 @@ pub type ForkBuf = ThreadLocal<RefCell<(bool, Vec<Read>)>>;
 pub struct ForkReads<R: Reads> {
     reads: Arc<R>,
     buf: Arc<ForkBuf>,
-    should_finish: bool,
 }
 
 impl<R: Reads> ForkReads<R> {
-    pub fn new(reads: Arc<R>, buf: Arc<ForkBuf>, should_finish: bool) -> Self {
-        Self {
-            reads,
-            buf,
-            should_finish,
-        }
+    pub fn new(reads: Arc<R>, buf: Arc<ForkBuf>) -> Self {
+        Self { reads, buf }
     }
 }
 
@@ -39,9 +34,9 @@ impl<R: Reads> Reads for ForkReads<R> {
         }
     }
 
-    fn finish(&self) -> Result<()> {
-        if self.should_finish {
-            self.reads.finish()
+    fn finish(self) -> Result<()> {
+        if let Ok(reads) = Arc::try_unwrap(self.reads) {
+            reads.finish()
         } else {
             Ok(())
         }
