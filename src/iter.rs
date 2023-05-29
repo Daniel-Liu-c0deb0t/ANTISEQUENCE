@@ -298,6 +298,76 @@ pub trait Reads: Sized + Send + Sync {
     fn finish(self) -> Result<()>;
 }
 
+#[macro_export]
+macro_rules! run {
+    ($($e:expr),+) => {
+        {
+            let mut done = false;
+
+            while !done {
+                done = run!(@next_chunk $($e),+);
+            }
+
+            run!(@finish $($e),+);
+        }
+    };
+    (@next_chunk ) => { true };
+    (@next_chunk $first:expr, $($e:expr),*) => {
+        {
+            let empty = $first.next_chunk()
+                .unwrap_or_else(|e| panic!("Error when running: {e}")).is_empty();
+            empty & run!(@next_chunk $($e),*)
+        }
+    };
+    (@finish ) => {};
+    (@finish $first:expr, $($e:expr),*) => {
+        {
+            $first.finish()
+                .unwrap_or_else(|e| panic!("Error when running: {e}"));
+            run!(@finish $($e),*);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! run_with_threads {
+    ($threads:expr, $($e:expr),+) => {
+        {
+            assert!($threads >= 1, "Number of threads must be greater than zero");
+
+            thread::scope(|s| {
+                for _ in 0..$threads {
+                    s.spawn(|| {
+                        let mut done = false;
+
+                        while !done {
+                            done = run_with_threads!(@next_chunk $($e),+);
+                        }
+                    });
+                }
+            });
+
+            run_with_threads!(@finish $($e),+);
+        }
+    };
+    (@next_chunk ) => { true };
+    (@next_chunk $first:expr, $($e:expr),*) => {
+        {
+            let empty = $first.next_chunk()
+                .unwrap_or_else(|e| panic!("Error when running: {e}")).is_empty();
+            empty & run_with_threads!(@next_chunk $($e),*)
+        }
+    };
+    (@finish ) => {};
+    (@finish $first:expr, $($e:expr),*) => {
+        {
+            $first.finish()
+                .unwrap_or_else(|e| panic!("Error when running: {e}"));
+            run_with_threads!(@finish $($e),*);
+        }
+    };
+}
+
 pub use MatchType::*;
 pub use Threshold::*;
 
