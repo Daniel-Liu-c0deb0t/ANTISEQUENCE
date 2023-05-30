@@ -390,23 +390,24 @@ impl<const LOCAL: bool> Aligner for GlobalLocalAligner<LOCAL> {
     ) -> Option<(usize, usize, usize)> {
         self.resize_if_needed(pattern.len().max(read.len()));
 
-        self.read_padded
-            .set_bytes::<NucMatrix>(read, Self::MAX_SIZE);
-        self.pattern_padded
-            .set_bytes::<NucMatrix>(pattern, Self::MAX_SIZE);
+        let max_size = pattern
+            .len()
+            .min(read.len())
+            .next_power_of_two()
+            .min(Self::MAX_SIZE);
 
-        let min_size = if LOCAL {
-            Self::MAX_SIZE
-        } else {
-            Self::MIN_SIZE
-        };
+        self.read_padded.set_bytes::<NucMatrix>(read, max_size);
+        self.pattern_padded
+            .set_bytes::<NucMatrix>(pattern, max_size);
+
+        let min_size = if LOCAL { max_size } else { Self::MIN_SIZE };
 
         self.block.align(
             &self.pattern_padded,
             &self.read_padded,
             &self.matrix,
             Self::GAPS,
-            min_size..=Self::MAX_SIZE,
+            min_size..=max_size,
             pattern.len() as i32,
         );
 
@@ -527,23 +528,29 @@ impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
         self.resize_if_needed(pattern.len().max(read.len() + padding_len));
         self.read_vec.clear();
 
+        let max_size = pattern
+            .len()
+            .max(read.len() + padding_len)
+            .next_power_of_two()
+            .min(Self::MAX_SIZE);
+
         if PREFIX {
             // reverse sequences to convert to aligning suffix
             self.read_vec.extend((0..padding_len).map(|_| b'X'));
             self.read_vec.extend_from_slice(read);
 
             self.read_padded
-                .set_bytes_rev::<NucMatrix>(&self.read_vec, Self::MAX_SIZE);
+                .set_bytes_rev::<NucMatrix>(&self.read_vec, max_size);
             self.pattern_padded
-                .set_bytes_rev::<NucMatrix>(pattern, Self::MAX_SIZE);
+                .set_bytes_rev::<NucMatrix>(pattern, max_size);
         } else {
             self.read_vec.extend_from_slice(read);
             self.read_vec.extend((0..padding_len).map(|_| b'X'));
 
             self.read_padded
-                .set_bytes::<NucMatrix>(&self.read_vec, Self::MAX_SIZE);
+                .set_bytes::<NucMatrix>(&self.read_vec, max_size);
             self.pattern_padded
-                .set_bytes::<NucMatrix>(pattern, Self::MAX_SIZE);
+                .set_bytes::<NucMatrix>(pattern, max_size);
         }
 
         // first align to get where the pattern starts in the read
@@ -555,7 +562,7 @@ impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
             &self.read_padded,
             &self.matrix,
             Self::GAPS,
-            Self::MAX_SIZE..=Self::MAX_SIZE,
+            max_size..=max_size,
             pattern.len() as i32,
         );
 
@@ -582,14 +589,14 @@ impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
         // get the overlapping prefix/suffix region, no padding
         if PREFIX {
             self.read_padded
-                .set_bytes::<NucMatrix>(&read[..read.len() - read_start_idx], Self::MAX_SIZE);
+                .set_bytes::<NucMatrix>(&read[..read.len() - read_start_idx], max_size);
             self.pattern_padded
-                .set_bytes::<NucMatrix>(pattern, Self::MAX_SIZE);
+                .set_bytes::<NucMatrix>(pattern, max_size);
         } else {
             self.read_padded
-                .set_bytes_rev::<NucMatrix>(&read[read_start_idx..], Self::MAX_SIZE);
+                .set_bytes_rev::<NucMatrix>(&read[read_start_idx..], max_size);
             self.pattern_padded
-                .set_bytes_rev::<NucMatrix>(pattern, Self::MAX_SIZE);
+                .set_bytes_rev::<NucMatrix>(pattern, max_size);
         }
 
         // align again with read and pattern switched and reversed so that end gaps in the read
@@ -599,7 +606,7 @@ impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
             &self.pattern_padded,
             &self.matrix,
             Self::GAPS,
-            Self::MAX_SIZE..=Self::MAX_SIZE,
+            max_size..=max_size,
             pattern.len() as i32,
         );
 
