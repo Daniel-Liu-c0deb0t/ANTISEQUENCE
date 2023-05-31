@@ -458,7 +458,6 @@ impl<const LOCAL: bool> Aligner for GlobalLocalAligner<LOCAL> {
 }
 
 struct PrefixSuffixAligner<const PREFIX: bool> {
-    read_vec: Vec<u8>,
     read_padded: PaddedBytes,
     pattern_padded: PaddedBytes,
     matrix: NucMatrix,
@@ -477,22 +476,15 @@ impl<const PREFIX: bool> PrefixSuffixAligner<PREFIX> {
     };
 
     pub fn new(len: usize) -> Self {
-        let read_vec = Vec::with_capacity(len);
         let read_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
         let pattern_padded = PaddedBytes::new::<NucMatrix>(len, Self::MAX_SIZE);
-        let mut matrix = NucMatrix::new_simple(1, -1);
-
-        // use 'X' as padding
-        for c in [b'A', b'C', b'G', b'T', b'N'] {
-            matrix.set(c, b'X', 0);
-        }
+        let matrix = NucMatrix::new_simple(1, -1);
 
         let block1 = Block::<true, true, false, true>::new(len, len, Self::MAX_SIZE);
         let block2 = Block::<true, false, false, true>::new(len, len, Self::MAX_SIZE);
         let cigar = Cigar::new(len, len);
 
         Self {
-            read_vec,
             read_padded,
             pattern_padded,
             matrix,
@@ -523,38 +515,26 @@ impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
         identity_threshold: f64,
         overlap_threshold: f64,
     ) -> Option<(usize, usize, usize)> {
-        let padding_len =
-            ((1.0 - overlap_threshold).max(0.0) * (pattern.len() as f64)).ceil() as usize;
-        self.resize_if_needed(pattern.len().max(read.len() + padding_len));
-        self.read_vec.clear();
+        self.resize_if_needed(pattern.len().max(read.len()));
 
         let max_size = pattern
             .len()
-            .max(read.len() + padding_len)
+            .max(read.len())
             .next_power_of_two()
             .min(Self::MAX_SIZE);
 
         if PREFIX {
             // reverse sequences to convert to aligning suffix
-            self.read_vec.extend((0..padding_len).map(|_| b'X'));
-            self.read_vec.extend_from_slice(read);
-
-            self.read_padded
-                .set_bytes_rev::<NucMatrix>(&self.read_vec, max_size);
+            self.read_padded.set_bytes_rev::<NucMatrix>(read, max_size);
             self.pattern_padded
                 .set_bytes_rev::<NucMatrix>(pattern, max_size);
         } else {
-            self.read_vec.extend_from_slice(read);
-            self.read_vec.extend((0..padding_len).map(|_| b'X'));
-
-            self.read_padded
-                .set_bytes::<NucMatrix>(&self.read_vec, max_size);
+            self.read_padded.set_bytes::<NucMatrix>(read, max_size);
             self.pattern_padded
                 .set_bytes::<NucMatrix>(pattern, max_size);
         }
 
         // first align to get where the pattern starts in the read
-        // padding is used to allow alignment to end beyond the end of the read sequence
         // note that the start gaps in the pattern are free and the alignment
         // can end whenever due to X-drop
         self.block1.align(
@@ -584,7 +564,6 @@ impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
                 _ => (),
             }
         }
-        read_start_idx = read_start_idx.min(read.len());
 
         // get the overlapping prefix/suffix region, no padding
         if PREFIX {
