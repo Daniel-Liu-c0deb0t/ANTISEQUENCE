@@ -1,5 +1,7 @@
 use regex::bytes::*;
 
+use thread_local::*;
+
 use crate::inline_string::*;
 use crate::iter::*;
 
@@ -9,6 +11,7 @@ pub struct MatchRegexReads<R: Reads> {
     label: Label,
     attr: Option<Attr>,
     regex: Regex,
+    regex_local: ThreadLocal<Regex>,
 }
 
 impl<R: Reads> MatchRegexReads<R> {
@@ -30,6 +33,7 @@ impl<R: Reads> MatchRegexReads<R> {
                 _ => panic!("Expected type.label.attr after the \"->\" in the transform expression when matching regex"),
             }),
             regex: Regex::new(regex).unwrap_or_else(|e| panic!("Error compiling regex: {e}")),
+            regex_local: ThreadLocal::new(),
         }
     }
 }
@@ -37,8 +41,8 @@ impl<R: Reads> MatchRegexReads<R> {
 impl<R: Reads> Reads for MatchRegexReads<R> {
     fn next_chunk(&self) -> Result<Vec<Read>> {
         let mut reads = self.reads.next_chunk()?;
-        let cap_names = self
-            .regex
+        let regex = self.regex_local.get_or(|| self.regex.clone());
+        let cap_names = regex
             .capture_names()
             .filter_map(|name| name.map(|n| InlineString::new(n.as_bytes())))
             .collect::<Vec<_>>();
@@ -66,7 +70,7 @@ impl<R: Reads> Reads for MatchRegexReads<R> {
                 })?;
             let matched;
 
-            match self.regex.captures(string) {
+            match regex.captures(string) {
                 Some(caps) => {
                     matched = true;
 
