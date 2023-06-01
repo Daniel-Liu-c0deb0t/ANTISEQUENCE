@@ -106,6 +106,10 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                         })?;
                 let pattern_len = pattern_str.len();
 
+                if max_matches >= pattern_len {
+                    continue;
+                }
+
                 use MatchType::*;
                 let matches = match self.match_type {
                     Exact => {
@@ -519,7 +523,7 @@ impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
 
         let max_size = pattern
             .len()
-            .max(read.len())
+            .min(read.len())
             .next_power_of_two()
             .min(Self::MAX_SIZE);
 
@@ -565,38 +569,41 @@ impl<const PREFIX: bool> Aligner for PrefixSuffixAligner<PREFIX> {
             }
         }
 
-        // get the overlapping prefix/suffix region, no padding
-        if PREFIX {
-            self.read_padded
-                .set_bytes::<NucMatrix>(&read[..read.len() - read_start_idx], max_size);
-            self.pattern_padded
-                .set_bytes::<NucMatrix>(pattern, max_size);
-        } else {
-            self.read_padded
-                .set_bytes_rev::<NucMatrix>(&read[read_start_idx..], max_size);
-            self.pattern_padded
-                .set_bytes_rev::<NucMatrix>(pattern, max_size);
+        // skip second alignment if first alignment reaches the end of the read
+        if res.reference_idx < read.len() {
+            // get the overlapping prefix/suffix region
+            if PREFIX {
+                self.read_padded
+                    .set_bytes::<NucMatrix>(&read[..read.len() - read_start_idx], max_size);
+                self.pattern_padded
+                    .set_bytes::<NucMatrix>(pattern, max_size);
+            } else {
+                self.read_padded
+                    .set_bytes_rev::<NucMatrix>(&read[read_start_idx..], max_size);
+                self.pattern_padded
+                    .set_bytes_rev::<NucMatrix>(pattern, max_size);
+            }
+
+            // align again with read and pattern switched and reversed so that end gaps in the read
+            // are free and the alignment ends at read_start_idx and spans the entire pattern
+            self.block2.align(
+                &self.read_padded,
+                &self.pattern_padded,
+                &self.matrix,
+                Self::GAPS,
+                max_size..=max_size,
+                pattern.len() as i32,
+            );
+
+            let res = self.block2.res();
+            self.block2.trace().cigar_eq(
+                &self.read_padded,
+                &self.pattern_padded,
+                res.query_idx,
+                res.reference_idx,
+                &mut self.cigar,
+            );
         }
-
-        // align again with read and pattern switched and reversed so that end gaps in the read
-        // are free and the alignment ends at read_start_idx and spans the entire pattern
-        self.block2.align(
-            &self.read_padded,
-            &self.pattern_padded,
-            &self.matrix,
-            Self::GAPS,
-            max_size..=max_size,
-            pattern.len() as i32,
-        );
-
-        let res = self.block2.res();
-        self.block2.trace().cigar_eq(
-            &self.read_padded,
-            &self.pattern_padded,
-            res.query_idx,
-            res.reference_idx,
-            &mut self.cigar,
-        );
 
         // count matches and total columns for calculating identity and overlap
         let mut matches = 0;
