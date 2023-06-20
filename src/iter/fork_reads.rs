@@ -34,8 +34,8 @@ impl<R: Reads> Reads for ForkReads<R> {
         }
     }
 
-    fn finish(self) -> Result<()> {
-        if let Ok(reads) = Arc::try_unwrap(self.reads) {
+    fn finish(&mut self) -> Result<()> {
+        if let Some(reads) = Arc::get_mut(&mut self.reads) {
             reads.finish()
         } else {
             Ok(())

@@ -96,7 +96,7 @@ impl<R: Reads> Reads for SetReads<R> {
         Ok(reads)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         self.reads.finish()
     }
 }

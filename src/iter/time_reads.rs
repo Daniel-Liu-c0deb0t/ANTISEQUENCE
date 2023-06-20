@@ -33,10 +33,10 @@ impl<R: Reads, F: Fn(f64) + Send + Sync> Reads for TimeReads<R, F> {
         Ok(reads)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         self.reads.finish()?;
 
-        let duration = self.duration.into_iter().map(|c| c.get()).sum::<Duration>();
+        let duration = self.duration.iter_mut().map(|c| c.get()).sum::<Duration>();
         (self.func)(duration.as_secs_f64());
         Ok(())
     }

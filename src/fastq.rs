@@ -85,7 +85,7 @@ impl<'a> Reads for Fastq1Reads<'a> {
         Ok(res)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         Ok(())
     }
 }
@@ -143,7 +143,7 @@ impl Reads for Fastq2Reads {
         Ok(res)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         Ok(())
     }
 }

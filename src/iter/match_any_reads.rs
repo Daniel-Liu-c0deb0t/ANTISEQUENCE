@@ -281,7 +281,7 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
         Ok(reads)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         self.reads.finish()
     }
 }

@@ -59,7 +59,7 @@ impl<R: Reads> Reads for IntersectReads<R> {
         Ok(reads)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         self.reads.finish()
     }
 }
@@ -123,7 +123,7 @@ impl<R: Reads> Reads for UnionReads<R> {
         Ok(reads)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         self.reads.finish()
     }
 }

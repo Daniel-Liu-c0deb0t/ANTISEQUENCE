@@ -37,7 +37,7 @@ impl<R: Reads, F: Fn(&mut Read) + Send + Sync> Reads for ForEachReads<R, F> {
         Ok(reads)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         self.reads.finish()
     }
 }

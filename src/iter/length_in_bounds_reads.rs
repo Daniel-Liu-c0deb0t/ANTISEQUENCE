@@ -71,7 +71,7 @@ impl<R: Reads, B: RangeBounds<usize> + Send + Sync> Reads for LengthInBoundsRead
         Ok(reads)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         self.reads.finish()
     }
 }

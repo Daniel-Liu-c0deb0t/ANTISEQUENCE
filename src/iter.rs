@@ -56,13 +56,19 @@ use fork_reads::*;
 pub mod time_reads;
 use time_reads::*;
 
-pub trait Reads: Sized + Send + Sync {
-    fn run(self) -> Result<()> {
+pub trait Reads: Send + Sync {
+    fn run(mut self) -> Result<()>
+    where
+        Self: Sized,
+    {
         while !self.next_chunk()?.is_empty() {}
         self.finish()
     }
 
-    fn run_with_threads(self, threads: usize) {
+    fn run_with_threads(mut self, threads: usize)
+    where
+        Self: Sized,
+    {
         assert!(threads >= 1, "Number of threads must be greater than zero");
 
         thread::scope(|s| {
@@ -81,7 +87,10 @@ pub trait Reads: Sized + Send + Sync {
             .unwrap_or_else(|e| panic!("Error when running: {e}"));
     }
 
-    fn run_collect_reads(self) -> Result<Vec<Read>> {
+    fn run_collect_reads(mut self) -> Result<Vec<Read>>
+    where
+        Self: Sized,
+    {
         let mut res = Vec::new();
 
         loop {
@@ -102,12 +111,16 @@ pub trait Reads: Sized + Send + Sync {
     fn for_each<F>(self, selector_expr: SelectorExpr, func: F) -> ForEachReads<Self, F>
     where
         F: Fn(&mut Read) + Send + Sync,
+        Self: Sized,
     {
         ForEachReads::new(self, selector_expr, func)
     }
 
     #[must_use]
-    fn dbg(self, selector_expr: SelectorExpr) -> ForEachReads<Self, fn(&mut Read)> {
+    fn dbg(self, selector_expr: SelectorExpr) -> ForEachReads<Self, fn(&mut Read)>
+    where
+        Self: Sized,
+    {
         ForEachReads::new(self, selector_expr, |read| eprintln!("{}", read))
     }
 
@@ -115,6 +128,7 @@ pub trait Reads: Sized + Send + Sync {
     fn count<F>(self, selector_exprs: impl Into<Vec<SelectorExpr>>, func: F) -> CountReads<Self, F>
     where
         F: Fn(&[usize]) + Send + Sync,
+        Self: Sized,
     {
         CountReads::new(self, selector_exprs.into(), func)
     }
@@ -128,6 +142,7 @@ pub trait Reads: Sized + Send + Sync {
     ) -> LengthInBoundsReads<Self, B>
     where
         B: RangeBounds<usize> + Send + Sync,
+        Self: Sized,
     {
         LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
     }
@@ -139,7 +154,10 @@ pub trait Reads: Sized + Send + Sync {
         attr: Attr,
         prob: f64,
         seed: u64,
-    ) -> BernoulliReads<Self> {
+    ) -> BernoulliReads<Self>
+    where
+        Self: Sized,
+    {
         BernoulliReads::new(self, selector_expr, attr, prob, seed)
     }
 
@@ -149,7 +167,10 @@ pub trait Reads: Sized + Send + Sync {
         selector_expr: SelectorExpr,
         transform_expr: TransformExpr,
         cut_idx: EndIdx,
-    ) -> CutReads<Self> {
+    ) -> CutReads<Self>
+    where
+        Self: Sized,
+    {
         CutReads::new(self, selector_expr, transform_expr, cut_idx)
     }
 
@@ -158,17 +179,26 @@ pub trait Reads: Sized + Send + Sync {
         self,
         selector_expr: SelectorExpr,
         transform_expr: TransformExpr,
-    ) -> IntersectReads<Self> {
+    ) -> IntersectReads<Self>
+    where
+        Self: Sized,
+    {
         IntersectReads::new(self, selector_expr, transform_expr)
     }
 
     #[must_use]
-    fn union(self, selector_expr: SelectorExpr, transform_expr: TransformExpr) -> UnionReads<Self> {
+    fn union(self, selector_expr: SelectorExpr, transform_expr: TransformExpr) -> UnionReads<Self>
+    where
+        Self: Sized,
+    {
         UnionReads::new(self, selector_expr, transform_expr)
     }
 
     #[must_use]
-    fn trim(self, selector_expr: SelectorExpr, labels: impl Into<Vec<Label>>) -> TrimReads<Self> {
+    fn trim(self, selector_expr: SelectorExpr, labels: impl Into<Vec<Label>>) -> TrimReads<Self>
+    where
+        Self: Sized,
+    {
         TrimReads::new(self, selector_expr, labels.into())
     }
 
@@ -178,7 +208,10 @@ pub trait Reads: Sized + Send + Sync {
         selector_expr: SelectorExpr,
         label_or_attr: impl Into<LabelOrAttr>,
         format_expr: impl AsRef<str>,
-    ) -> SetReads<Self> {
+    ) -> SetReads<Self>
+    where
+        Self: Sized,
+    {
         SetReads::new(
             self,
             selector_expr,
@@ -195,7 +228,10 @@ pub trait Reads: Sized + Send + Sync {
         selector_expr: SelectorExpr,
         transform_expr: TransformExpr,
         regex: impl AsRef<str>,
-    ) -> MatchRegexReads<Self> {
+    ) -> MatchRegexReads<Self>
+    where
+        Self: Sized,
+    {
         MatchRegexReads::new(self, selector_expr, transform_expr, regex.as_ref())
     }
 
@@ -206,7 +242,10 @@ pub trait Reads: Sized + Send + Sync {
         transform_expr: TransformExpr,
         patterns_yaml: impl AsRef<str>,
         match_type: MatchType,
-    ) -> MatchAnyReads<Self> {
+    ) -> MatchAnyReads<Self>
+    where
+        Self: Sized,
+    {
         MatchAnyReads::new(
             self,
             selector_expr,
@@ -225,7 +264,10 @@ pub trait Reads: Sized + Send + Sync {
         x: char,
         end: End,
         identity: f64,
-    ) -> MatchPolyXReads<Self> {
+    ) -> MatchPolyXReads<Self>
+    where
+        Self: Sized,
+    {
         MatchPolyXReads::new(self, selector_expr, transform_expr, x as u8, end, identity)
     }
 
@@ -234,7 +276,10 @@ pub trait Reads: Sized + Send + Sync {
         self,
         selector_expr: SelectorExpr,
         file_expr: impl AsRef<str>,
-    ) -> CollectFastqReads<Self> {
+    ) -> CollectFastqReads<Self>
+    where
+        Self: Sized,
+    {
         CollectFastqReads::new1(
             self,
             selector_expr,
@@ -250,7 +295,10 @@ pub trait Reads: Sized + Send + Sync {
         selector_expr: SelectorExpr,
         file_expr1: impl AsRef<str>,
         file_expr2: impl AsRef<str>,
-    ) -> CollectFastqReads<Self> {
+    ) -> CollectFastqReads<Self>
+    where
+        Self: Sized,
+    {
         CollectFastqReads::new2(
             self,
             selector_expr,
@@ -264,7 +312,10 @@ pub trait Reads: Sized + Send + Sync {
     }
 
     #[must_use]
-    fn retain(self, selector_expr: SelectorExpr) -> RetainReads<Self> {
+    fn retain(self, selector_expr: SelectorExpr) -> RetainReads<Self>
+    where
+        Self: Sized,
+    {
         RetainReads::new(self, selector_expr)
     }
 
@@ -272,12 +323,16 @@ pub trait Reads: Sized + Send + Sync {
     fn take<B>(self, bounds: B) -> TakeReads<Self, B>
     where
         B: RangeBounds<usize> + Send + Sync,
+        Self: Sized,
     {
         TakeReads::new(self, bounds)
     }
 
     #[must_use]
-    fn fork(self) -> (ForkReads<Self>, ForkReads<Self>) {
+    fn fork(self) -> (ForkReads<Self>, ForkReads<Self>)
+    where
+        Self: Sized,
+    {
         let reads = Arc::new(self);
         let buf = Arc::new(ForkBuf::new());
         let left = ForkReads::new(Arc::clone(&reads), Arc::clone(&buf));
@@ -289,13 +344,22 @@ pub trait Reads: Sized + Send + Sync {
     fn time<F>(self, func: F) -> TimeReads<Self, F>
     where
         F: Fn(f64) + Send + Sync,
+        Self: Sized,
     {
         TimeReads::new(self, func)
     }
 
+    #[must_use]
+    fn boxed(self) -> Box<dyn Reads>
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self)
+    }
+
     fn next_chunk(&self) -> Result<Vec<Read>>;
 
-    fn finish(self) -> Result<()>;
+    fn finish(&mut self) -> Result<()>;
 }
 
 #[macro_export]
@@ -326,14 +390,17 @@ macro_rules! run {
     };
     (@finish $first:expr) => {
         {
-            $first.finish()
+            let mut first = $first;
+            first.finish()
                 .unwrap_or_else(|e| panic!("Error when running: {e}"));
         }
     };
     (@finish $first:expr, $($e:expr),*) => {
         {
-            $first.finish()
+            let mut first = $first;
+            first.finish()
                 .unwrap_or_else(|e| panic!("Error when running: {e}"));
+            drop(first);
             run!(@finish $($e),*);
         }
     };
@@ -375,17 +442,30 @@ macro_rules! run_with_threads {
     };
     (@finish $first:expr) => {
         {
-            $first.finish()
+            let mut first = $first;
+            first.finish()
                 .unwrap_or_else(|e| panic!("Error when running: {e}"));
         }
     };
     (@finish $first:expr, $($e:expr),*) => {
         {
-            $first.finish()
+            let mut first = $first;
+            first.finish()
                 .unwrap_or_else(|e| panic!("Error when running: {e}"));
+            drop(first);
             run_with_threads!(@finish $($e),*);
         }
     };
+}
+
+impl<R: Reads + ?Sized> Reads for Box<R> {
+    fn next_chunk(&self) -> Result<Vec<Read>> {
+        (**self).next_chunk()
+    }
+
+    fn finish(&mut self) -> Result<()> {
+        (**self).finish()
+    }
 }
 
 pub use MatchType::*;

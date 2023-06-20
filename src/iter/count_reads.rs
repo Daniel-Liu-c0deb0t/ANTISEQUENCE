@@ -42,7 +42,7 @@ impl<R: Reads, F: Fn(&[usize]) + Send + Sync> Reads for CountReads<R, F> {
         Ok(reads)
     }
 
-    fn finish(self) -> Result<()> {
+    fn finish(&mut self) -> Result<()> {
         self.reads.finish()?;
 
         let counts = self
