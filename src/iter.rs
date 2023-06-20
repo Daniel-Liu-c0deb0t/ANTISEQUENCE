@@ -393,6 +393,8 @@ macro_rules! run {
             let mut first = $first;
             first.finish()
                 .unwrap_or_else(|e| panic!("Error when running: {e}"));
+            fn check_type_and_drop<R: Reads>(_reads: R) {}
+            check_type_and_drop(first);
         }
     };
     (@finish $first:expr, $($e:expr),*) => {
@@ -400,7 +402,8 @@ macro_rules! run {
             let mut first = $first;
             first.finish()
                 .unwrap_or_else(|e| panic!("Error when running: {e}"));
-            drop(first);
+            fn check_type_and_drop<R: Reads>(_reads: R) {}
+            check_type_and_drop(first);
             run!(@finish $($e),*);
         }
     };
@@ -445,6 +448,8 @@ macro_rules! run_with_threads {
             let mut first = $first;
             first.finish()
                 .unwrap_or_else(|e| panic!("Error when running: {e}"));
+            fn check_type_and_drop<R: Reads>(_reads: R) {}
+            check_type_and_drop(first);
         }
     };
     (@finish $first:expr, $($e:expr),*) => {
@@ -452,7 +457,8 @@ macro_rules! run_with_threads {
             let mut first = $first;
             first.finish()
                 .unwrap_or_else(|e| panic!("Error when running: {e}"));
-            drop(first);
+            fn check_type_and_drop<R: Reads>(_reads: R) {}
+            check_type_and_drop(first);
             run_with_threads!(@finish $($e),*);
         }
     };
