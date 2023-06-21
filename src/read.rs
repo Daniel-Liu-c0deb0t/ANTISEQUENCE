@@ -284,13 +284,13 @@ impl StrMappings {
             use Intersection::*;
             match padded.intersect(m) {
                 BAOverlap(_) | ABOverlap(_) | AInsideB => {
-                    m.len += to_length - padded.len;
+                    m.len += padding.len();
                 }
                 ABeforeB => {
-                    m.start += to_length - padded.len;
+                    m.start += padding.len();
                 },
                 Equal => {
-                    m.len += to_length - padded.len;
+                    m.len += padding.len();
                 }
                 _ => (),
             }
