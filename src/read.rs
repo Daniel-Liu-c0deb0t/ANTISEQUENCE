@@ -274,14 +274,14 @@ impl StrMappings {
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
             .clone();
 
-        let padding_len = to_length - padded.len;
+        let padding_len = to_length - padded.len - 1;
 
         let padding = VAR_LEN_BC_PADDING
             .get(padding_len)
             .ok_or_else(|| NameError::TooShort(Name::Label(label), padding_len))?;
 
         for char in padding.as_bytes() {
-            self.string.insert(padded.start + padded.len, *char)
+            self.string.insert(padded.start + padded.len, *char);
         }
 
         if let Some(qual) = &mut self.qual {
