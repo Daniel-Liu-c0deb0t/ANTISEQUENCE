@@ -11,6 +11,9 @@ use crate::read::*;
 pub mod trim_reads;
 use trim_reads::*;
 
+pub mod pad_reads;
+use pad_reads::*;
+
 pub mod collect_fastq_reads;
 use collect_fastq_reads::*;
 
@@ -145,6 +148,19 @@ pub trait Reads: Send + Sync {
         Self: Sized,
     {
         LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
+    }
+
+    #[must_use]
+    fn pad(
+        self,
+        selector_expr: SelectorExpr,
+        labels: impl Into<Vec<Label>>,
+        to_length: usize,
+    ) -> PadReads<Self>
+    where
+        Self: Sized,
+    {
+        PadReads::new(self, selector_expr, labels.into(), to_length)
     }
 
     #[must_use]
