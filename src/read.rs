@@ -277,8 +277,24 @@ impl StrMappings {
         let padding_len = to_length - padded.len - 1;
 
         let padding = VAR_LEN_BC_PADDING
-            .get(padding_len)
-            .ok_or_else(|| NameError::TooShort(Name::Label(label), padding_len))?;
+        .get(padding_len)
+        .ok_or_else(|| NameError::TooShort(Name::Label(label), padding_len))?;
+
+        self.mappings.iter_mut().for_each(|m| {
+            use Intersection::*;
+            match padded.intersect(m) {
+                BAOverlap(_) | ABOverlap(_) | AInsideB => {
+                    m.len += to_length - padded.len;
+                }
+                ABeforeB => {
+                    m.start += to_length - padded.len;
+                },
+                Equal => {
+                    m.len += to_length - padded.len;
+                }
+                _ => (),
+            }
+        });
 
         for char in padding.as_bytes() {
             self.string.insert(padded.start + padded.len, *char);
