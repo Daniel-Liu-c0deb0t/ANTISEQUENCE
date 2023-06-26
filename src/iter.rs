@@ -486,9 +486,24 @@ pub enum MatchType {
     HammingPrefix(Threshold),
     HammingSuffix(Threshold),
     GlobalAln(f64),
-    LocalAln { identity: f64, overlap: f64 },
-    PrefixAln { identity: f64, overlap: f64 },
-    SuffixAln { identity: f64, overlap: f64 },
+    LocalAln {
+        identity: f64,
+        overlap: f64,
+    },
+    PrefixAln {
+        identity: f64,
+        overlap: f64,
+    },
+    SuffixAln {
+        identity: f64,
+        overlap: f64,
+    },
+    BoundedAln {
+        identity: f64,
+        overlap: f64,
+        from: usize,
+        to: usize,
+    },
 }
 
 impl MatchType {
@@ -502,7 +517,7 @@ impl MatchType {
             | HammingSuffix(_)
             | PrefixAln { .. }
             | SuffixAln { .. } => 2,
-            LocalAln { .. } => 3,
+            LocalAln { .. } | BoundedAln { .. } => 3,
         }
     }
 }

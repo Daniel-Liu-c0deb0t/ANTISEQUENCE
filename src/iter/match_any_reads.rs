@@ -85,6 +85,9 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                             string.len() * 2,
                         )));
                     }
+                    MatchType::BoundedAln { .. } => {
+                        aligner = Some(Box::new(GlobalLocalAligner::<true>::new(string.len() * 2)));
+                    }
                     _ => (),
                 }
             }
@@ -162,6 +165,25 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                         .unwrap()
                         .align(string, &pattern_str, identity, identity)
                         .map(|(m, _, end_idx)| (m, end_idx, 0)),
+                    BoundedAln {
+                        identity,
+                        overlap,
+                        from,
+                        to,
+                    } => {
+                        let additional =
+                            ((1.0 - identity).max(0.0) * (pattern_len as f64)).ceil() as usize;
+                        aligner
+                            .as_mut()
+                            .unwrap()
+                            .align(
+                                &string[from..=to + additional],
+                                &pattern_str,
+                                identity,
+                                overlap,
+                            )
+                            .map(|(m, start_idx, end_idx)| (m, start_idx + from, end_idx + from))
+                    }
                     LocalAln { identity, overlap } => {
                         aligner
                             .as_mut()
