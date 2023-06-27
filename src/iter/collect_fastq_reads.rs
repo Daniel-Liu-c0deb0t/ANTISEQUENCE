@@ -49,6 +49,8 @@ impl<R: Reads> Reads for CollectFastqReads<R> {
         let reads = self.reads.next_chunk()?;
         let mut locked_writers = Vec::with_capacity(reads.len());
 
+        // get the corresponding file writer for each read first so writing to different files can be parallelized
+        // TODO: use concurrent hashmap?
         {
             let mut file_writers = self.file_writers.lock().unwrap();
 
@@ -59,6 +61,7 @@ impl<R: Reads> Reads for CollectFastqReads<R> {
                         locked_writers.push(Arc::clone(e.get()));
                     }
                     Vacant(e) => {
+                        // need to create the output file
                         let file_path = std::str::from_utf8(file_name).unwrap();
 
                         if let Some(parent) = std::path::Path::new(file_path).parent() {
