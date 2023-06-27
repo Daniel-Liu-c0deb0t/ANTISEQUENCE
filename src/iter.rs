@@ -153,7 +153,7 @@ pub trait Reads: Send + Sync {
         selector_expr: SelectorExpr,
         attr: Attr,
         prob: f64,
-        seed: u64,
+        seed: u32,
     ) -> BernoulliReads<Self>
     where
         Self: Sized,
