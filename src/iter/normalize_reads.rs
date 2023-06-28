@@ -10,16 +10,7 @@ pub struct NormalizeReads<R: Reads> {
 pub const NUC_MAP: [u8; 4] = [b'A', b'C', b'T', b'G'];
 
 pub fn log2_roundup(n: usize) -> usize {
-    let mut log = 1;
-
-    let mut n = n >> 2;
-
-    while n != 0 {
-        n >>= 1;
-        log += 1
-    }
-
-    log
+    usize::try_from(usize::BITS - (n - 1).leading_zeros()).unwrap()
 }
 
 impl<R: Reads> NormalizeReads<R> {
