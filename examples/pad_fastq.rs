@@ -16,10 +16,13 @@ fn main() {
     iter_fastq1("example_data/pad.fastq", 256)
         .unwrap_or_else(|e| panic!("{e}"))
         .match_any(
-            sel!(), 
-            tr!(seq1.* -> seq1.rest, seq1.adapter_2), 
-            pattern_2, 
-            SuffixAln { identity: 0.83, overlap: 1.0 }
+            sel!(),
+            tr!(seq1.* -> seq1.rest, seq1.adapter_2),
+            pattern_2,
+            SuffixAln {
+                identity: 0.83,
+                overlap: 1.0,
+            },
         )
         .match_any(
             sel!(),

@@ -6,7 +6,6 @@ use std::sync::Arc;
 use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
-use crate::pad_reads::VAR_LEN_BC_PADDING;
 
 pub use End::*;
 pub use EndIdx::*;
@@ -274,34 +273,22 @@ impl StrMappings {
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
             .clone();
 
-        let padding_len = to_length - padded.len - 1;
-
-        let padding = VAR_LEN_BC_PADDING
-        .get(padding_len)
-        .ok_or_else(|| NameError::TooShort(Name::Label(label), padding_len))?;
+        let padding_len = to_length - padded.len;
 
         self.mappings.iter_mut().for_each(|m| {
             use Intersection::*;
             match padded.intersect(m) {
-                BAOverlap(_) | ABOverlap(_) | AInsideB => {
-                    m.len += padding.len();
-                }
-                ABeforeB => {
-                    m.start += padding.len();
-                },
-                Equal => {
-                    m.len += padding.len();
-                }
+                BAOverlap(_) | ABOverlap(_) | AInsideB | ABeforeB | Equal => m.len += padding_len,
                 _ => (),
             }
         });
 
-        for char in padding.as_bytes() {
-            self.string.insert(padded.start + padded.len, *char);
+        for _ in 0..=padding_len {
+            self.string.insert(padded.start + padded.len, b'A');
         }
 
         if let Some(qual) = &mut self.qual {
-            for _ in 0..padding_len+1 {
+            for _ in 0..=padding_len {
                 qual.insert(padded.start + padded.len, b'#');
             }
         }
