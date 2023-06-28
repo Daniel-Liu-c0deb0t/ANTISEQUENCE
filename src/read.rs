@@ -7,6 +7,7 @@ use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
 use crate::revcomp_reads::COMPLEMENT;
+use crate::normalize_reads::*;
 
 pub use End::*;
 pub use EndIdx::*;
@@ -326,6 +327,46 @@ impl StrMappings {
             .collect::<Vec<u8>>();
 
         self.string.splice(range, revcomp.clone());
+
+        Ok(())
+    }
+
+    pub fn norm(&mut self, label: InlineString, range: (usize, usize)) -> Result<(), NameError> {
+        let normalized = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let mut bound_len = range.1 - normalized.len;
+
+        let extra_len = log2_roundup(range.1 - range.0);
+
+        let normed_len = range.1 - normalized.len + extra_len;
+
+        self.mappings.iter_mut().for_each(|m| {
+            use Intersection::*;
+            match normalized.intersect(m) {
+                BAOverlap(_) | ABOverlap(_) | AInsideB | ABeforeB | Equal => m.len += normed_len,
+                _ => (),
+            }
+        });
+
+        for _ in 0..range.1 - normalized.len {
+            self.string.insert(normalized.start + normalized.len, b'A');
+        }
+
+        for _ in 0..extra_len {
+            let nuc = NUC_MAP.get(bound_len & (usize::MAX & 3)).unwrap();
+            bound_len >>= 2;
+
+            self.string.insert(self.string.len(), *nuc)
+        }
+
+        if let Some(qual) = &mut self.qual {
+            for _ in 0..normed_len {
+                qual.insert(normalized.start + normalized.len, b'#');
+            }
+        }
 
         Ok(())
     }
@@ -721,6 +762,17 @@ impl Read {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .set(label, new_str, new_qual)
+    }
+
+    pub fn norm(
+        &mut self,
+        str_type: StrType,
+        label: InlineString,
+        range: (usize, usize),
+    ) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .norm(label, range)
     }
 
     pub fn trim(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
