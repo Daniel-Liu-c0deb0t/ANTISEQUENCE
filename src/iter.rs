@@ -23,6 +23,9 @@ use cut_reads::*;
 pub mod set_reads;
 use set_reads::*;
 
+pub mod normalize_reads;
+use normalize_reads::*;
+
 pub mod length_in_bounds_reads;
 use length_in_bounds_reads::*;
 
@@ -220,6 +223,19 @@ pub trait Reads: Send + Sync {
                 panic!("Error in parsing format expression for the set operation: {e}")
             }),
         )
+    }
+
+    #[must_use]
+    fn norm(
+        self,
+        selector_expr: SelectorExpr,
+        label: Label,
+        range: (usize, usize),
+    ) -> NormalizeReads<Self>
+    where
+        Self: Sized,
+    {
+        NormalizeReads::new(self, selector_expr, label, range)
     }
 
     #[must_use]
