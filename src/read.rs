@@ -268,17 +268,18 @@ impl StrMappings {
         Ok(())
     }
 
-    pub fn norm(&mut self, label: InlineString, range: (usize, usize)) -> Result<(), NameError> {
+    pub fn norm(&mut self, label: InlineString, short_len: usize, long_len: usize) -> Result<(), NameError>
+    {
         let normalized = self
             .mapping(label)
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
             .clone();
 
-        let mut bound_len = range.1 - normalized.len;
+        let mut length_diff = long_len - normalized.len;
 
-        let extra_len = log2_roundup(range.1 - range.0);
+        let extra_len = log4_roundup(long_len - short_len + 1);
 
-        let normed_len = range.1 - normalized.len + extra_len;
+        let normed_len = long_len - normalized.len + extra_len;
 
         self.mappings.iter_mut().for_each(|m| {
             use Intersection::*;
@@ -288,13 +289,13 @@ impl StrMappings {
             }
         });
 
-        for _ in 0..range.1 - normalized.len {
+        for _ in 0..length_diff {
             self.string.insert(normalized.start + normalized.len, b'A');
         }
 
         for _ in 0..extra_len {
-            let nuc = NUC_MAP.get(bound_len & (usize::MAX & 3)).unwrap();
-            bound_len >>= 2;
+            let nuc = NUC_MAP.get(length_diff & (usize::MAX & 3)).unwrap();
+            length_diff >>= 2;
 
             self.string.insert(self.string.len(), *nuc)
         }
@@ -667,11 +668,13 @@ impl Read {
         &mut self,
         str_type: StrType,
         label: InlineString,
-        range: (usize, usize),
-    ) -> Result<(), NameError> {
+        short_len: usize,
+        long_len: usize,
+    ) -> Result<(), NameError>
+    {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
-            .norm(label, range)
+            .norm(label, short_len, long_len)
     }
 
     pub fn trim(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {

@@ -226,14 +226,10 @@ pub trait Reads: Send + Sync {
     }
 
     #[must_use]
-    fn norm(
-        self,
-        selector_expr: SelectorExpr,
-        label: Label,
-        range: (usize, usize),
-    ) -> NormalizeReads<Self>
+    fn norm<B>(self, selector_expr: SelectorExpr, label: Label, range: B) -> NormalizeReads<Self, B>
     where
         Self: Sized,
+        B: RangeBounds<usize> + Send + Sync,
     {
         NormalizeReads::new(self, selector_expr, label, range)
     }
