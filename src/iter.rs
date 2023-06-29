@@ -56,7 +56,12 @@ use fork_reads::*;
 pub mod time_reads;
 use time_reads::*;
 
+/// Shared interface for all read iterators.
+///
+/// Many operations allow a select expression to be specified as the first parameter.
+/// This ensures that the operation is only be applied on the selected reads.
 pub trait Reads: Send + Sync {
+    /// Run a `Reads` iterator until there are no more reads left.
     fn run(mut self) -> Result<()>
     where
         Self: Sized,
@@ -65,6 +70,7 @@ pub trait Reads: Send + Sync {
         self.finish()
     }
 
+    /// Run a `Reads` iterator in parallel with multithreading.
     fn run_with_threads(mut self, threads: usize)
     where
         Self: Sized,
@@ -87,6 +93,7 @@ pub trait Reads: Send + Sync {
             .unwrap_or_else(|e| panic!("Error when running: {e}"));
     }
 
+    /// Run a `Reads` iterator and collect the resulting `Read`s into a `Vec`.
     fn run_collect_reads(mut self) -> Result<Vec<Read>>
     where
         Self: Sized,
@@ -107,6 +114,7 @@ pub trait Reads: Send + Sync {
         Ok(res)
     }
 
+    /// Apply an arbitrary function on each read.
     #[must_use]
     fn for_each<F>(self, selector_expr: SelectorExpr, func: F) -> ForEachReads<Self, F>
     where
@@ -116,6 +124,7 @@ pub trait Reads: Send + Sync {
         ForEachReads::new(self, selector_expr, func)
     }
 
+    /// Print each read to standard error.
     #[must_use]
     fn dbg(self, selector_expr: SelectorExpr) -> ForEachReads<Self, fn(&mut Read)>
     where
@@ -124,6 +133,8 @@ pub trait Reads: Send + Sync {
         ForEachReads::new(self, selector_expr, |read| eprintln!("{}", read))
     }
 
+    /// Count the number of reads that are selected with each selector and apply an arbitrary
+    /// function on the counts at the end.
     #[must_use]
     fn count<F>(self, selector_exprs: impl Into<Vec<SelectorExpr>>, func: F) -> CountReads<Self, F>
     where
@@ -133,6 +144,13 @@ pub trait Reads: Send + Sync {
         CountReads::new(self, selector_exprs.into(), func)
     }
 
+    /// Check whether a mapping length is within the specified bounds.
+    ///
+    /// The transform expression must have one input mapping and one output mapping.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.* -> seq1.*.in_bounds)`.
+    /// This will set `seq1.*.in_bounds` to a boolean indicating whether the length of `seq1.*`
+    /// is in the specified bounds.
     #[must_use]
     fn length_in_bounds<B>(
         self,
@@ -147,6 +165,9 @@ pub trait Reads: Send + Sync {
         LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
     }
 
+    /// Set an attribute to true with some probability.
+    ///
+    /// This is deterministic, even with multithreading.
     #[must_use]
     fn bernoulli(
         self,
@@ -161,6 +182,11 @@ pub trait Reads: Send + Sync {
         BernoulliReads::new(self, selector_expr, attr, prob, seed)
     }
 
+    /// Cut a mapping at an index to create two new mappings.
+    ///
+    /// The transform expression must have one input mapping and two output mappings.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.* -> seq1.left, seq1.right)`.
     #[must_use]
     fn cut(
         self,
@@ -174,6 +200,11 @@ pub trait Reads: Send + Sync {
         CutReads::new(self, selector_expr, transform_expr, cut_idx)
     }
 
+    /// Intersect two mapping intervals and create a new mapping of the intersection, if it is not empty.
+    ///
+    /// The transform expression must have two input mappings and one output mapping.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.a, seq1.b -> seq1.c)`.
     #[must_use]
     fn intersect(
         self,
@@ -186,6 +217,14 @@ pub trait Reads: Send + Sync {
         IntersectReads::new(self, selector_expr, transform_expr)
     }
 
+    /// Union two mapping intervals and create a new mapping of the union.
+    ///
+    /// If the two mapping intervals are disjoint, then the union will also contain the region
+    /// between the two mapping intervals, which is not inside either mapping intervals.
+    ///
+    /// The transform expression must have two input mappings and one output mapping.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.a, seq1.b -> seq1.c)`.
     #[must_use]
     fn union(self, selector_expr: SelectorExpr, transform_expr: TransformExpr) -> UnionReads<Self>
     where
@@ -194,6 +233,10 @@ pub trait Reads: Send + Sync {
         UnionReads::new(self, selector_expr, transform_expr)
     }
 
+    /// Trim the mappings corresponding to the specified labels by modifying the underlying strings.
+    ///
+    /// When a mapping is trimmed, its length will be set to zero. All intersecting
+    /// mappings will also be adjusted accordingly for the shortening.
     #[must_use]
     fn trim(self, selector_expr: SelectorExpr, labels: impl Into<Vec<Label>>) -> TrimReads<Self>
     where
@@ -202,6 +245,10 @@ pub trait Reads: Send + Sync {
         TrimReads::new(self, selector_expr, labels.into())
     }
 
+    /// Set a label or attribute to the result of a format expression.
+    ///
+    /// After a label is set, its mapping and all other intersecting mappings will be adjusted accordingly
+    /// for any shortening or lengthening.
     #[must_use]
     fn set(
         self,
@@ -222,6 +269,16 @@ pub trait Reads: Send + Sync {
         )
     }
 
+    /// Match a regex pattern in a mapping.
+    ///
+    /// If named capture groups are used, then mappings are automatically created at the match
+    /// locations, labeled by the names specified in the regex.
+    ///
+    /// The transform expression must have one input mapping and one output attribute.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.* -> seq1.*.matched)`.
+    /// This will match the regex pattern two `seq1.*` and set `seq1.*.matched` to a boolean
+    /// indicating whether the regex matches.
     #[must_use]
     fn match_regex(
         self,
@@ -477,17 +534,68 @@ impl<R: Reads + ?Sized> Reads for Box<R> {
 pub use MatchType::*;
 pub use Threshold::*;
 
+/// Algorithm types for matching patterns.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MatchType {
+    /// Exact match.
+    ///
+    /// A match will result in one new mapping: the entire string.
     Exact,
+    /// Exact prefix match.
+    ///
+    /// A match will result in two new mappings: the matched prefix and the rest of the string.
     ExactPrefix,
+    /// Exact suffix match.
+    ///
+    /// A match will result in two new mappings: the rest of the string and the matched
+    /// suffix.
     ExactSuffix,
+    /// Hamming-distance-based matching.
+    ///
+    /// Threshold is for the number of matching bases.
+    ///
+    /// A match will result in one new mapping: the entire string.
     Hamming(Threshold),
+    /// Hamming-distance-based prefix matching.
+    ///
+    /// Threshold is for the number of matching bases.
+    ///
+    /// A match will result in two new mappings: the matched prefix and the rest of the
+    /// string.
     HammingPrefix(Threshold),
+    /// Hamming-distance-based suffix matching.
+    ///
+    /// Threshold is for the number of matching bases.
+    ///
+    /// A match will result in two new mappings: the rest of the string and the matched
+    /// suffix.
     HammingSuffix(Threshold),
+    /// Global-alignment-based matching.
+    ///
+    /// Threshold is for the sequence identity.
+    ///
+    /// A match will result in one new mapping: the entire string.
     GlobalAln(f64),
+    /// Local-alignment-based matching.
+    ///
+    /// Threshold is for the sequence identity and overlap.
+    ///
+    /// A match will result in three new mappings: everything before the aligned region, the locally aligned
+    /// region, and everything after the aligned region.
     LocalAln { identity: f64, overlap: f64 },
+    /// Prefix-alignment-based matching.
+    ///
+    /// Threshold is for the sequence identity and overlap.
+    ///
+    /// A match will result in two new mappings: the matched prefix and the rest of the
+    /// string.
     PrefixAln { identity: f64, overlap: f64 },
+    /// Suffix-alignment-based matching.
+    ///
+    /// Threshold is for the sequence identity and overlap.
+    ///
+    /// A match will result in two new mappings: the rest of the string and the matched
+    /// suffix.
     SuffixAln { identity: f64, overlap: f64 },
 }
 
@@ -507,6 +615,10 @@ impl MatchType {
     }
 }
 
+/// Either a count or a fraction.
+///
+/// Typically used for specifying the similarity threshold when matching patterns.
+/// The fraction is typically of the length of the pattern.
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Threshold {
     Count(usize),

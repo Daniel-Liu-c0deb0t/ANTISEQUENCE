@@ -132,15 +132,20 @@ impl<R: Reads> Reads for CollectFastqReads<R> {
                     .iter()
                     .filter(|r| self.selector_expr.matches(r).unwrap()),
             ) {
-                let mut writer1 = locked_writer[0].lock().unwrap();
-                let mut writer2 = locked_writer[1].lock().unwrap();
                 let (record1, record2) = read.to_fastq2().map_err(|e| Error::NameError {
                     source: e,
                     read: read.clone(),
                     context: "collecting into fastq file(s)",
                 })?;
-                write_fastq_record(&mut *writer1, record1);
-                write_fastq_record(&mut *writer2, record2);
+                // interleave records if the same file is specified twice
+                {
+                    let mut writer1 = locked_writer[0].lock().unwrap();
+                    write_fastq_record(&mut *writer1, record1);
+                }
+                {
+                    let mut writer2 = locked_writer[1].lock().unwrap();
+                    write_fastq_record(&mut *writer2, record2);
+                }
             }
         } else {
             for (locked_writer, read) in locked_writers.into_iter().zip(

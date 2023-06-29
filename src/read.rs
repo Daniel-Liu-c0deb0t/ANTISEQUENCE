@@ -10,18 +10,24 @@ use crate::inline_string::*;
 pub use End::*;
 pub use EndIdx::*;
 
+/// Specify the left or right end along with an index from that end.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum EndIdx {
     LeftEnd(usize),
     RightEnd(usize),
 }
 
+/// Left or right end.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum End {
     Left,
     Right,
 }
 
+/// Valid types of strings.
+///
+/// Types like `Name` or `Seq` refer to the corresponding line in a fastq record.
+/// Each Read contains multiple different strings of different types.
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum StrType {
     Name1,
@@ -32,11 +38,18 @@ pub enum StrType {
     Index2,
 }
 
+/// A fastq read.
+///
+/// This is the core data structure that is manipulated by other operations in this library.
+/// Both fastq records for paired-end reads are stored in the same `Read`.
 #[derive(Debug, Clone)]
 pub struct Read {
     str_mappings: Vec<(StrType, StrMappings)>,
 }
 
+/// A string and its correspondings mappings.
+///
+/// This is typically used to represent a name or sequence from a fastq record.
 #[derive(Debug, Clone)]
 pub struct StrMappings {
     mappings: Vec<Mapping>,
@@ -311,6 +324,7 @@ impl StrMappings {
     }
 }
 
+/// A labeled mapping that corresponds to an interval/region in a string.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mapping {
     pub label: InlineString,
@@ -319,6 +333,7 @@ pub struct Mapping {
     data: FxHashMap<InlineString, Data>,
 }
 
+/// Data types.
 #[derive(Clone, PartialEq)]
 pub enum Data {
     Bool(bool),
