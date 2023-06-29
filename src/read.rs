@@ -276,19 +276,20 @@ impl StrMappings {
         let padding_len = to_length - padded.len;
 
         self.mappings.iter_mut().for_each(|m| {
-            use Intersection::*;
-            match padded.intersect(m) {
-                BAOverlap(_) | ABOverlap(_) | AInsideB | ABeforeB | Equal => m.len += padding_len,
-                _ => (),
+            use Padding::*;
+            match padded.pad_direction(m) {
+                Start => m.start += padding_len,
+                End => m.len += padding_len,
+                Leave => (),
             }
         });
 
-        for _ in 0..=padding_len {
+        for _ in 0..padding_len {
             self.string.insert(padded.start + padded.len, b'A');
         }
 
         if let Some(qual) = &mut self.qual {
-            for _ in 0..=padding_len {
+            for _ in 0..padding_len {
                 qual.insert(padded.start + padded.len, b'#');
             }
         }
@@ -366,6 +367,13 @@ pub enum Intersection {
     BBeforeA,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Padding {
+    Start,
+    End,
+    Leave,
+}
+
 impl Mapping {
     pub fn new_default(len: usize) -> Self {
         Self {
@@ -382,6 +390,22 @@ impl Mapping {
             start,
             len,
             data: FxHashMap::default(),
+        }
+    }
+
+    pub fn pad_direction(&self, b: &Self) -> Padding {
+        let a_start = self.start;
+        let a_end = self.start + self.len;
+        let b_start = b.start;
+        let b_end = b.start + b.len;
+
+        use Padding::*;
+        if (b.label == InlineString::new(b"*")) | (a_start == b_start && a_end == b_end) {
+            End
+        } else if a_end <= b_start {
+            Start
+        } else {
+            Leave
         }
     }
 
