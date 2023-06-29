@@ -327,14 +327,10 @@ pub trait Reads: Send + Sync {
     /// This will match the regex pattern two `seq1.*` and set `seq1.*.matched` to a boolean
     /// indicating whether the regex matches.
     #[must_use]
-    fn norm(
-        self,
-        selector_expr: SelectorExpr,
-        label: Label,
-        range: (usize, usize),
-    ) -> NormalizeReads<Self>
+    fn norm<B>(self, selector_expr: SelectorExpr, label: Label, range: B) -> NormalizeReads<Self, B>
     where
         Self: Sized,
+        B: RangeBounds<usize> + Send + Sync,
     {
         NormalizeReads::new(self, selector_expr, label, range)
     }
