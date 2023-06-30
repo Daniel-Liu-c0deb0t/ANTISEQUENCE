@@ -1,5 +1,7 @@
 use block_aligner::{cigar::*, scan_block::*, scores::*};
 
+use memchr::memmem;
+
 use crate::iter::*;
 
 pub struct MatchAnyReads<R: Reads> {
@@ -135,6 +137,8 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                             None
                         }
                     }
+                    ExactSearch => memmem::find(string, &pattern_str)
+                        .map(|i| (pattern_len, i, i + pattern_len)),
                     Hamming(t) => {
                         let t = t.get(pattern_len);
                         hamming(string, &pattern_str, t).map(|m| (m, pattern_len, 0))
@@ -156,6 +160,10 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                         } else {
                             None
                         }
+                    }
+                    HammingSearch(t) => {
+                        let t = t.get(pattern_len);
+                        hamming_search(string, &pattern_str, t)
                     }
                     GlobalAln(identity) => aligner
                         .as_mut()
@@ -325,6 +333,24 @@ fn hamming(a: &[u8], b: &[u8], threshold: usize) -> Option<usize> {
     } else {
         None
     }
+}
+
+fn hamming_search(a: &[u8], b: &[u8], threshold: usize) -> Option<(usize, usize, usize)> {
+    let mut best_match = None;
+
+    for (i, w) in a.windows(b.len()).enumerate() {
+        if let Some(matches) = hamming(w, b, threshold) {
+            if let Some((best_matches, _, _)) = best_match {
+                if matches <= best_matches {
+                    continue;
+                }
+            }
+
+            best_match = Some((matches, i, i + b.len()));
+        }
+    }
+
+    best_match
 }
 
 trait Aligner {

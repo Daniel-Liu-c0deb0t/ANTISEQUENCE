@@ -602,6 +602,14 @@ pub use MatchType::*;
 pub use Threshold::*;
 
 /// Algorithm types for matching patterns.
+///
+/// For alignment-based algorithms, `sequence identity = matches / (matches + mismatches + insertions + deletions)`
+/// and `overlap = matches / pattern_length`.
+///
+/// Insertions and deletions that are not part of the alignment are not included in the sequence
+/// identity computation. This is important for local alignment, where the start and end of the
+/// pattern can be excluded from the alignment, and prefix/suffix alignment, where the start/end
+/// of the pattern can be excluded from the alignment (prefix/suffix "overhang").
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MatchType {
     /// Exact match.
@@ -617,6 +625,11 @@ pub enum MatchType {
     /// A match will result in two new mappings: the rest of the string and the matched
     /// suffix.
     ExactSuffix,
+    /// Exact match search.
+    ///
+    /// A match will result in three new mappings: everything before the exact match, the exact
+    /// matching region, everything after the exact match.
+    ExactSearch,
     /// Hamming-distance-based matching.
     ///
     /// Threshold is for the number of matching bases.
@@ -637,6 +650,13 @@ pub enum MatchType {
     /// A match will result in two new mappings: the rest of the string and the matched
     /// suffix.
     HammingSuffix(Threshold),
+    /// Hamming-distance-based searching.
+    ///
+    /// Threshold is for the number of matching bases.
+    ///
+    /// A match will result in three new mappings: everything before the match, the matching
+    /// region, and everything after the match.
+    HammingSearch(Threshold),
     /// Global-alignment-based matching.
     ///
     /// Threshold is for the sequence identity.
@@ -645,21 +665,15 @@ pub enum MatchType {
     GlobalAln(f64),
     /// Local-alignment-based matching.
     ///
-    /// Threshold is for the sequence identity and overlap.
-    ///
     /// A match will result in three new mappings: everything before the aligned region, the locally aligned
     /// region, and everything after the aligned region.
     LocalAln { identity: f64, overlap: f64 },
     /// Prefix-alignment-based matching.
     ///
-    /// Threshold is for the sequence identity and overlap.
-    ///
     /// A match will result in two new mappings: the matched prefix and the rest of the
     /// string.
     PrefixAln { identity: f64, overlap: f64 },
     /// Suffix-alignment-based matching.
-    ///
-    /// Threshold is for the sequence identity and overlap.
     ///
     /// A match will result in two new mappings: the rest of the string and the matched
     /// suffix.
@@ -677,7 +691,7 @@ impl MatchType {
             | HammingSuffix(_)
             | PrefixAln { .. }
             | SuffixAln { .. } => 2,
-            LocalAln { .. } => 3,
+            ExactSearch | HammingSearch(_) | LocalAln { .. } => 3,
         }
     }
 }

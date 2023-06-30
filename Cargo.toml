@@ -14,6 +14,7 @@ thiserror = "1.0"
 rand = { version = "0.8", default-features = false }
 rand_xoshiro = "0.6"
 thread_local = "1.1"
+memchr = "2.5"
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 block-aligner = { git = "https://github.com/Daniel-Liu-c0deb0t/block-aligner", branch = "dev", features = ["simd_avx2"] }
