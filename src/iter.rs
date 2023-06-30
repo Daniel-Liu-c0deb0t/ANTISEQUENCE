@@ -299,8 +299,19 @@ pub trait Reads: Send + Sync {
     /// name: my_patterns
     /// patterns:
     ///   - pattern: AAAA
+    ///     some_extra_data1: !String "all As"
+    ///     some_extra_data2: !Bool true
     ///   - pattern: TTTT
+    ///     some_extra_data1: !String "all Ts"
+    ///     some_extra_data2: !Bool false
     /// ```
+    ///
+    /// Patterns can be arbitrary format expressions, so you can use any existing mappings or
+    /// attributes as patterns.
+    ///
+    /// You can also include arbitrary extra attributes, like `some_extra_data1` and
+    /// `some_extra_data2` in this example. The corresponding attributes for the matched pattern
+    /// will be stored into the input mapping.
     ///
     /// The transform expression must have one input mapping and the number of output mappings is
     /// determined by the [`MatchType`].
@@ -309,6 +320,8 @@ pub trait Reads: Send + Sync {
     /// `tr!(seq1.* -> seq1.before, seq1.aligned, seq1.after)`.
     /// The input mapping will get a new attribute (`seq1.*.my_patterns`) that is set to the pattern
     /// that is matched. If no pattern matches, then it will be set to false.
+    /// Assuming pattern `AAAA` is matched, `seq1.*.some_extra_data1` will be set to `"all As"` and
+    /// `seq1.*.some_extra_data2` will be set to `true`.
     #[must_use]
     fn match_any(
         self,
