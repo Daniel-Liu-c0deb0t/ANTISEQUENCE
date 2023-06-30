@@ -435,7 +435,7 @@ pub trait Reads: Send + Sync {
 
     /// Create two read iterators by cloning each read.
     ///
-    /// You must use the [`run!()`] or [`run_with_threads!()`] macros to run all the forks.
+    /// You must use the [`run!()`](crate::run!) or [`run_with_threads!()`](crate::run_with_threads!) macros to run all the forks.
     #[must_use]
     fn fork(self) -> (ForkReads<Self>, ForkReads<Self>)
     where
