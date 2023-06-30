@@ -292,6 +292,23 @@ pub trait Reads: Send + Sync {
         MatchRegexReads::new(self, selector_expr, transform_expr, regex.as_ref())
     }
 
+    /// Match any one of multiple patterns in a mapping.
+    ///
+    /// Patterns are specified in YAML format:
+    /// ```
+    /// name: my_patterns
+    /// patterns:
+    ///   - pattern: AAAA
+    ///   - pattern: TTTT
+    /// ```
+    ///
+    /// The transform expression must have one input mapping and the number of output mappings is
+    /// determined by the [`MatchType`].
+    ///
+    /// Example `transform_expr` for local-alignment-based pattern matching:
+    /// `tr!(seq1.* -> seq1.before, seq1.aligned, seq1.after)`.
+    /// The input mapping will get a new attribute (`seq1.*.my_patterns`) that is set to the pattern
+    /// that is matched. If no pattern matches, then it will be set to false.
     #[must_use]
     fn match_any(
         self,
@@ -313,6 +330,11 @@ pub trait Reads: Send + Sync {
         )
     }
 
+    /// Match repeated characters from the left or right end of a mapping.
+    ///
+    /// The transform expression must have one input mapping and two output mappings.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.* -> seq1.sequence, seq1.polya_tail)`.
     #[must_use]
     fn match_polyx(
         self,
@@ -328,6 +350,11 @@ pub trait Reads: Send + Sync {
         MatchPolyXReads::new(self, selector_expr, transform_expr, x as u8, end, identity)
     }
 
+    /// Output reads to a specified file.
+    ///
+    /// The file path is a format expression.
+    ///
+    /// Only read 1 is written out.
     #[must_use]
     fn collect_fastq1(
         self,
@@ -346,6 +373,12 @@ pub trait Reads: Send + Sync {
         )
     }
 
+    /// Output paired-end reads to the specified files.
+    ///
+    /// The file paths are format expressions.
+    ///
+    /// Read 1 is written to `file_expr1` and read 2 is written to `file_expr2`.
+    /// The reads will be interleaved if the files are the same.
     #[must_use]
     fn collect_fastq2(
         self,
@@ -368,6 +401,7 @@ pub trait Reads: Send + Sync {
         )
     }
 
+    /// Retain only the reads that are selected and discard the rest.
     #[must_use]
     fn retain(self, selector_expr: SelectorExpr) -> RetainReads<Self>
     where
@@ -376,6 +410,7 @@ pub trait Reads: Send + Sync {
         RetainReads::new(self, selector_expr)
     }
 
+    /// Take only the reads that have a record index inside the bounds.
     #[must_use]
     fn take<B>(self, bounds: B) -> TakeReads<Self, B>
     where
@@ -385,6 +420,9 @@ pub trait Reads: Send + Sync {
         TakeReads::new(self, bounds)
     }
 
+    /// Create two read iterators by cloning each read.
+    ///
+    /// You must use the [`run!()`] or [`run_with_threads!()`] macros to run all the forks.
     #[must_use]
     fn fork(self) -> (ForkReads<Self>, ForkReads<Self>)
     where
@@ -397,6 +435,11 @@ pub trait Reads: Send + Sync {
         (left, right)
     }
 
+    /// Compute the runtime (in seconds) of all operations before this in the iterator chain.
+    ///
+    /// The runtime is summed across all threads.
+    ///
+    /// The function `func` is called at the end with the runtime.
     #[must_use]
     fn time<F>(self, func: F) -> TimeReads<Self, F>
     where
@@ -406,6 +449,9 @@ pub trait Reads: Send + Sync {
         TimeReads::new(self, func)
     }
 
+    /// Box the read iterator by creating a `Box<dyn Reads>`.
+    ///
+    /// This allows iterators to be dynamically chained at runtime.
     #[must_use]
     fn boxed(self) -> Box<dyn Reads>
     where
@@ -419,6 +465,9 @@ pub trait Reads: Send + Sync {
     fn finish(&mut self) -> Result<()>;
 }
 
+/// Run one or more `Reads` iterators until there are no more reads left.
+///
+/// This should be used to run iterators that are forked.
 #[macro_export]
 macro_rules! run {
     ($($e:expr),+ $(,)*) => {
@@ -466,6 +515,11 @@ macro_rules! run {
     };
 }
 
+/// Run one or more `Reads` iterators in parallel with multithreading.
+///
+/// The first parameter is the number of threads to use.
+///
+/// This should be used to run iterators that are forked.
 #[macro_export]
 macro_rules! run_with_threads {
     ($threads:expr, $($e:expr),+ $(,)*) => {
