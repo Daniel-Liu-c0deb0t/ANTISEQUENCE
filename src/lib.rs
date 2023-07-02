@@ -37,11 +37,11 @@
 //!   str:  read6
 //!   from record 5 in file: "example_data/match.fastq"
 //! seq1:
-//!   *        |-------------|  adapter=AAAA
+//!   *        |------------------|  adapter=AAAA
 //!   template |-------------|
-//!   adapter                 .
-//!   str:     AATTCCGGAATTCCC
-//!   qual:    012345678901234
+//!   adapter                 |---|
+//!   str:     AATTCCGGAATTCCCAAAAG
+//!   qual:    01234567890123456789
 //!   from record 5 in file: "example_data/match.fastq"
 //! ```
 //!
