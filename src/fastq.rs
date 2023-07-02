@@ -148,6 +148,10 @@ impl Reads for Fastq2Reads {
     }
 }
 
+/// Create a read iterator over fastq records from a file.
+///
+/// Larger `chunk_size` uses more memory, but reduces the overhead of allocations, multithreading,
+/// etc.
 #[must_use]
 pub fn iter_fastq1(file: impl AsRef<str>, chunk_size: usize) -> Result<Fastq1Reads<'static>> {
     let reader = Mutex::new(parse_fastx_file(file.as_ref()).map_err(|e| Error::FileIo {
@@ -163,6 +167,10 @@ pub fn iter_fastq1(file: impl AsRef<str>, chunk_size: usize) -> Result<Fastq1Rea
     })
 }
 
+/// Create a read iterator over interleaved paired-end fastq records from a file.
+///
+/// Larger `chunk_size` uses more memory, but reduces the overhead of allocations, multithreading,
+/// etc.
 #[must_use]
 pub fn iter_fastq_interleaved(
     file: impl AsRef<str>,
@@ -181,6 +189,10 @@ pub fn iter_fastq_interleaved(
     })
 }
 
+/// Create a read iterator over paired-end fastq records from two different files.
+///
+/// Larger `chunk_size` uses more memory, but reduces the overhead of allocations, multithreading,
+/// etc.
 #[must_use]
 pub fn iter_fastq2(
     file1: impl AsRef<str>,
@@ -205,6 +217,7 @@ pub fn iter_fastq2(
     })
 }
 
+/// Create a read iterator over fastq records from a byte slice.
 #[must_use]
 pub fn iter_fastq1_bytes<'a>(bytes: &'a [u8]) -> Result<Fastq1Reads<'a>> {
     let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
@@ -217,6 +230,7 @@ pub fn iter_fastq1_bytes<'a>(bytes: &'a [u8]) -> Result<Fastq1Reads<'a>> {
     })
 }
 
+/// Create a read iterator over interleaved paired-end fastq records from a byte slice.
 #[must_use]
 pub fn iter_fastq_interleaved_bytes<'a>(bytes: &'a [u8]) -> Result<Fastq1Reads<'a>> {
     let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);

@@ -17,7 +17,8 @@
 //! on reads in a chain, and these are executed in order when you call
 //! [`run()`](Reads::run) or [`run_with_threads()`](Reads::run_with_threads).
 //!
-//! See [`Reads`] for all the supported read iterator operations.
+//! See [`fastq`] for functions for reading fastq records and
+//! see [`Reads`] for all the supported read iterator operations.
 //!
 //! ## Read structure
 //! Here's an example fastq record:
@@ -32,17 +33,16 @@
 //! ANTISEQUENCE stores that record as an internal [`Read`] data structure:
 //! ```
 //! name1:
-//! *    |---|
-//! str  read6
-//! (from record 5 in file: "example_data/match.fastq")
-//!
+//!   *     |---|
+//!   str:  read6
+//!   from record 5 in file: "example_data/match.fastq"
 //! seq1:
-//! *        |------------------|  adapter=AAAA
-//! template |-------------|
-//! adapter                 |---|
-//! str      AATTCCGGAATTCCCAAAAG
-//! qual     01234567890123456789
-//! (from record 5 in file: "example_data/match.fastq")
+//!   *        |-------------|  adapter=AAAA
+//!   template |-------------|
+//!   adapter                 .
+//!   str:     AATTCCGGAATTCCC
+//!   qual:    012345678901234
+//!   from record 5 in file: "example_data/match.fastq"
 //! ```
 //!
 //! Each `Read` is a set of *strings* of different *types*. Types help indicate whether the string is

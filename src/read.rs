@@ -694,7 +694,7 @@ impl fmt::Display for StrMappings {
             .map(|m| m.label.len())
             .max()
             .unwrap()
-            .max(4);
+            .max(5);
 
         for m in &self.mappings {
             let curr = if m.len == 0 {
@@ -708,7 +708,7 @@ impl fmt::Display for StrMappings {
                 c[m.start + m.len - 1] = b'|';
                 String::from_utf8(c).unwrap()
             };
-            write!(f, "{: <len$} {}", m.label.to_string(), curr)?;
+            write!(f, "  {: <len$} {}", m.label.to_string(), curr)?;
 
             for (k, v) in &m.data {
                 write!(f, " {}={}", k, v)?;
@@ -718,21 +718,21 @@ impl fmt::Display for StrMappings {
 
         writeln!(
             f,
-            "{: <len$} {}",
-            "str",
+            "  {: <len$} {}",
+            "str:",
             std::str::from_utf8(&self.string).unwrap()
         )?;
 
         if let Some(qual) = &self.qual {
             writeln!(
                 f,
-                "{: <len$} {}",
-                "qual",
+                "  {: <len$} {}",
+                "qual:",
                 std::str::from_utf8(&qual).unwrap()
             )?;
         }
 
-        writeln!(f, "(from record {} in {})", self.idx, &*self.origin)?;
+        write!(f, "  from record {} in {}", self.idx, &*self.origin)?;
 
         Ok(())
     }
