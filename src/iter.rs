@@ -11,6 +11,9 @@ use crate::read::*;
 pub mod trim_reads;
 use trim_reads::*;
 
+pub mod pad_reads;
+use pad_reads::*;
+
 pub mod collect_fastq_reads;
 use collect_fastq_reads::*;
 
@@ -168,6 +171,19 @@ pub trait Reads: Send + Sync {
     /// Set an attribute to true with some probability.
     ///
     /// This is deterministic, even with multithreading.
+    #[must_use]
+    fn pad(
+        self,
+        selector_expr: SelectorExpr,
+        labels: impl Into<Vec<Label>>,
+        to_length: usize,
+    ) -> PadReads<Self>
+    where
+        Self: Sized,
+    {
+        PadReads::new(self, selector_expr, labels.into(), to_length)
+    }
+
     #[must_use]
     fn bernoulli(
         self,

@@ -280,6 +280,36 @@ impl StrMappings {
         Ok(())
     }
 
+    pub fn pad(&mut self, label: InlineString, to_length: usize) -> Result<(), NameError> {
+        let padded = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let padding_len = to_length - padded.len;
+
+        self.mappings.iter_mut().for_each(|m| {
+            use Padding::*;
+            match padded.pad_direction(m) {
+                Start => m.start += padding_len,
+                End => m.len += padding_len,
+                Leave => (),
+            }
+        });
+
+        for _ in 0..padding_len {
+            self.string.insert(padded.start + padded.len, b'A');
+        }
+
+        if let Some(qual) = &mut self.qual {
+            for _ in 0..padding_len {
+                qual.insert(padded.start + padded.len, b'#');
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn trim(&mut self, label: InlineString) -> Result<(), NameError> {
         let trimmed = self
             .mapping(label)
@@ -352,6 +382,13 @@ pub enum Intersection {
     BBeforeA,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Padding {
+    Start,
+    End,
+    Leave,
+}
+
 impl Mapping {
     pub fn new_default(len: usize) -> Self {
         Self {
@@ -368,6 +405,22 @@ impl Mapping {
             start,
             len,
             data: FxHashMap::default(),
+        }
+    }
+
+    pub fn pad_direction(&self, b: &Self) -> Padding {
+        let a_start = self.start;
+        let a_end = self.start + self.len;
+        let b_start = b.start;
+        let b_end = b.start + b.len;
+
+        use Padding::*;
+        if (b.label == InlineString::new(b"*")) | (a_start == b_start && a_end == b_end) {
+            End
+        } else if a_end <= b_start {
+            Start
+        } else {
+            Leave
         }
     }
 
@@ -641,6 +694,17 @@ impl Read {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .trim(label)
+    }
+
+    pub fn pad(
+        &mut self,
+        str_type: StrType,
+        label: InlineString,
+        to_length: usize,
+    ) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .pad(label, to_length)
     }
 
     pub fn first_idx(&self) -> usize {
