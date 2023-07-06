@@ -10,9 +10,9 @@ AAAAAAAAAACAGAGCTTTTTTTTCCCCCCCCCC
 +
 0123456789012345678901234567890123
 @read1/2
-AAAATTTTCCCCGGGGCGCGACG
+AAAATTTTCCCCGGGGAAAACGCGACG
 +
-01234567890123456789012
+012345678901234567890123456
 @read2/1
 AAAAAAAAAAAAAACAGAGCTTTTTTTTCCCCCCCCCC
 +
@@ -37,7 +37,7 @@ AAAATTTTCCCCGGGGATATAT
             tr!(seq2.* -> _, seq2.adapter),
             adapters,
             SuffixAln {
-                identity: 0.9,
+                identity: 0.7,
                 overlap: 0.4,
             },
         )
