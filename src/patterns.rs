@@ -9,15 +9,15 @@ use crate::inline_string::*;
 use crate::read::*;
 
 pub struct Patterns {
-    pattern_name: InlineString,
+    pattern_name: Option<InlineString>,
     attr_names: Vec<InlineString>,
     patterns: Vec<Pattern>,
 }
 
 impl Patterns {
-    pub fn new(name: InlineString, patterns: Vec<FormatExpr>) -> Self {
+    pub fn new(patterns: Vec<FormatExpr>) -> Self {
         Self {
-            pattern_name: name,
+            pattern_name: None,
             attr_names: Vec::new(),
             patterns: patterns
                 .into_iter()
@@ -36,7 +36,7 @@ impl Patterns {
                 source: Box::new(e),
             })?;
 
-        let pattern_name = InlineString::new(patterns.name.as_bytes());
+        let pattern_name = Some(InlineString::new(patterns.name.as_bytes()));
 
         let attr_names = patterns.patterns[0]
             .attrs
@@ -70,7 +70,7 @@ impl Patterns {
         })
     }
 
-    pub fn pattern_name(&self) -> InlineString {
+    pub fn pattern_name(&self) -> Option<InlineString> {
         self.pattern_name
     }
 

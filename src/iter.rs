@@ -343,6 +343,39 @@ pub trait Reads: Send + Sync {
         )
     }
 
+    /// Match a pattern in a mapping.
+    ///
+    /// The pattern can be an arbitrary format expression, so you can use any existing mappings or
+    /// attributes as patterns.
+    ///
+    /// The transform expression must have one input mapping and the number of output mappings is
+    /// determined by the [`MatchType`].
+    ///
+    /// Example `transform_expr` for local-alignment-based pattern matching:
+    /// `tr!(seq1.* -> seq1.before, seq1.aligned, seq1.after)`.
+    #[must_use]
+    fn match_one(
+        self,
+        selector_expr: SelectorExpr,
+        transform_expr: TransformExpr,
+        pattern: impl AsRef<str>,
+        match_type: MatchType,
+    ) -> MatchAnyReads<Self>
+    where
+        Self: Sized,
+    {
+        MatchAnyReads::new(
+            self,
+            selector_expr,
+            transform_expr,
+            Patterns::new(vec![FormatExpr::new(pattern.as_ref().as_bytes())
+                .unwrap_or_else(|e| {
+                    panic!("Error in parsing format expression for the match_one operation: {e}")
+                })]),
+            match_type,
+        )
+    }
+
     /// Match repeated characters from the left or right end of a mapping.
     ///
     /// The transform expression must have one input mapping and two output mappings.

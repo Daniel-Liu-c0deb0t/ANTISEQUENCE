@@ -48,6 +48,9 @@ fn matches_rec(expr: &Expr, read: &Read) -> std::result::Result<bool, NameError>
         And(v) => {
             let mut res = true;
             for e in v {
+                if !res {
+                    break;
+                }
                 res &= matches_rec(e, read)?;
             }
             Ok(res)
@@ -55,6 +58,9 @@ fn matches_rec(expr: &Expr, read: &Read) -> std::result::Result<bool, NameError>
         Or(v) => {
             let mut res = false;
             for e in v {
+                if res {
+                    break;
+                }
                 res |= matches_rec(e, read)?;
             }
             Ok(res)

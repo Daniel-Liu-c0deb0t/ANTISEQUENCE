@@ -222,7 +222,9 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                 .unwrap();
 
             if let Some((pattern_str, pattern_attrs)) = max_pattern {
-                *mapping.data_mut(self.patterns.pattern_name()) = Data::Bytes(pattern_str);
+                if let Some(pattern_name) = self.patterns.pattern_name() {
+                    *mapping.data_mut(pattern_name) = Data::Bytes(pattern_str);
+                }
 
                 for (&attr, data) in self.patterns.attr_names().iter().zip(pattern_attrs) {
                     *mapping.data_mut(attr) = data.clone();
@@ -282,7 +284,9 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                     _ => unreachable!(),
                 }
             } else {
-                *mapping.data_mut(self.patterns.pattern_name()) = Data::Bool(false);
+                if let Some(pattern_name) = self.patterns.pattern_name() {
+                    *mapping.data_mut(pattern_name) = Data::Bool(false);
+                }
             }
         }
 
