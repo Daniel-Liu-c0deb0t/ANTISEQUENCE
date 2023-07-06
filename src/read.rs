@@ -688,6 +688,8 @@ impl EndIdx {
 
 impl fmt::Display for StrMappings {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use colored::Colorize;
+
         let len = self
             .mappings
             .iter()
@@ -708,7 +710,7 @@ impl fmt::Display for StrMappings {
                 c[m.start + m.len - 1] = b'|';
                 String::from_utf8(c).unwrap()
             };
-            write!(f, "  {: <len$} {}", m.label.to_string(), curr)?;
+            write!(f, " {: >len$} {}", m.label.to_string().bold(), curr)?;
 
             for (k, v) in &m.data {
                 write!(f, " {}={}", k, v)?;
@@ -718,21 +720,21 @@ impl fmt::Display for StrMappings {
 
         writeln!(
             f,
-            "  {: <len$} {}",
-            "str:",
-            std::str::from_utf8(&self.string).unwrap()
+            " {: >len$} {}",
+            "str:".bold().green(),
+            std::str::from_utf8(&self.string).unwrap().green()
         )?;
 
         if let Some(qual) = &self.qual {
             writeln!(
                 f,
-                "  {: <len$} {}",
-                "qual:",
-                std::str::from_utf8(&qual).unwrap()
+                " {: >len$} {}",
+                "qual:".bold().green(),
+                std::str::from_utf8(&qual).unwrap().green()
             )?;
         }
 
-        write!(f, "  from record {} in {}", self.idx, &*self.origin)?;
+        write!(f, " {: >len$} record {} in {}", "from:".bold(), self.idx.to_string(), &*self.origin)?;
 
         Ok(())
     }
@@ -740,8 +742,10 @@ impl fmt::Display for StrMappings {
 
 impl fmt::Display for Read {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use colored::Colorize;
+
         for (str_type, str_mapping) in &self.str_mappings {
-            writeln!(f, "{}:\n{}", str_type, str_mapping)?;
+            writeln!(f, "{}:\n{}", str_type.to_string().bold().underline(), str_mapping)?;
         }
         Ok(())
     }
