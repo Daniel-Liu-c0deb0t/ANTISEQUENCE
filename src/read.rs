@@ -713,7 +713,7 @@ impl fmt::Display for StrMappings {
             write!(f, " {: >len$} {}", m.label.to_string().bold(), curr)?;
 
             for (k, v) in &m.data {
-                write!(f, " {}={}", k, v)?;
+                write!(f, " {}={}", k.to_string().bold(), v)?;
             }
             writeln!(f)?;
         }
@@ -734,7 +734,13 @@ impl fmt::Display for StrMappings {
             )?;
         }
 
-        write!(f, " {: >len$} record {} in {}", "from:".bold(), self.idx.to_string(), &*self.origin)?;
+        write!(
+            f,
+            " {: >len$} record {} in {}",
+            "from:".bold(),
+            self.idx.to_string(),
+            &*self.origin
+        )?;
 
         Ok(())
     }
@@ -745,7 +751,12 @@ impl fmt::Display for Read {
         use colored::Colorize;
 
         for (str_type, str_mapping) in &self.str_mappings {
-            writeln!(f, "{}:\n{}", str_type.to_string().bold().underline(), str_mapping)?;
+            writeln!(
+                f,
+                "{}:\n{}",
+                str_type.to_string().bold().underline(),
+                str_mapping
+            )?;
         }
         Ok(())
     }
