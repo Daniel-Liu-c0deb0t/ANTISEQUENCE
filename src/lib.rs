@@ -33,16 +33,16 @@
 //! ANTISEQUENCE stores that record as an internal [`Read`] data structure:
 //! ```
 //! name1:
-//!      * |---|
-//!   str: read6
+//!  *     |---|
+//!  str:  read6
 //!  from: record 5 in file: "example_data/match.fastq"
 //! seq1:
-//!         * |-------------|  adapter=AAAA
+//!  *        |------------------|  adapter=AAAA
 //!  template |-------------|
-//!   adapter                .
-//!      str: AATTCCGGAATTCCC
-//!     qual: 012345678901234
-//!     from: record 5 in file: "example_data/match.fastq"
+//!  adapter                 |---|
+//!  str:     AATTCCGGAATTCCCAAAAG
+//!  qual:    01234567890123456789
+//!  from:    record 5 in file: "example_data/match.fastq"
 //! ```
 //!
 //! Each `Read` is a set of *strings* of different *types*. Types help indicate whether the string is

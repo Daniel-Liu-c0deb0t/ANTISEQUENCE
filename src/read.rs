@@ -710,7 +710,7 @@ impl fmt::Display for StrMappings {
                 c[m.start + m.len - 1] = b'|';
                 String::from_utf8(c).unwrap()
             };
-            write!(f, " {: >len$} {}", m.label.to_string().bold(), curr)?;
+            write!(f, " {: <len$} {}", m.label.to_string().bold(), curr)?;
 
             for (k, v) in &m.data {
                 write!(f, " {}={}", k.to_string().bold(), v)?;
@@ -720,7 +720,7 @@ impl fmt::Display for StrMappings {
 
         writeln!(
             f,
-            " {: >len$} {}",
+            " {: <len$} {}",
             "str:".bold().green(),
             std::str::from_utf8(&self.string).unwrap().green()
         )?;
@@ -728,7 +728,7 @@ impl fmt::Display for StrMappings {
         if let Some(qual) = &self.qual {
             writeln!(
                 f,
-                " {: >len$} {}",
+                " {: <len$} {}",
                 "qual:".bold().green(),
                 std::str::from_utf8(&qual).unwrap().green()
             )?;
@@ -736,7 +736,7 @@ impl fmt::Display for StrMappings {
 
         write!(
             f,
-            " {: >len$} record {} in {}",
+            " {: <len$} record {} in {}",
             "from:".bold(),
             self.idx.to_string(),
             &*self.origin
