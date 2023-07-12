@@ -11,6 +11,9 @@ use crate::read::*;
 pub mod trim_reads;
 use trim_reads::*;
 
+pub mod pad_reads;
+use pad_reads::*;
+
 pub mod collect_fastq_reads;
 use collect_fastq_reads::*;
 
@@ -168,6 +171,19 @@ pub trait Reads: Send + Sync {
     /// Set an attribute to true with some probability.
     ///
     /// This is deterministic, even with multithreading.
+    #[must_use]
+    fn pad(
+        self,
+        selector_expr: SelectorExpr,
+        labels: impl Into<Vec<Label>>,
+        to_length: usize,
+    ) -> PadReads<Self>
+    where
+        Self: Sized,
+    {
+        PadReads::new(self, selector_expr, labels.into(), to_length)
+    }
+
     #[must_use]
     fn bernoulli(
         self,
@@ -711,6 +727,12 @@ pub enum MatchType {
     /// A match will result in two new mappings: the rest of the string and the matched
     /// suffix.
     SuffixAln { identity: f64, overlap: f64 },
+    BoundedAln {
+        identity: f64,
+        overlap: f64,
+        from: usize,
+        to: usize,
+    },
 }
 
 impl MatchType {
@@ -724,7 +746,7 @@ impl MatchType {
             | HammingSuffix(_)
             | PrefixAln { .. }
             | SuffixAln { .. } => 2,
-            ExactSearch | HammingSearch(_) | LocalAln { .. } => 3,
+            ExactSearch | HammingSearch(_) | LocalAln { .. } | BoundedAln { .. } => 3,
         }
     }
 }

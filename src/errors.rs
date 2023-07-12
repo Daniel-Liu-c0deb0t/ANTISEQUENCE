@@ -61,6 +61,8 @@ pub enum NameError {
     Duplicate(Name),
     #[error("Expected {0}, but found {1:?}")]
     Type(&'static str, Data),
+    #[error("Maximum padding: 4, found: {1} for {0}")]
+    TooShort(Name, usize),
 }
 
 #[derive(Debug)]

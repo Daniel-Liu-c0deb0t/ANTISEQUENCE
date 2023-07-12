@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
+use crate::pad_reads::VAR_LEN_BC_PADDING;
 
 pub use End::*;
 pub use EndIdx::*;
@@ -275,6 +276,47 @@ impl StrMappings {
                 prev.start..prev.start + prev.len,
                 new_qual.unwrap().iter().cloned(),
             );
+        }
+
+        Ok(())
+    }
+
+    pub fn pad(&mut self, label: InlineString, to_length: usize) -> Result<(), NameError> {
+        let padded = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let padding_len = to_length - padded.len - 1;
+
+        let padding = VAR_LEN_BC_PADDING
+        .get(padding_len)
+        .ok_or_else(|| NameError::TooShort(Name::Label(label), padding_len))?;
+
+        self.mappings.iter_mut().for_each(|m| {
+            use Intersection::*;
+            match padded.intersect(m) {
+                BAOverlap(_) | ABOverlap(_) | AInsideB => {
+                    m.len += padding.len();
+                }
+                ABeforeB => {
+                    m.start += padding.len();
+                },
+                Equal => {
+                    m.len += padding.len();
+                }
+                _ => (),
+            }
+        });
+
+        for char in padding.as_bytes() {
+            self.string.insert(padded.start + padded.len, *char);
+        }
+
+        if let Some(qual) = &mut self.qual {
+            for _ in 0..padding_len+1 {
+                qual.insert(padded.start + padded.len, b'#');
+            }
         }
 
         Ok(())
@@ -641,6 +683,17 @@ impl Read {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .trim(label)
+    }
+
+    pub fn pad(
+        &mut self,
+        str_type: StrType,
+        label: InlineString,
+        to_length: usize,
+    ) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .pad(label, to_length)
     }
 
     pub fn first_idx(&self) -> usize {
