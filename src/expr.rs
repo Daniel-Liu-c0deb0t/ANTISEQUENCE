@@ -151,6 +151,7 @@ impl From<Attr> for LabelOrAttr {
     }
 }
 
+/// Create a selector expression.
 #[macro_export]
 macro_rules! sel {
     ($($t:tt)*) => {
@@ -162,6 +163,7 @@ macro_rules! sel {
     };
 }
 
+/// Create a transform expression.
 #[macro_export]
 macro_rules! tr {
     ($($t:tt)+) => {
@@ -173,6 +175,7 @@ macro_rules! tr {
     };
 }
 
+/// Create a label.
 #[macro_export]
 macro_rules! label {
     ($($t:tt)+) => {
@@ -184,6 +187,7 @@ macro_rules! label {
     };
 }
 
+/// Create an attribute.
 #[macro_export]
 macro_rules! attr {
     ($($t:tt)+) => {

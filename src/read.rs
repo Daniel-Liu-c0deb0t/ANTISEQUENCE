@@ -11,18 +11,24 @@ use crate::pad_reads::VAR_LEN_BC_PADDING;
 pub use End::*;
 pub use EndIdx::*;
 
+/// Specify the left or right end along with an index from that end.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum EndIdx {
     LeftEnd(usize),
     RightEnd(usize),
 }
 
+/// Left or right end.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum End {
     Left,
     Right,
 }
 
+/// Valid types of strings.
+///
+/// Types like `Name` or `Seq` refer to the corresponding line in a fastq record.
+/// Each Read contains multiple different strings of different types.
 #[derive(Debug, Clone, Copy, PartialEq, Hash)]
 pub enum StrType {
     Name1,
@@ -33,11 +39,18 @@ pub enum StrType {
     Index2,
 }
 
+/// A fastq read.
+///
+/// This is the core data structure that is manipulated by other operations in this library.
+/// Both fastq records for paired-end reads are stored in the same `Read`.
 #[derive(Debug, Clone)]
 pub struct Read {
     str_mappings: Vec<(StrType, StrMappings)>,
 }
 
+/// A string and its correspondings mappings.
+///
+/// This is typically used to represent a name or sequence from a fastq record.
 #[derive(Debug, Clone)]
 pub struct StrMappings {
     mappings: Vec<Mapping>,
@@ -353,6 +366,7 @@ impl StrMappings {
     }
 }
 
+/// A labeled mapping that corresponds to an interval/region in a string.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Mapping {
     pub label: InlineString,
@@ -361,6 +375,7 @@ pub struct Mapping {
     data: FxHashMap<InlineString, Data>,
 }
 
+/// Data types.
 #[derive(Clone, PartialEq)]
 pub enum Data {
     Bool(bool),
@@ -726,13 +741,15 @@ impl EndIdx {
 
 impl fmt::Display for StrMappings {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use colored::Colorize;
+
         let len = self
             .mappings
             .iter()
             .map(|m| m.label.len())
             .max()
             .unwrap()
-            .max(4);
+            .max(5);
 
         for m in &self.mappings {
             let curr = if m.len == 0 {
@@ -746,31 +763,37 @@ impl fmt::Display for StrMappings {
                 c[m.start + m.len - 1] = b'|';
                 String::from_utf8(c).unwrap()
             };
-            write!(f, "{: <len$} {}", m.label.to_string(), curr)?;
+            write!(f, " {: <len$} {}", m.label.to_string().bold(), curr)?;
 
             for (k, v) in &m.data {
-                write!(f, " {}={}", k, v)?;
+                write!(f, " {}={}", k.to_string().bold(), v)?;
             }
             writeln!(f)?;
         }
 
         writeln!(
             f,
-            "{: <len$} {}",
-            "str",
-            std::str::from_utf8(&self.string).unwrap()
+            " {: <len$} {}",
+            "str:".bold().green(),
+            std::str::from_utf8(&self.string).unwrap().green()
         )?;
 
         if let Some(qual) = &self.qual {
             writeln!(
                 f,
-                "{: <len$} {}",
-                "qual",
-                std::str::from_utf8(&qual).unwrap()
+                " {: <len$} {}",
+                "qual:".bold().green(),
+                std::str::from_utf8(&qual).unwrap().green()
             )?;
         }
 
-        writeln!(f, "(from record {} in {})", self.idx, &*self.origin)?;
+        write!(
+            f,
+            " {: <len$} record {} in {}",
+            "from:".bold(),
+            self.idx.to_string(),
+            &*self.origin
+        )?;
 
         Ok(())
     }
@@ -778,8 +801,15 @@ impl fmt::Display for StrMappings {
 
 impl fmt::Display for Read {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use colored::Colorize;
+
         for (str_type, str_mapping) in &self.str_mappings {
-            writeln!(f, "{}:\n{}", str_type, str_mapping)?;
+            writeln!(
+                f,
+                "{}:\n{}",
+                str_type.to_string().bold().underline(),
+                str_mapping
+            )?;
         }
         Ok(())
     }

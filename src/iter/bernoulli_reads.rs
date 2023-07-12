@@ -13,14 +13,14 @@ pub struct BernoulliReads<R: Reads> {
 }
 
 impl<R: Reads> BernoulliReads<R> {
-    pub fn new(reads: R, selector_expr: SelectorExpr, attr: Attr, prob: f64, seed: u64) -> Self {
+    pub fn new(reads: R, selector_expr: SelectorExpr, attr: Attr, prob: f64, seed: u32) -> Self {
         Self {
             reads,
             selector_expr,
             attr,
             bernoulli: Bernoulli::new(prob)
                 .unwrap_or_else(|e| panic!("Error creating bernoulli distribution: {e}")),
-            seed,
+            seed: seed as u64,
         }
     }
 }
@@ -29,8 +29,8 @@ impl<R: Reads> Reads for BernoulliReads<R> {
     fn next_chunk(&self) -> Result<Vec<Read>> {
         let mut reads = self.reads.next_chunk()?;
 
-        let seed = self
-            .seed
+        // use the index of the read in the seed for determinism when multithreading
+        let seed = (self.seed << 32)
             .wrapping_add(reads.first().map(|r| r.first_idx() as u64).unwrap_or(0u64));
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
