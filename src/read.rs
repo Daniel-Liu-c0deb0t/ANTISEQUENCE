@@ -6,7 +6,6 @@ use std::sync::Arc;
 use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
-use crate::pad_reads::VAR_LEN_BC_PADDING;
 
 pub use End::*;
 pub use EndIdx::*;
@@ -287,34 +286,23 @@ impl StrMappings {
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
             .clone();
 
-        let padding_len = to_length - padded.len - 1;
-
-        let padding = VAR_LEN_BC_PADDING
-        .get(padding_len)
-        .ok_or_else(|| NameError::TooShort(Name::Label(label), padding_len))?;
+        let padding_len = to_length - padded.len;
 
         self.mappings.iter_mut().for_each(|m| {
-            use Intersection::*;
-            match padded.intersect(m) {
-                BAOverlap(_) | ABOverlap(_) | AInsideB => {
-                    m.len += padding.len();
-                }
-                ABeforeB => {
-                    m.start += padding.len();
-                },
-                Equal => {
-                    m.len += padding.len();
-                }
-                _ => (),
+            use Padding::*;
+            match padded.pad_direction(m) {
+                Start => m.start += padding_len,
+                End => m.len += padding_len,
+                Leave => (),
             }
         });
 
-        for char in padding.as_bytes() {
-            self.string.insert(padded.start + padded.len, *char);
+        for _ in 0..padding_len {
+            self.string.insert(padded.start + padded.len, b'A');
         }
 
         if let Some(qual) = &mut self.qual {
-            for _ in 0..padding_len+1 {
+            for _ in 0..padding_len {
                 qual.insert(padded.start + padded.len, b'#');
             }
         }
@@ -394,6 +382,13 @@ pub enum Intersection {
     BBeforeA,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum Padding {
+    Start,
+    End,
+    Leave,
+}
+
 impl Mapping {
     pub fn new_default(len: usize) -> Self {
         Self {
@@ -410,6 +405,22 @@ impl Mapping {
             start,
             len,
             data: FxHashMap::default(),
+        }
+    }
+
+    pub fn pad_direction(&self, b: &Self) -> Padding {
+        let a_start = self.start;
+        let a_end = self.start + self.len;
+        let b_start = b.start;
+        let b_end = b.start + b.len;
+
+        use Padding::*;
+        if (b.label == InlineString::new(b"*")) | (a_start == b_start && a_end == b_end) {
+            End
+        } else if a_end <= b_start {
+            Start
+        } else {
+            Leave
         }
     }
 

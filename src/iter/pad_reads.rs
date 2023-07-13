@@ -7,8 +7,6 @@ pub struct PadReads<R: Reads> {
     to_length: usize,
 }
 
-pub const VAR_LEN_BC_PADDING: &[&str] = &["A", "CA", "GAA", "TAAA"];
-
 impl<R: Reads> PadReads<R> {
     pub fn new(
         reads: R,
