@@ -7,6 +7,7 @@ use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
 use crate::pad_reads::VAR_LEN_BC_PADDING;
+use crate::revcomp_reads::COMPLEMENT;
 
 pub use End::*;
 pub use EndIdx::*;
@@ -290,8 +291,8 @@ impl StrMappings {
         let padding_len = to_length - padded.len - 1;
 
         let padding = VAR_LEN_BC_PADDING
-        .get(padding_len)
-        .ok_or_else(|| NameError::TooShort(Name::Label(label), padding_len))?;
+            .get(padding_len)
+            .ok_or_else(|| NameError::TooShort(Name::Label(label), padding_len))?;
 
         self.mappings.iter_mut().for_each(|m| {
             use Intersection::*;
@@ -301,7 +302,7 @@ impl StrMappings {
                 }
                 ABeforeB => {
                     m.start += padding.len();
-                },
+                }
                 Equal => {
                     m.len += padding.len();
                 }
@@ -314,10 +315,29 @@ impl StrMappings {
         }
 
         if let Some(qual) = &mut self.qual {
-            for _ in 0..padding_len+1 {
+            for _ in 0..padding_len + 1 {
                 qual.insert(padded.start + padded.len, b'#');
             }
         }
+
+        Ok(())
+    }
+
+    pub fn revcomp(&mut self, label: InlineString) -> Result<(), NameError> {
+        let revcomp = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let range = revcomp.start..revcomp.len + revcomp.start;
+
+        let revcomp = &self.string[range.clone()]
+            .iter()
+            .rev()
+            .map(|n| COMPLEMENT[*n as usize])
+            .collect::<Vec<u8>>();
+
+        self.string.splice(range, revcomp.clone());
 
         Ok(())
     }
@@ -694,6 +714,12 @@ impl Read {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .pad(label, to_length)
+    }
+
+    pub fn revcomp(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .revcomp(label)
     }
 
     pub fn first_idx(&self) -> usize {
