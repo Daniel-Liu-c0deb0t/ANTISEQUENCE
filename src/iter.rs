@@ -285,7 +285,11 @@ pub trait Reads: Send + Sync {
 
     /// Reverse the mappings corresponding to the specified labels
     #[must_use]
-    fn reverse(self, selector_expr: SelectorExpr, labels: impl Into<Vec<Label>>) -> ReverseReads<Self>
+    fn reverse(
+        self,
+        selector_expr: SelectorExpr,
+        labels: impl Into<Vec<Label>>,
+    ) -> ReverseReads<Self>
     where
         Self: Sized,
     {
@@ -316,6 +320,20 @@ pub trait Reads: Send + Sync {
         )
     }
 
+    /// Normalize the length of label which has a length which can be within a range
+    ///
+    /// Normalization pads specified label with extra bases to avoid collisions of sequences
+    /// Thus, read which are the same (different) before normalization will be the same (different)
+    /// after normalization
+    #[must_use]
+    fn norm<B>(self, selector_expr: SelectorExpr, label: Label, range: B) -> NormalizeReads<Self, B>
+    where
+        Self: Sized,
+        B: RangeBounds<usize> + Send + Sync,
+    {
+        NormalizeReads::new(self, selector_expr, label, range)
+    }
+
     /// Match a regex pattern in a mapping.
     ///
     /// If named capture groups are used, then mappings are automatically created at the match
@@ -326,15 +344,6 @@ pub trait Reads: Send + Sync {
     /// Example `transform_expr`: `tr!(seq1.* -> seq1.*.matched)`.
     /// This will match the regex pattern two `seq1.*` and set `seq1.*.matched` to a boolean
     /// indicating whether the regex matches.
-    #[must_use]
-    fn norm<B>(self, selector_expr: SelectorExpr, label: Label, range: B) -> NormalizeReads<Self, B>
-    where
-        Self: Sized,
-        B: RangeBounds<usize> + Send + Sync,
-    {
-        NormalizeReads::new(self, selector_expr, label, range)
-    }
-
     #[must_use]
     fn match_regex(
         self,

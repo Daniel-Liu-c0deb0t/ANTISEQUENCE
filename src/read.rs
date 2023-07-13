@@ -6,8 +6,8 @@ use std::sync::Arc;
 use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
-use crate::revcomp_reads::COMPLEMENT;
 use crate::normalize_reads::*;
+use crate::revcomp_reads::COMPLEMENT;
 
 pub use End::*;
 pub use EndIdx::*;
@@ -291,8 +291,8 @@ impl StrMappings {
         let padding_len = to_length - padded.len;
 
         self.mappings.iter_mut().for_each(|m| {
-            use Padding::*;
-            match padded.pad_direction(m) {
+            use ExtendInterval::*;
+            match padded.extend_direction(m) {
                 Start => m.start += padding_len,
                 End => m.len += padding_len,
                 Leave => (),
@@ -331,8 +331,12 @@ impl StrMappings {
         Ok(())
     }
 
-    pub fn norm(&mut self, label: InlineString, short_len: usize, long_len: usize) -> Result<(), NameError>
-    {
+    pub fn norm(
+        &mut self,
+        label: InlineString,
+        short_len: usize,
+        long_len: usize,
+    ) -> Result<(), NameError> {
         let normalized = self
             .mapping(label)
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
@@ -342,13 +346,14 @@ impl StrMappings {
 
         let extra_len = log4_roundup(long_len - short_len + 1);
 
-        let normed_len = long_len - normalized.len + extra_len;
+        let normed_len = length_diff + extra_len;
 
         self.mappings.iter_mut().for_each(|m| {
-            use Intersection::*;
-            match normalized.intersect(m) {
-                BAOverlap(_) | ABOverlap(_) | AInsideB | ABeforeB | Equal => m.len += normed_len,
-                _ => (),
+            use ExtendInterval::*;
+            match normalized.extend_direction(m) {
+                Start => m.start += normed_len,
+                End => m.len += normed_len,
+                Leave => (),
             }
         });
 
@@ -421,7 +426,7 @@ impl StrMappings {
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
             .clone();
 
-        let range = reversed.start..reversed.start+reversed.len;
+        let range = reversed.start..reversed.start + reversed.len;
 
         self.string[range].reverse();
 
@@ -458,7 +463,7 @@ pub enum Intersection {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Padding {
+pub enum ExtendInterval {
     Start,
     End,
     Leave,
@@ -483,13 +488,13 @@ impl Mapping {
         }
     }
 
-    pub fn pad_direction(&self, b: &Self) -> Padding {
+    pub fn extend_direction(&self, b: &Self) -> ExtendInterval {
         let a_start = self.start;
         let a_end = self.start + self.len;
         let b_start = b.start;
         let b_end = b.start + b.len;
 
-        use Padding::*;
+        use ExtendInterval::*;
         if (b.label == InlineString::new(b"*")) | (a_start == b_start && a_end == b_end) {
             End
         } else if a_end <= b_start {
@@ -771,8 +776,7 @@ impl Read {
         label: InlineString,
         short_len: usize,
         long_len: usize,
-    ) -> Result<(), NameError>
-    {
+    ) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .norm(label, short_len, long_len)

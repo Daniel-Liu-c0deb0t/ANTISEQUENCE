@@ -7,15 +7,11 @@ pub struct ReverseReads<R: Reads> {
 }
 
 impl<R: Reads> ReverseReads<R> {
-    pub fn new(
-        reads: R,
-        selector_expr: SelectorExpr,
-        labels: Vec<Label>,
-    ) -> Self {
+    pub fn new(reads: R, selector_expr: SelectorExpr, labels: Vec<Label>) -> Self {
         Self {
             reads,
             selector_expr,
-            labels
+            labels,
         }
     }
 }
