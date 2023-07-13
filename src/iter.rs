@@ -23,6 +23,9 @@ use cut_reads::*;
 pub mod set_reads;
 use set_reads::*;
 
+pub mod normalize_reads;
+use normalize_reads::*;
+
 pub mod length_in_bounds_reads;
 use length_in_bounds_reads::*;
 
@@ -279,6 +282,15 @@ pub trait Reads: Send + Sync {
     /// Example `transform_expr`: `tr!(seq1.* -> seq1.*.matched)`.
     /// This will match the regex pattern two `seq1.*` and set `seq1.*.matched` to a boolean
     /// indicating whether the regex matches.
+    #[must_use]
+    fn norm<B>(self, selector_expr: SelectorExpr, label: Label, range: B) -> NormalizeReads<Self, B>
+    where
+        Self: Sized,
+        B: RangeBounds<usize> + Send + Sync,
+    {
+        NormalizeReads::new(self, selector_expr, label, range)
+    }
+
     #[must_use]
     fn match_regex(
         self,

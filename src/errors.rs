@@ -61,6 +61,8 @@ pub enum NameError {
     Duplicate(Name),
     #[error("Expected {0}, but found {1:?}")]
     Type(&'static str, Data),
+    #[error("Expected {0}, but found {1}")]
+    TypeExplicit(&'static str, &'static str),
 }
 
 #[derive(Debug)]
