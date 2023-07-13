@@ -14,6 +14,9 @@ use trim_reads::*;
 pub mod reverse_reads;
 use reverse_reads::*;
 
+pub mod revcomp_reads;
+use revcomp_reads::*;
+
 pub mod pad_reads;
 use pad_reads::*;
 
@@ -171,9 +174,6 @@ pub trait Reads: Send + Sync {
         LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
     }
 
-    /// Set an attribute to true with some probability.
-    ///
-    /// This is deterministic, even with multithreading.
     #[must_use]
     fn pad(
         self,
@@ -187,6 +187,22 @@ pub trait Reads: Send + Sync {
         PadReads::new(self, selector_expr, labels.into(), to_length)
     }
 
+    /// Set mappings corresponding labels to their reverse complement
+    #[must_use]
+    fn revcomp(
+        self,
+        selector_expr: SelectorExpr,
+        labels: impl Into<Vec<Label>>,
+    ) -> RevCompReads<Self>
+    where
+        Self: Sized,
+    {
+        RevCompReads::new(self, selector_expr, labels.into())
+    }
+
+    /// Set an attribute to true with some probability.
+    ///
+    /// This is deterministic, even with multithreading.
     #[must_use]
     fn bernoulli(
         self,
