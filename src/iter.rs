@@ -11,6 +11,9 @@ use crate::read::*;
 pub mod trim_reads;
 use trim_reads::*;
 
+pub mod reverse_reads;
+use reverse_reads::*;
+
 pub mod pad_reads;
 use pad_reads::*;
 
@@ -259,6 +262,15 @@ pub trait Reads: Send + Sync {
         Self: Sized,
     {
         TrimReads::new(self, selector_expr, labels.into())
+    }
+
+    /// Reverse the mappings corresponding to the specified labels
+    #[must_use]
+    fn reverse(self, selector_expr: SelectorExpr, labels: impl Into<Vec<Label>>) -> ReverseReads<Self>
+    where
+        Self: Sized,
+    {
+        ReverseReads::new(self, selector_expr, labels.into())
     }
 
     /// Set a label or attribute to the result of a format expression.

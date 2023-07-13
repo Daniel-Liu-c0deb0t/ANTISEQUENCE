@@ -364,6 +364,19 @@ impl StrMappings {
 
         Ok(())
     }
+
+    pub fn reverse(&mut self, label: InlineString) -> Result<(), NameError> {
+        let reversed = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let range = reversed.start..reversed.start+reversed.len;
+
+        self.string[range].reverse();
+
+        Ok(())
+    }
 }
 
 /// A labeled mapping that corresponds to an interval/region in a string.
@@ -683,6 +696,12 @@ impl Read {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .trim(label)
+    }
+
+    pub fn reverse(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .reverse(label)
     }
 
     pub fn pad(
