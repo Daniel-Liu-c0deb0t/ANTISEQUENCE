@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
+use crate::revcomp_reads::COMPLEMENT;
 
 pub use End::*;
 pub use EndIdx::*;
@@ -306,6 +307,25 @@ impl StrMappings {
                 qual.insert(padded.start + padded.len, b'#');
             }
         }
+
+        Ok(())
+    }
+
+    pub fn revcomp(&mut self, label: InlineString) -> Result<(), NameError> {
+        let revcomp = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let range = revcomp.start..revcomp.len + revcomp.start;
+
+        let revcomp = &self.string[range.clone()]
+            .iter()
+            .rev()
+            .map(|n| COMPLEMENT[*n as usize])
+            .collect::<Vec<u8>>();
+
+        self.string.splice(range, revcomp.clone());
 
         Ok(())
     }
@@ -705,6 +725,12 @@ impl Read {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .pad(label, to_length)
+    }
+
+    pub fn revcomp(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .revcomp(label)
     }
 
     pub fn first_idx(&self) -> usize {
