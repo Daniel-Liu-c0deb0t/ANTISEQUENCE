@@ -11,6 +11,15 @@ use crate::read::*;
 pub mod trim_reads;
 use trim_reads::*;
 
+pub mod reverse_reads;
+use reverse_reads::*;
+
+pub mod revcomp_reads;
+use revcomp_reads::*;
+
+pub mod pad_reads;
+use pad_reads::*;
+
 pub mod collect_fastq_reads;
 use collect_fastq_reads::*;
 
@@ -22,6 +31,9 @@ use cut_reads::*;
 
 pub mod set_reads;
 use set_reads::*;
+
+pub mod normalize_reads;
+use normalize_reads::*;
 
 pub mod length_in_bounds_reads;
 use length_in_bounds_reads::*;
@@ -165,6 +177,33 @@ pub trait Reads: Send + Sync {
         LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
     }
 
+    #[must_use]
+    fn pad(
+        self,
+        selector_expr: SelectorExpr,
+        labels: impl Into<Vec<Label>>,
+        max_length: EndIdx,
+        pad_char: u8,
+    ) -> PadReads<Self>
+    where
+        Self: Sized,
+    {
+        PadReads::new(self, selector_expr, labels.into(), max_length, pad_char)
+    }
+
+    /// Set mappings corresponding labels to their reverse complement
+    #[must_use]
+    fn revcomp(
+        self,
+        selector_expr: SelectorExpr,
+        labels: impl Into<Vec<Label>>,
+    ) -> RevCompReads<Self>
+    where
+        Self: Sized,
+    {
+        RevCompReads::new(self, selector_expr, labels.into())
+    }
+
     /// Set an attribute to true with some probability.
     ///
     /// This is deterministic, even with multithreading.
@@ -245,6 +284,19 @@ pub trait Reads: Send + Sync {
         TrimReads::new(self, selector_expr, labels.into())
     }
 
+    /// Reverse the mappings corresponding to the specified labels
+    #[must_use]
+    fn reverse(
+        self,
+        selector_expr: SelectorExpr,
+        labels: impl Into<Vec<Label>>,
+    ) -> ReverseReads<Self>
+    where
+        Self: Sized,
+    {
+        ReverseReads::new(self, selector_expr, labels.into())
+    }
+
     /// Set a label or attribute to the result of a format expression.
     ///
     /// After a label is set, its mapping and all other intersecting mappings will be adjusted accordingly
@@ -267,6 +319,20 @@ pub trait Reads: Send + Sync {
                 panic!("Error in parsing format expression for the set operation: {e}")
             }),
         )
+    }
+
+    /// Normalize the length of label which has a length which can be within a range
+    ///
+    /// Normalization pads specified label with extra bases to avoid collisions of sequences
+    /// Thus, read which are the same (different) before normalization will be the same (different)
+    /// after normalization
+    #[must_use]
+    fn norm<B>(self, selector_expr: SelectorExpr, label: Label, range: B) -> NormalizeReads<Self, B>
+    where
+        Self: Sized,
+        B: RangeBounds<usize> + Send + Sync,
+    {
+        NormalizeReads::new(self, selector_expr, label, range)
     }
 
     /// Match a regex pattern in a mapping.
@@ -711,6 +777,12 @@ pub enum MatchType {
     /// A match will result in two new mappings: the rest of the string and the matched
     /// suffix.
     SuffixAln { identity: f64, overlap: f64 },
+    BoundedAln {
+        identity: f64,
+        overlap: f64,
+        from: usize,
+        to: usize,
+    },
 }
 
 impl MatchType {
@@ -724,7 +796,7 @@ impl MatchType {
             | HammingSuffix(_)
             | PrefixAln { .. }
             | SuffixAln { .. } => 2,
-            ExactSearch | HammingSearch(_) | LocalAln { .. } => 3,
+            ExactSearch | HammingSearch(_) | LocalAln { .. } | BoundedAln { .. } => 3,
         }
     }
 }

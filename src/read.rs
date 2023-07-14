@@ -6,6 +6,8 @@ use std::sync::Arc;
 use crate::errors::{self, Name, NameError};
 use crate::fastq::Origin;
 use crate::inline_string::*;
+use crate::normalize_reads::*;
+use crate::revcomp_reads::COMPLEMENT;
 
 pub use End::*;
 pub use EndIdx::*;
@@ -280,6 +282,129 @@ impl StrMappings {
         Ok(())
     }
 
+    pub fn pad(
+        &mut self,
+        label: InlineString,
+        max_length: EndIdx,
+        pad_char: u8,
+    ) -> Result<(), NameError> {
+        let padded = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let pad_length = match max_length {
+            LeftEnd(n) => n,
+            RightEnd(n) => n,
+        };
+
+        if pad_length < padded.len {
+            // name error not really the correct way to do this
+            return Err(NameError::ConditionUnsatisfied(
+                "padding length",
+                Data::UInt(pad_length),
+                "at least",
+                Data::UInt(padded.len),
+            ));
+        }
+
+        let padding_len = pad_length - padded.len;
+
+        self.mappings.iter_mut().for_each(|m| {
+            use ExtendInterval::*;
+            match padded.extend_direction(m) {
+                Start => m.start += padding_len,
+                End => m.len += padding_len,
+                Leave => (),
+            }
+        });
+
+        for _ in 0..padding_len {
+            let insert_idx = match max_length {
+                LeftEnd(_) => padded.start,
+                RightEnd(_) => padded.start + padded.len,
+            };
+
+            self.string.insert(insert_idx, pad_char);
+        }
+
+        if let Some(qual) = &mut self.qual {
+            let insert_idx = match max_length {
+                LeftEnd(_) => padded.start,
+                RightEnd(_) => padded.start + padded.len,
+            };
+
+            qual.insert(insert_idx, pad_char);
+        }
+
+        Ok(())
+    }
+
+    pub fn revcomp(&mut self, label: InlineString) -> Result<(), NameError> {
+        let revcomp = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let range = revcomp.start..revcomp.len + revcomp.start;
+
+        let revcomp = &self.string[range.clone()]
+            .iter()
+            .rev()
+            .map(|n| COMPLEMENT[*n as usize])
+            .collect::<Vec<u8>>();
+
+        self.string.splice(range, revcomp.clone());
+
+        Ok(())
+    }
+
+    pub fn norm(
+        &mut self,
+        label: InlineString,
+        short_len: usize,
+        long_len: usize,
+    ) -> Result<(), NameError> {
+        let normalized = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let mut length_diff = long_len - normalized.len;
+
+        let extra_len = log4_roundup(long_len - short_len + 1);
+
+        let normed_len = length_diff + extra_len;
+
+        self.mappings.iter_mut().for_each(|m| {
+            use ExtendInterval::*;
+            match normalized.extend_direction(m) {
+                Start => m.start += normed_len,
+                End => m.len += normed_len,
+                Leave => (),
+            }
+        });
+
+        for _ in 0..length_diff {
+            self.string.insert(normalized.start + normalized.len, b'A');
+        }
+
+        for _ in 0..extra_len {
+            let nuc = NUC_MAP.get(length_diff & (usize::MAX & 3)).unwrap();
+            length_diff >>= 2;
+
+            self.string.insert(self.string.len(), *nuc)
+        }
+
+        if let Some(qual) = &mut self.qual {
+            for _ in 0..normed_len {
+                qual.insert(normalized.start + normalized.len, b'#');
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn trim(&mut self, label: InlineString) -> Result<(), NameError> {
         let trimmed = self
             .mapping(label)
@@ -322,6 +447,19 @@ impl StrMappings {
 
         Ok(())
     }
+
+    pub fn reverse(&mut self, label: InlineString) -> Result<(), NameError> {
+        let reversed = self
+            .mapping(label)
+            .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
+            .clone();
+
+        let range = reversed.start..reversed.start + reversed.len;
+
+        self.string[range].reverse();
+
+        Ok(())
+    }
 }
 
 /// A labeled mapping that corresponds to an interval/region in a string.
@@ -352,6 +490,13 @@ pub enum Intersection {
     BBeforeA,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExtendInterval {
+    Start,
+    End,
+    Leave,
+}
+
 impl Mapping {
     pub fn new_default(len: usize) -> Self {
         Self {
@@ -368,6 +513,22 @@ impl Mapping {
             start,
             len,
             data: FxHashMap::default(),
+        }
+    }
+
+    pub fn extend_direction(&self, b: &Self) -> ExtendInterval {
+        let a_start = self.start;
+        let a_end = self.start + self.len;
+        let b_start = b.start;
+        let b_end = b.start + b.len;
+
+        use ExtendInterval::*;
+        if (b.label == InlineString::new(b"*")) | (a_start == b_start && a_end == b_end) {
+            End
+        } else if a_end <= b_start {
+            Start
+        } else {
+            Leave
         }
     }
 
@@ -637,10 +798,46 @@ impl Read {
             .set(label, new_str, new_qual)
     }
 
+    pub fn norm(
+        &mut self,
+        str_type: StrType,
+        label: InlineString,
+        short_len: usize,
+        long_len: usize,
+    ) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .norm(label, short_len, long_len)
+    }
+
     pub fn trim(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .trim(label)
+    }
+
+    pub fn reverse(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .reverse(label)
+    }
+
+    pub fn pad(
+        &mut self,
+        str_type: StrType,
+        label: InlineString,
+        max_length: EndIdx,
+        pad_char: u8,
+    ) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .pad(label, max_length, pad_char)
+    }
+
+    pub fn revcomp(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {
+        self.str_mappings_mut(str_type)
+            .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
+            .revcomp(label)
     }
 
     pub fn first_idx(&self) -> usize {
