@@ -282,13 +282,33 @@ impl StrMappings {
         Ok(())
     }
 
-    pub fn pad(&mut self, label: InlineString, to_length: usize) -> Result<(), NameError> {
+    pub fn pad(
+        &mut self,
+        label: InlineString,
+        max_length: EndIdx,
+        pad_char: u8,
+    ) -> Result<(), NameError> {
         let padded = self
             .mapping(label)
             .ok_or_else(|| NameError::NotInRead(Name::Label(label)))?
             .clone();
 
-        let padding_len = to_length - padded.len;
+        let pad_length = match max_length {
+            LeftEnd(n) => n,
+            RightEnd(n) => n,
+        };
+
+        if pad_length < padded.len {
+            // name error not really the correct way to do this
+            return Err(NameError::ConditionUnsatisfied(
+                "padding length",
+                Data::UInt(pad_length),
+                "at least",
+                Data::UInt(padded.len),
+            ));
+        }
+
+        let padding_len = pad_length - padded.len;
 
         self.mappings.iter_mut().for_each(|m| {
             use ExtendInterval::*;
@@ -300,13 +320,21 @@ impl StrMappings {
         });
 
         for _ in 0..padding_len {
-            self.string.insert(padded.start + padded.len, b'A');
+            let insert_idx = match max_length {
+                LeftEnd(_) => padded.start,
+                RightEnd(_) => padded.start + padded.len,
+            };
+
+            self.string.insert(insert_idx, pad_char);
         }
 
         if let Some(qual) = &mut self.qual {
-            for _ in 0..padding_len {
-                qual.insert(padded.start + padded.len, b'#');
-            }
+            let insert_idx = match max_length {
+                LeftEnd(_) => padded.start,
+                RightEnd(_) => padded.start + padded.len,
+            };
+
+            qual.insert(insert_idx, pad_char);
         }
 
         Ok(())
@@ -798,11 +826,12 @@ impl Read {
         &mut self,
         str_type: StrType,
         label: InlineString,
-        to_length: usize,
+        max_length: EndIdx,
+        pad_char: u8,
     ) -> Result<(), NameError> {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
-            .pad(label, to_length)
+            .pad(label, max_length, pad_char)
     }
 
     pub fn revcomp(&mut self, str_type: StrType, label: InlineString) -> Result<(), NameError> {

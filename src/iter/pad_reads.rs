@@ -4,7 +4,8 @@ pub struct PadReads<R: Reads> {
     reads: R,
     selector_expr: SelectorExpr,
     labels: Vec<Label>,
-    to_length: usize,
+    max_length: EndIdx,
+    pad_char: u8,
 }
 
 impl<R: Reads> PadReads<R> {
@@ -12,13 +13,15 @@ impl<R: Reads> PadReads<R> {
         reads: R,
         selector_expr: SelectorExpr,
         labels: Vec<Label>,
-        to_length: usize,
+        max_length: EndIdx,
+        pad_char: u8,
     ) -> Self {
         Self {
             reads,
             selector_expr,
             labels,
-            to_length,
+            max_length,
+            pad_char,
         }
     }
 }
@@ -42,7 +45,7 @@ impl<R: Reads> Reads for PadReads<R> {
 
             self.labels
                 .iter()
-                .try_for_each(|l| read.pad(l.str_type, l.label, self.to_length))
+                .try_for_each(|l| read.pad(l.str_type, l.label, self.max_length, self.pad_char))
                 .map_err(|e| Error::NameError {
                     source: e,
                     read: read.clone(),

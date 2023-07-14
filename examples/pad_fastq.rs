@@ -33,7 +33,7 @@ fn main() {
                 overlap: 1.0,
             },
         )
-        .pad(sel!(), [label!(seq1.rest2)], 35)
+        .pad(sel!(seq1.adapter_2), [label!(seq1.adapter_2)], LeftEnd(6), b'0')
         .dbg(sel!())
         .collect_fastq1(sel!(), "example_output/pad.fastq")
         .run()

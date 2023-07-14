@@ -182,12 +182,13 @@ pub trait Reads: Send + Sync {
         self,
         selector_expr: SelectorExpr,
         labels: impl Into<Vec<Label>>,
-        to_length: usize,
+        max_length: EndIdx,
+        pad_char: u8,
     ) -> PadReads<Self>
     where
         Self: Sized,
     {
-        PadReads::new(self, selector_expr, labels.into(), to_length)
+        PadReads::new(self, selector_expr, labels.into(), max_length, pad_char)
     }
 
     /// Set mappings corresponding labels to their reverse complement
