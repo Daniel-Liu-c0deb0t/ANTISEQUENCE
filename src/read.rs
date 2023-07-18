@@ -337,7 +337,8 @@ pub struct Mapping {
 #[derive(Clone, PartialEq)]
 pub enum Data {
     Bool(bool),
-    UInt(usize),
+    Int(isize),
+    Float(f64),
     Bytes(Vec<u8>),
 }
 
@@ -653,25 +654,28 @@ impl Data {
         use Data::*;
         match self {
             Bool(x) => *x,
-            UInt(x) => *x > 0,
+            Int(x) => *x != 0,
+            Float(x) => *x != 0.0,
             Bytes(x) => !x.is_empty(),
         }
     }
 
-    pub fn as_uint(&self) -> Result<usize, NameError> {
+    pub fn as_int(&self) -> Result<usize, NameError> {
         use Data::*;
         match self {
             Bool(x) => Ok(if *x { 1 } else { 0 }),
-            UInt(x) => Ok(*x),
-            Bytes(_) => Err(NameError::Type("bool or uint", self.clone())),
+            Int(x) => Ok(*x),
+            Float(x) => Ok(*x as isize),
+            Bytes(_) => Err(NameError::Type("bool or uint", vec![self.clone()])),
         }
     }
 
     pub fn len(&self) -> Result<usize, NameError> {
         use Data::*;
         match self {
-            Bool(_) => Err(NameError::Type("bytes", self.clone())),
-            UInt(_) => Err(NameError::Type("bytes", self.clone())),
+            Bool(_) => Err(NameError::Type("bytes", vec![self.clone()])),
+            Int(_) => Err(NameError::Type("bytes", vec![self.clone()])),
+            Float(_) => Err(NameError::Type("bytes", vec![self.clone()])),
             Bytes(x) => Ok(x.len()),
         }
     }
@@ -767,7 +771,8 @@ impl fmt::Display for Data {
         use Data::*;
         match self {
             Bool(x) => write!(f, "{}", x),
-            UInt(x) => write!(f, "{}", x),
+            Int(x) => write!(f, "{}", x),
+            Float(x) => write!(f, "{}", x),
             Bytes(x) => write!(f, "{}", std::str::from_utf8(x).unwrap()),
         }
     }
@@ -778,7 +783,8 @@ impl fmt::Debug for Data {
         use Data::*;
         match self {
             Bool(x) => write!(f, "bool {}", x),
-            UInt(x) => write!(f, "uint {}", x),
+            Int(x) => write!(f, "int {}", x),
+            Float(x) => write!(f, "float {}", x),
             Bytes(x) => write!(f, "bytes \"{}\"", std::str::from_utf8(x).unwrap()),
         }
     }

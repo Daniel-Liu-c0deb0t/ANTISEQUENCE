@@ -60,7 +60,7 @@ pub enum NameError {
     #[error("Duplicate name in read: {0}")]
     Duplicate(Name),
     #[error("Expected {0}, but found {1:?}")]
-    Type(&'static str, Data),
+    Type(&'static str, Vec<Data>),
 }
 
 #[derive(Debug)]
