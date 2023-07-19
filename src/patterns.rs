@@ -104,7 +104,7 @@ struct PatternSchema {
 #[derive(Serialize, Deserialize)]
 enum DataSchema {
     Bool(bool),
-    UInt(usize),
+    Int(isize),
     String(String),
 }
 
@@ -112,7 +112,7 @@ impl DataSchema {
     fn to_data(&self) -> Data {
         match self {
             DataSchema::Bool(x) => Data::Bool(*x),
-            DataSchema::UInt(x) => Data::UInt(*x),
+            DataSchema::Int(x) => Data::Int(*x),
             DataSchema::String(x) => Data::Bytes(x.as_bytes().to_owned()),
         }
     }

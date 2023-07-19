@@ -1,62 +1,146 @@
-use crate::read::*;
-use crate::errors::{self, Name, NameError};
+use std::ops::{Bound, RangeBounds};
 
-pub type Node = Box<dyn ExprNode>;
+use crate::errors::NameError;
+use crate::expr::*;
+use crate::read::*;
+
+pub struct Node {
+    node: Box<dyn ExprNode>,
+}
+
+impl Node {
+    pub fn add(self, o: Node) -> Node {
+        Node {
+            node: Box::new(AddNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn sub(self, o: Node) -> Node {
+        Node {
+            node: Box::new(SubNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn mul(self, o: Node) -> Node {
+        Node {
+            node: Box::new(MulNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn div(self, o: Node) -> Node {
+        Node {
+            node: Box::new(DivNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn lt(self, o: Node) -> Node {
+        Node {
+            node: Box::new(LtNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn gt(self, o: Node) -> Node {
+        Node {
+            node: Box::new(GtNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn le(self, o: Node) -> Node {
+        Node {
+            node: Box::new(LeNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn ge(self, o: Node) -> Node {
+        Node {
+            node: Box::new(GeNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn eq(self, o: Node) -> Node {
+        Node {
+            node: Box::new(EqNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn len(self) -> Node {
+        Node {
+            node: Box::new(LenNode { string: self }),
+        }
+    }
+
+    pub fn repeat(self, times: Node) -> Node {
+        Node {
+            node: Box::new(RepeatNode {
+                string: self,
+                times,
+            }),
+        }
+    }
+
+    pub fn concat(self, o: Node) -> Node {
+        Node {
+            node: Box::new(ConcatNode {
+                left: self,
+                right: o,
+            }),
+        }
+    }
+
+    pub fn in_bounds(self, range: impl RangeBounds<Node> + 'static) -> Node {
+        Node {
+            node: Box::new(InBoundsNode { num: self, range }),
+        }
+    }
+
+    pub fn eval_bool(&self, read: &Read) -> std::result::Result<bool, NameError> {
+        let res = self.eval(read)?;
+
+        if let Data::Bool(b) = res {
+            Ok(b)
+        } else {
+            Err(NameError::Type("bool", vec![res]))
+        }
+    }
+
+    pub fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+        self.node.eval(read)
+    }
+
+    pub fn required_names(&self) -> Vec<LabelOrAttr> {
+        self.node.required_names()
+    }
+}
 
 pub trait ExprNode {
-    fn add(self, o: Node) -> Node {
-        Box::new(AddNode { left: self, right: o })
-    }
-
-    fn sub(self, o: Node) -> Node {
-        Box::new(SubNode { left: self, right: o })
-    }
-
-    fn mul(self, o: Node) -> Node {
-        Box::new(MulNode { left: self, right: o })
-    }
-
-    fn div(self, o: Node) -> Node {
-        Box::new(DivNode { left: self, right: o })
-    }
-
-    fn lt(self, o: Node) -> Node {
-        Box::new(LtNode { left: self, right: o })
-    }
-
-    fn gt(self, o: Node) -> Node {
-        Box::new(GtNode { left: self, right: o })
-    }
-
-    fn le(self, o: Node) -> Node {
-        Box::new(LeNode { left: self, right: o })
-    }
-
-    fn ge(self, o: Node) -> Node {
-        Box::new(GeNode { left: self, right: o })
-    }
-
-    fn eq(self, o: Node) -> Node {
-        Box::new(EqNode { left: self, right: o })
-    }
-
-    fn len(self) -> Node {
-        Box::new(LenNode { string: self })
-    }
-
-    fn repeat(self, times: Node) -> Node {
-        Box::new(RepeatNode { string: self, times })
-    }
-
-    fn concat(self, o: Node) -> Node {
-        Box::new(ConcatNode { left: self, right: o })
-    }
-
-    fn in(self, range: impl RangeBounds<Node>) -> Node {
-        Box::new(InNode { num: self, range })
-    }
-
-    fn eval(&self, read: &Read) -> Result<Data>;
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError>;
 
     fn required_names(&self) -> Vec<LabelOrAttr>;
 }
@@ -67,14 +151,14 @@ pub struct AddNode {
 }
 
 impl ExprNode for AddNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Int(l + r)),
             (Float(l), Float(r)) => Ok(Float(l + r)),
-            _ => Err(NameError::Type("both int or both float", vec![left, right])),
+            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
         }
     }
 
@@ -91,14 +175,14 @@ pub struct SubNode {
 }
 
 impl ExprNode for SubNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Int(l - r)),
             (Float(l), Float(r)) => Ok(Float(l - r)),
-            _ => Err(NameError::Type("both int or both float", vec![left, right])),
+            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
         }
     }
 
@@ -115,14 +199,14 @@ pub struct MulNode {
 }
 
 impl ExprNode for MulNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Int(l * r)),
             (Float(l), Float(r)) => Ok(Float(l * r)),
-            _ => Err(NameError::Type("both int or both float", vec![left, right])),
+            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
         }
     }
 
@@ -139,14 +223,14 @@ pub struct DivNode {
 }
 
 impl ExprNode for DivNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Int(l / r)),
             (Float(l), Float(r)) => Ok(Float(l / r)),
-            _ => Err(NameError::Type("both int or both float", vec![left, right])),
+            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
         }
     }
 
@@ -163,14 +247,14 @@ pub struct LtNode {
 }
 
 impl ExprNode for LtNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Bool(l < r)),
             (Float(l), Float(r)) => Ok(Bool(l < r)),
-            _ => Err(NameError::Type("both int or both float", vec![left, right])),
+            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
         }
     }
 
@@ -187,14 +271,14 @@ pub struct GtNode {
 }
 
 impl ExprNode for GtNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Bool(l > r)),
             (Float(l), Float(r)) => Ok(Bool(l > r)),
-            _ => Err(NameError::Type("both int or both float", vec![left, right])),
+            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
         }
     }
 
@@ -211,14 +295,14 @@ pub struct LeNode {
 }
 
 impl ExprNode for LeNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Bool(l <= r)),
             (Float(l), Float(r)) => Ok(Bool(l <= r)),
-            _ => Err(NameError::Type("both int or both float", vec![left, right])),
+            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
         }
     }
 
@@ -235,14 +319,14 @@ pub struct GeNode {
 }
 
 impl ExprNode for GeNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Bool(l >= r)),
             (Float(l), Float(r)) => Ok(Bool(l >= r)),
-            _ => Err(NameError::Type("both int or both float", vec![left, right])),
+            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
         }
     }
 
@@ -259,7 +343,7 @@ pub struct EqNode {
 }
 
 impl ExprNode for EqNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
@@ -268,6 +352,7 @@ impl ExprNode for EqNode {
             (Float(l), Float(r)) => Ok(Bool(l == r)),
             (Bool(l), Bool(r)) => Ok(Bool(l == r)),
             (Bytes(l), Bytes(r)) => Ok(Bool(l == r)),
+            (l, r) => Err(NameError::Type("both are the same type", vec![l, r])),
         }
     }
 
@@ -283,12 +368,12 @@ pub struct LenNode {
 }
 
 impl ExprNode for LenNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let string = self.string.eval(read)?;
         use Data::*;
         match string {
             Bytes(s) => Ok(Int(s.len() as isize)),
-            _ => Err(NameError::Type("bytes", vec![string])),
+            s => Err(NameError::Type("bytes", vec![s])),
         }
     }
 
@@ -303,13 +388,13 @@ pub struct RepeatNode {
 }
 
 impl ExprNode for RepeatNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let string = self.string.eval(read)?;
         let times = self.times.eval(read)?;
         use Data::*;
         match (string, times) {
             (Bytes(s), Int(t)) => Ok(Bytes(s.repeat(t as usize))),
-            _ => Err(NameError::Type("bytes and int", vec![string, times])),
+            (s, t) => Err(NameError::Type("bytes and int", vec![s, t])),
         }
     }
 
@@ -326,7 +411,7 @@ pub struct ConcatNode {
 }
 
 impl ExprNode for ConcatNode {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let left = self.left.eval(read)?;
         let right = self.right.eval(read)?;
         use Data::*;
@@ -335,7 +420,7 @@ impl ExprNode for ConcatNode {
                 l.append(&mut r);
                 Ok(Bytes(l))
             }
-            _ => Err(NameError::Type("both bytes", vec![left, right])),
+            (l, r) => Err(NameError::Type("both bytes", vec![l, r])),
         }
     }
 
@@ -346,13 +431,13 @@ impl ExprNode for ConcatNode {
     }
 }
 
-pub struct InNode<R: RangeBounds<Node>> {
+pub struct InBoundsNode<R: RangeBounds<Node>> {
     num: Node,
     range: R,
 }
 
-impl<R: RangeBounds<Node>> ExprNode for InNode<R> {
-    fn eval(&self, read: &Read) -> Result<Data, NameError> {
+impl<R: RangeBounds<Node>> ExprNode for InBoundsNode<R> {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         let num = self.num.eval(read)?;
 
         use Data::*;
@@ -384,9 +469,9 @@ impl<R: RangeBounds<Node>> ExprNode for InNode<R> {
                 if end_sub1 {
                     e -= 1;
                 }
-                Ok(s <= n && n <= e)
+                Ok(Bool(s <= n && n <= e))
             }
-            _ => Err(NameError::Type("all int", vec![num, start, end])),
+            (n, s, e) => Err(NameError::Type("all int", vec![n, s, e])),
         }
     }
 
@@ -403,5 +488,103 @@ impl<R: RangeBounds<Node>> ExprNode for InNode<R> {
             _ => (),
         }
         res
+    }
+}
+
+pub fn label(name: impl AsRef<str>) -> Node {
+    Node {
+        node: Box::new(LabelNode {
+            label: Label::new(name.as_ref().as_bytes()).unwrap_or_else(|e| panic!("{e}")),
+        }),
+    }
+}
+
+pub struct LabelNode {
+    label: Label,
+}
+
+impl ExprNode for LabelNode {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+        Ok(Data::Bytes(
+            read.substring(self.label.str_type, self.label.label)?
+                .to_owned(),
+        ))
+    }
+
+    fn required_names(&self) -> Vec<LabelOrAttr> {
+        vec![LabelOrAttr::Label(self.label.clone())]
+    }
+}
+
+pub fn attr(name: impl AsRef<str>) -> Node {
+    Node {
+        node: Box::new(AttrNode {
+            attr: Attr::new(name.as_ref().as_bytes()).unwrap_or_else(|e| panic!("{e}")),
+        }),
+    }
+}
+
+pub struct AttrNode {
+    attr: Attr,
+}
+
+impl ExprNode for AttrNode {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+        Ok(read
+            .data(self.attr.str_type, self.attr.label, self.attr.attr)?
+            .clone())
+    }
+
+    fn required_names(&self) -> Vec<LabelOrAttr> {
+        vec![LabelOrAttr::Attr(self.attr.clone())]
+    }
+}
+
+pub fn label_exists(name: impl AsRef<str>) -> Node {
+    Node {
+        node: Box::new(LabelExistsNode {
+            label: Label::new(name.as_ref().as_bytes()).unwrap_or_else(|e| panic!("{e}")),
+        }),
+    }
+}
+
+pub struct LabelExistsNode {
+    label: Label,
+}
+
+impl ExprNode for LabelExistsNode {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+        Ok(Data::Bool(
+            read.mapping(self.label.str_type, self.label.label).is_ok(),
+        ))
+    }
+
+    fn required_names(&self) -> Vec<LabelOrAttr> {
+        Vec::new()
+    }
+}
+
+pub fn attr_exists(name: impl AsRef<str>) -> Node {
+    Node {
+        node: Box::new(AttrExistsNode {
+            attr: Attr::new(name.as_ref().as_bytes()).unwrap_or_else(|e| panic!("{e}")),
+        }),
+    }
+}
+
+pub struct AttrExistsNode {
+    attr: Attr,
+}
+
+impl ExprNode for AttrExistsNode {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+        Ok(Data::Bool(
+            read.data(self.attr.str_type, self.attr.label, self.attr.attr)
+                .is_ok(),
+        ))
+    }
+
+    fn required_names(&self) -> Vec<LabelOrAttr> {
+        Vec::new()
     }
 }

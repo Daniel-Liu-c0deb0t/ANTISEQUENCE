@@ -87,7 +87,7 @@ fn format_expr(
                     str_type,
                     label,
                     attr,
-                }) => read.data(*str_type, *label, *attr)?.as_uint()?,
+                }) => read.data(*str_type, *label, *attr)?.as_int()? as usize,
             };
 
             if repeats >= 1 {

@@ -660,7 +660,7 @@ impl Data {
         }
     }
 
-    pub fn as_int(&self) -> Result<usize, NameError> {
+    pub fn as_int(&self) -> Result<isize, NameError> {
         use Data::*;
         match self {
             Bool(x) => Ok(if *x { 1 } else { 0 }),
