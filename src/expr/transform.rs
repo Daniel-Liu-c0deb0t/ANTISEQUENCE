@@ -2,13 +2,26 @@ use crate::errors::*;
 use crate::expr::{Label, LabelOrAttr};
 use crate::parse_utils::*;
 
+pub trait Transform {
+    fn to<const N: usize>(after: [Option<impl AsRef<str>>; N]) -> TransformExpr {
+        todo!()
+    }
+}
+
+pub fn tr<const IN: usize, const OUT: usize>(
+    input: [Label; IN],
+    output: [Option<LabelOrAttr>; OUT],
+) -> TransformExpr<{ IN }, { OUT }> {
+    todo!()
+}
+
 #[derive(Debug, Clone)]
-pub struct TransformExpr {
+pub struct TransformExpr<const IN: usize = 1, const OUT: usize = 1> {
     before: Vec<Label>,
     after: Vec<Option<LabelOrAttr>>,
 }
 
-impl TransformExpr {
+impl<const IN: usize, const OUT: usize> TransformExpr<{ IN }, { OUT }> {
     pub fn new(expr: &[u8]) -> Result<Self> {
         let (before, after) = parse(expr)?;
         Ok(Self { before, after })

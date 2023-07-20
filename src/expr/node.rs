@@ -8,108 +8,59 @@ pub struct Node {
     node: Box<dyn ExprNode>,
 }
 
+macro_rules! binary_fn {
+    ($fn_name:ident, $struct_name:ident) => {
+        pub fn $fn_name(self, o: Node) -> Node {
+            Node {
+                node: Box::new($struct_name {
+                    left: self,
+                    right: o,
+                }),
+            }
+        }
+    };
+}
+
+macro_rules! unary_fn {
+    ($fn_name:ident, $struct_name:ident, $field_name:ident) => {
+        pub fn $fn_name(self) -> Node {
+            Node {
+                node: Box::new($struct_name { $field_name: self }),
+            }
+        }
+    };
+}
+
 impl Node {
-    pub fn add(self, o: Node) -> Node {
-        Node {
-            node: Box::new(AddNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
+    binary_fn!(and, AndNode);
+    binary_fn!(or, OrNode);
+    binary_fn!(xor, XorNode);
 
-    pub fn sub(self, o: Node) -> Node {
-        Node {
-            node: Box::new(SubNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
+    binary_fn!(add, AddNode);
+    binary_fn!(sub, SubNode);
+    binary_fn!(mul, MulNode);
+    binary_fn!(div, DivNode);
 
-    pub fn mul(self, o: Node) -> Node {
-        Node {
-            node: Box::new(MulNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
+    binary_fn!(gt, GtNode);
+    binary_fn!(lt, LtNode);
+    binary_fn!(ge, GeNode);
+    binary_fn!(le, LeNode);
+    binary_fn!(eq, EqNode);
 
-    pub fn div(self, o: Node) -> Node {
-        Node {
-            node: Box::new(DivNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
+    binary_fn!(concat, ConcatNode);
 
-    pub fn lt(self, o: Node) -> Node {
-        Node {
-            node: Box::new(LtNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
+    unary_fn!(not, NotNode, boolean);
+    unary_fn!(len, LenNode, string);
 
-    pub fn gt(self, o: Node) -> Node {
-        Node {
-            node: Box::new(GtNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
-
-    pub fn le(self, o: Node) -> Node {
-        Node {
-            node: Box::new(LeNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
-
-    pub fn ge(self, o: Node) -> Node {
-        Node {
-            node: Box::new(GeNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
-
-    pub fn eq(self, o: Node) -> Node {
-        Node {
-            node: Box::new(EqNode {
-                left: self,
-                right: o,
-            }),
-        }
-    }
-
-    pub fn len(self) -> Node {
-        Node {
-            node: Box::new(LenNode { string: self }),
-        }
-    }
+    unary_fn!(int, IntNode, convert);
+    unary_fn!(float, FloatNode, convert);
+    unary_fn!(bytes, BytesNode, convert);
 
     pub fn repeat(self, times: Node) -> Node {
         Node {
             node: Box::new(RepeatNode {
                 string: self,
                 times,
-            }),
-        }
-    }
-
-    pub fn concat(self, o: Node) -> Node {
-        Node {
-            node: Box::new(ConcatNode {
-                left: self,
-                right: o,
             }),
         }
     }
@@ -145,195 +96,93 @@ pub trait ExprNode {
     fn required_names(&self) -> Vec<LabelOrAttr>;
 }
 
-pub struct AddNode {
-    left: Node,
-    right: Node,
+macro_rules! bool_binary_ops {
+    ($struct_name:ident, $bool_expr:expr) => {
+        pub struct $struct_name {
+            left: Node,
+            right: Node,
+        }
+
+        impl ExprNode for $struct_name {
+            fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+                let left = self.left.eval(read)?;
+                let right = self.right.eval(read)?;
+
+                use Data::*;
+                match (left, right) {
+                    (Bool(l), Bool(r)) => Ok($bool_expr(l, r)),
+                    (l, r) => Err(NameError::Type("bool", vec![l, r])),
+                }
+            }
+
+            fn required_names(&self) -> Vec<LabelOrAttr> {
+                let mut res = self.left.required_names();
+                res.append(&mut self.right.required_names());
+                res
+            }
+        }
+    };
 }
 
-impl ExprNode for AddNode {
+bool_binary_ops!(AndNode, |l, r| Bool(l & r));
+bool_binary_ops!(OrNode, |l, r| Bool(l | r));
+bool_binary_ops!(XorNode, |l, r| Bool(l ^ r));
+
+macro_rules! num_binary_ops {
+    ($struct_name:ident, $int_expr:expr, $float_expr:expr) => {
+        pub struct $struct_name {
+            left: Node,
+            right: Node,
+        }
+
+        impl ExprNode for $struct_name {
+            fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+                let left = self.left.eval(read)?;
+                let right = self.right.eval(read)?;
+
+                use Data::*;
+                match (left, right) {
+                    (Int(l), Int(r)) => Ok($int_expr(l, r)),
+                    (Float(l), Float(r)) => Ok($float_expr(l, r)),
+                    (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
+                }
+            }
+
+            fn required_names(&self) -> Vec<LabelOrAttr> {
+                let mut res = self.left.required_names();
+                res.append(&mut self.right.required_names());
+                res
+            }
+        }
+    };
+}
+
+num_binary_ops!(AddNode, |l, r| Int(l + r), |l, r| Float(l + r));
+num_binary_ops!(SubNode, |l, r| Int(l - r), |l, r| Float(l - r));
+num_binary_ops!(MulNode, |l, r| Int(l * r), |l, r| Float(l * r));
+num_binary_ops!(DivNode, |l, r| Int(l / r), |l, r| Float(l / r));
+
+num_binary_ops!(GtNode, |l, r| Bool(l > r), |l, r| Bool(l > r));
+num_binary_ops!(LtNode, |l, r| Bool(l < r), |l, r| Bool(l < r));
+num_binary_ops!(GeNode, |l, r| Bool(l >= r), |l, r| Bool(l >= r));
+num_binary_ops!(LeNode, |l, r| Bool(l <= r), |l, r| Bool(l <= r));
+
+pub struct NotNode {
+    boolean: Node,
+}
+
+impl ExprNode for NotNode {
     fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        let left = self.left.eval(read)?;
-        let right = self.right.eval(read)?;
+        let boolean = self.boolean.eval(read)?;
         use Data::*;
-        match (left, right) {
-            (Int(l), Int(r)) => Ok(Int(l + r)),
-            (Float(l), Float(r)) => Ok(Float(l + r)),
-            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
+        match boolean {
+            Bool(b) => Ok(Bool(!b)),
+            b => Err(NameError::Type("bool", vec![b])),
         }
     }
 
     fn required_names(&self) -> Vec<LabelOrAttr> {
-        let mut res = self.left.required_names();
-        res.append(&mut self.right.required_names());
-        res
-    }
-}
-
-pub struct SubNode {
-    left: Node,
-    right: Node,
-}
-
-impl ExprNode for SubNode {
-    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        let left = self.left.eval(read)?;
-        let right = self.right.eval(read)?;
-        use Data::*;
-        match (left, right) {
-            (Int(l), Int(r)) => Ok(Int(l - r)),
-            (Float(l), Float(r)) => Ok(Float(l - r)),
-            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
-        }
-    }
-
-    fn required_names(&self) -> Vec<LabelOrAttr> {
-        let mut res = self.left.required_names();
-        res.append(&mut self.right.required_names());
-        res
-    }
-}
-
-pub struct MulNode {
-    left: Node,
-    right: Node,
-}
-
-impl ExprNode for MulNode {
-    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        let left = self.left.eval(read)?;
-        let right = self.right.eval(read)?;
-        use Data::*;
-        match (left, right) {
-            (Int(l), Int(r)) => Ok(Int(l * r)),
-            (Float(l), Float(r)) => Ok(Float(l * r)),
-            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
-        }
-    }
-
-    fn required_names(&self) -> Vec<LabelOrAttr> {
-        let mut res = self.left.required_names();
-        res.append(&mut self.right.required_names());
-        res
-    }
-}
-
-pub struct DivNode {
-    left: Node,
-    right: Node,
-}
-
-impl ExprNode for DivNode {
-    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        let left = self.left.eval(read)?;
-        let right = self.right.eval(read)?;
-        use Data::*;
-        match (left, right) {
-            (Int(l), Int(r)) => Ok(Int(l / r)),
-            (Float(l), Float(r)) => Ok(Float(l / r)),
-            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
-        }
-    }
-
-    fn required_names(&self) -> Vec<LabelOrAttr> {
-        let mut res = self.left.required_names();
-        res.append(&mut self.right.required_names());
-        res
-    }
-}
-
-pub struct LtNode {
-    left: Node,
-    right: Node,
-}
-
-impl ExprNode for LtNode {
-    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        let left = self.left.eval(read)?;
-        let right = self.right.eval(read)?;
-        use Data::*;
-        match (left, right) {
-            (Int(l), Int(r)) => Ok(Bool(l < r)),
-            (Float(l), Float(r)) => Ok(Bool(l < r)),
-            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
-        }
-    }
-
-    fn required_names(&self) -> Vec<LabelOrAttr> {
-        let mut res = self.left.required_names();
-        res.append(&mut self.right.required_names());
-        res
-    }
-}
-
-pub struct GtNode {
-    left: Node,
-    right: Node,
-}
-
-impl ExprNode for GtNode {
-    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        let left = self.left.eval(read)?;
-        let right = self.right.eval(read)?;
-        use Data::*;
-        match (left, right) {
-            (Int(l), Int(r)) => Ok(Bool(l > r)),
-            (Float(l), Float(r)) => Ok(Bool(l > r)),
-            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
-        }
-    }
-
-    fn required_names(&self) -> Vec<LabelOrAttr> {
-        let mut res = self.left.required_names();
-        res.append(&mut self.right.required_names());
-        res
-    }
-}
-
-pub struct LeNode {
-    left: Node,
-    right: Node,
-}
-
-impl ExprNode for LeNode {
-    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        let left = self.left.eval(read)?;
-        let right = self.right.eval(read)?;
-        use Data::*;
-        match (left, right) {
-            (Int(l), Int(r)) => Ok(Bool(l <= r)),
-            (Float(l), Float(r)) => Ok(Bool(l <= r)),
-            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
-        }
-    }
-
-    fn required_names(&self) -> Vec<LabelOrAttr> {
-        let mut res = self.left.required_names();
-        res.append(&mut self.right.required_names());
-        res
-    }
-}
-
-pub struct GeNode {
-    left: Node,
-    right: Node,
-}
-
-impl ExprNode for GeNode {
-    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        let left = self.left.eval(read)?;
-        let right = self.right.eval(read)?;
-        use Data::*;
-        match (left, right) {
-            (Int(l), Int(r)) => Ok(Bool(l >= r)),
-            (Float(l), Float(r)) => Ok(Bool(l >= r)),
-            (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
-        }
-    }
-
-    fn required_names(&self) -> Vec<LabelOrAttr> {
-        let mut res = self.left.required_names();
-        res.append(&mut self.right.required_names());
-        res
+        self.boolean.required_names()
     }
 }
 
@@ -379,6 +228,81 @@ impl ExprNode for LenNode {
 
     fn required_names(&self) -> Vec<LabelOrAttr> {
         self.string.required_names()
+    }
+}
+
+pub struct IntNode {
+    convert: Node,
+}
+
+impl ExprNode for IntNode {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+        let convert = self.convert.eval(read)?;
+        use Data::*;
+        match convert {
+            Bool(c) => Ok(Int(if c { 1 } else { 0 })),
+            Int(c) => Ok(Int(c)),
+            Float(c) => Ok(Int(c as isize)),
+            Bytes(c) => Ok(Int(std::str::from_utf8(&c)
+                .unwrap()
+                .parse::<isize>()
+                .unwrap_or_else(|e| panic!("{e}")))),
+        }
+    }
+
+    fn required_names(&self) -> Vec<LabelOrAttr> {
+        self.convert.required_names()
+    }
+}
+
+pub struct FloatNode {
+    convert: Node,
+}
+
+impl ExprNode for FloatNode {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+        let convert = self.convert.eval(read)?;
+        use Data::*;
+        match convert {
+            Bool(c) => Ok(Float(if c { 1.0 } else { 0.0 })),
+            Int(c) => Ok(Float(c as f64)),
+            Float(c) => Ok(Float(c)),
+            Bytes(c) => Ok(Float(
+                std::str::from_utf8(&c)
+                    .unwrap()
+                    .parse::<f64>()
+                    .unwrap_or_else(|e| panic!("{e}")),
+            )),
+        }
+    }
+
+    fn required_names(&self) -> Vec<LabelOrAttr> {
+        self.convert.required_names()
+    }
+}
+
+pub struct BytesNode {
+    convert: Node,
+}
+
+impl ExprNode for BytesNode {
+    fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
+        let convert = self.convert.eval(read)?;
+        use Data::*;
+        match convert {
+            Bool(c) => Ok(Bytes(if c {
+                b"true".to_vec()
+            } else {
+                b"false".to_vec()
+            })),
+            Int(c) => Ok(Bytes(c.to_string().into_bytes().to_owned())),
+            Float(c) => Ok(Bytes(c.to_string().into_bytes().to_owned())),
+            Bytes(c) => Ok(Bytes(c)),
+        }
+    }
+
+    fn required_names(&self) -> Vec<LabelOrAttr> {
+        self.convert.required_names()
     }
 }
 
