@@ -235,13 +235,11 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
                         let start = mapping.start;
                         let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
                         // panic to make borrow checker happy
-                        str_mappings
-                            .add_mapping(
-                                self.new_labels[0].as_ref().map(|l| l.label),
-                                start,
-                                max_cut_pos1,
-                            )
-                            .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
+                        str_mappings.add_mapping(
+                            self.new_labels[0].as_ref().map(|l| l.label),
+                            start,
+                            max_cut_pos1,
+                        );
                     }
                     2 => {
                         read.cut(
@@ -259,27 +257,21 @@ impl<R: Reads> Reads for MatchAnyReads<R> {
 
                         let str_mappings = read.str_mappings_mut(self.label.str_type).unwrap();
                         // panic to make borrow checker happy
-                        str_mappings
-                            .add_mapping(
-                                self.new_labels[0].as_ref().map(|l| l.label),
-                                offset,
-                                max_cut_pos1,
-                            )
-                            .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
-                        str_mappings
-                            .add_mapping(
-                                self.new_labels[1].as_ref().map(|l| l.label),
-                                offset + max_cut_pos1,
-                                max_cut_pos2 - max_cut_pos1,
-                            )
-                            .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
-                        str_mappings
-                            .add_mapping(
-                                self.new_labels[2].as_ref().map(|l| l.label),
-                                offset + max_cut_pos2,
-                                mapping_len - max_cut_pos2,
-                            )
-                            .unwrap_or_else(|e| panic!("Error matching patterns: {e}"));
+                        str_mappings.add_mapping(
+                            self.new_labels[0].as_ref().map(|l| l.label),
+                            offset,
+                            max_cut_pos1,
+                        );
+                        str_mappings.add_mapping(
+                            self.new_labels[1].as_ref().map(|l| l.label),
+                            offset + max_cut_pos1,
+                            max_cut_pos2 - max_cut_pos1,
+                        );
+                        str_mappings.add_mapping(
+                            self.new_labels[2].as_ref().map(|l| l.label),
+                            offset + max_cut_pos2,
+                            mapping_len - max_cut_pos2,
+                        );
                     }
                     _ => unreachable!(),
                 }

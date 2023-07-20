@@ -178,26 +178,10 @@ macro_rules! tr {
     };
 }
 
-/// Create a label.
-#[macro_export]
-macro_rules! label {
-    ($($t:tt)+) => {
-        {
-            let s = stringify!($($t)+);
-            $crate::expr::Label::new(s.as_bytes())
-                .unwrap_or_else(|e| panic!("Error constructing label:\n{e}\non line {} column {} in file {}", line!(), column!(), file!()))
-        }
-    };
+pub fn label(s: impl AsRef<str>) -> Label {
+    Label::new(s.as_ref().as_bytes()).unwrap_or_else(|e| panic!("Error creating label:\n{e}"))
 }
 
-/// Create an attribute.
-#[macro_export]
-macro_rules! attr {
-    ($($t:tt)+) => {
-        {
-            let s = stringify!($($t)+);
-            $crate::expr::Attr::new(s.as_bytes())
-                .unwrap_or_else(|e| panic!("Error constructing attr:\n{e}\non line {} column {} in file {}", line!(), column!(), file!()))
-        }
-    };
+pub fn attr(s: impl AsRef<str>) -> Attr {
+    Attr::new(s.as_ref().as_bytes()).unwrap_or_else(|e| panic!("Error creating attr:\n{e}"))
 }

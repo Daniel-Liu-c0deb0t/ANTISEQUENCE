@@ -133,6 +133,15 @@ pub trait Reads: Send + Sync {
         ForEachReads::new(self, selector_expr, |read| eprintln!("{}", read))
     }
 
+    /// Remove mappings with labels that start with `_` ("internal" mappings).
+    #[must_use]
+    fn remove_internal(self, selector_expr: SelectorExpr) -> ForEachReads<Self, fn(&mut Read)>
+    where
+        Self: Sized,
+    {
+        ForEachReads::new(self, selector_expr, |read| read.remove_internal())
+    }
+
     /// Count the number of reads that are selected with each selector and apply an arbitrary
     /// function on the counts at the end.
     #[must_use]

@@ -98,20 +98,17 @@ impl StrMappings {
         self.mappings.iter_mut().find(|m| m.label == label)
     }
 
-    pub fn add_mapping(
-        &mut self,
-        label: Option<InlineString>,
-        start: usize,
-        len: usize,
-    ) -> Result<(), NameError> {
+    pub fn add_mapping(&mut self, label: Option<InlineString>, start: usize, len: usize) {
         let Some(label) = label else {
-            return Ok(());
+            return;
         };
-        if self.mapping(label).is_some() {
-            Err(NameError::Duplicate(Name::Label(label)))?
+        if let Some(m) = self.mapping_mut(label) {
+            m.start = start;
+            m.len = len;
+            m.data.clear();
+        } else {
+            self.mappings.push(Mapping::new(label, start, len));
         }
-        self.mappings.push(Mapping::new(label, start, len));
-        Ok(())
     }
 
     pub fn string(&self) -> &[u8] {
@@ -149,13 +146,13 @@ impl StrMappings {
         match cut_idx {
             LeftEnd(idx) => {
                 let cut = idx.min(len);
-                self.add_mapping(new_label1, start, cut)?;
-                self.add_mapping(new_label2, start + cut, len - cut)?;
+                self.add_mapping(new_label1, start, cut);
+                self.add_mapping(new_label2, start + cut, len - cut);
             }
             RightEnd(idx) => {
                 let cut = idx.min(len);
-                self.add_mapping(new_label1, start, len - cut)?;
-                self.add_mapping(new_label2, start + len - cut, cut)?;
+                self.add_mapping(new_label1, start, len - cut);
+                self.add_mapping(new_label2, start + len - cut, cut);
             }
         }
 
@@ -176,7 +173,7 @@ impl StrMappings {
             .ok_or_else(|| NameError::NotInRead(Name::Label(label2)))?;
 
         if let Some((start, len)) = mapping1.intersection_interval(mapping2) {
-            self.add_mapping(new_label, start, len)?;
+            self.add_mapping(new_label, start, len);
         }
 
         Ok(())
@@ -196,7 +193,7 @@ impl StrMappings {
             .ok_or_else(|| NameError::NotInRead(Name::Label(label2)))?;
 
         let (start, len) = mapping1.union_interval(mapping2);
-        self.add_mapping(new_label, start, len)?;
+        self.add_mapping(new_label, start, len);
 
         Ok(())
     }
@@ -321,6 +318,11 @@ impl StrMappings {
         }
 
         Ok(())
+    }
+
+    pub fn remove_internal(&mut self) {
+        self.mappings
+            .retain(|m| m.label.bytes().next() != Some(b'_'));
     }
 }
 
@@ -642,6 +644,12 @@ impl Read {
         self.str_mappings_mut(str_type)
             .ok_or_else(|| NameError::NotInRead(Name::StrType(str_type)))?
             .trim(label)
+    }
+
+    pub fn remove_internal(&mut self) {
+        self.str_mappings
+            .iter_mut()
+            .for_each(|(_, s)| s.remove_internal());
     }
 
     pub fn first_idx(&self) -> usize {

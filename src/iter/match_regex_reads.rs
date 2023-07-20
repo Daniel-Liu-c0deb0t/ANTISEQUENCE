@@ -86,9 +86,7 @@ impl<R: Reads> Reads for MatchRegexReads<R> {
 
             for (label, start, len) in new_mappings.drain(..) {
                 // panic to make borrow checker happy
-                str_mappings
-                    .add_mapping(Some(label), offset + start, len)
-                    .unwrap_or_else(|e| panic!("Error matching regex: {e}"));
+                str_mappings.add_mapping(Some(label), offset + start, len);
             }
 
             if let Some(attr) = &self.attr {

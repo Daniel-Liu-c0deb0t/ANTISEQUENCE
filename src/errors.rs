@@ -57,8 +57,6 @@ pub enum Error {
 pub enum NameError {
     #[error("Name not found in read: {0}")]
     NotInRead(Name),
-    #[error("Duplicate name in read: {0}")]
-    Duplicate(Name),
     #[error("Expected {0}, but found {1:?}")]
     Type(&'static str, Vec<Data>),
 }

@@ -491,52 +491,25 @@ impl<R: RangeBounds<Node>> ExprNode for InBoundsNode<R> {
     }
 }
 
-pub fn label(name: impl AsRef<str>) -> Node {
-    Node {
-        node: Box::new(LabelNode {
-            label: Label::new(name.as_ref().as_bytes()).unwrap_or_else(|e| panic!("{e}")),
-        }),
-    }
-}
-
-pub struct LabelNode {
-    label: Label,
-}
-
-impl ExprNode for LabelNode {
+impl ExprNode for Label {
     fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
         Ok(Data::Bytes(
-            read.substring(self.label.str_type, self.label.label)?
-                .to_owned(),
+            read.substring(self.str_type, self.label)?.to_owned(),
         ))
     }
 
     fn required_names(&self) -> Vec<LabelOrAttr> {
-        vec![LabelOrAttr::Label(self.label.clone())]
+        vec![LabelOrAttr::Label(self.clone())]
     }
 }
 
-pub fn attr(name: impl AsRef<str>) -> Node {
-    Node {
-        node: Box::new(AttrNode {
-            attr: Attr::new(name.as_ref().as_bytes()).unwrap_or_else(|e| panic!("{e}")),
-        }),
-    }
-}
-
-pub struct AttrNode {
-    attr: Attr,
-}
-
-impl ExprNode for AttrNode {
+impl ExprNode for Attr {
     fn eval(&self, read: &Read) -> std::result::Result<Data, NameError> {
-        Ok(read
-            .data(self.attr.str_type, self.attr.label, self.attr.attr)?
-            .clone())
+        Ok(read.data(self.str_type, self.label, self.attr)?.clone())
     }
 
     fn required_names(&self) -> Vec<LabelOrAttr> {
-        vec![LabelOrAttr::Attr(self.attr.clone())]
+        vec![LabelOrAttr::Attr(self.clone())]
     }
 }
 
