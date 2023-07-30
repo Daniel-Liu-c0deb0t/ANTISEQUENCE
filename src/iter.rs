@@ -2,13 +2,17 @@ use std::marker::{Send, Sync};
 use std::ops::RangeBounds;
 use std::sync::Arc;
 use std::thread;
+use std::collections::VecDeque;
 
 use crate::errors::*;
 use crate::expr::*;
-use crate::patterns::*;
+//use crate::patterns::*;
 use crate::read::*;
 
-pub mod trim_reads;
+pub mod cut_node;
+use cut_node::*;
+
+/*pub mod trim_reads;
 use trim_reads::*;
 
 pub mod collect_fastq_reads;
@@ -54,8 +58,101 @@ pub mod fork_reads;
 use fork_reads::*;
 
 pub mod time_reads;
-use time_reads::*;
+use time_reads::*;*/
 
+pub struct Graph {
+    root: Box<dyn GraphNode>,
+}
+
+pub trait GraphNode {
+    fn cut(
+        &mut self,
+        transform_expr: TransformExpr,
+        cut_idx: EndIdx,
+    ) -> &mut dyn GraphNode {
+        self.set_next(Box::new(CutNode::new(transform_expr, cut_idx)))
+    }
+
+    fn run(&self, read: Option<Read>, next_nodes: &mut Vec<&dyn GraphNode>) -> Result<(Option<Read>, bool)>;
+    fn required_names(&self) -> &[LabelOrAttr];
+    fn cond(&self) -> Option<Node>;
+    fn set_next(&mut self, node: Box<dyn GraphNode>) -> &mut dyn GraphNode;
+    fn name(&self) -> &'static str;
+}
+
+impl Graph {
+    pub fn new<N: GraphNode>(root: N) -> Self {
+        Self {
+            root: Box::new(root),
+        }
+    }
+
+    pub fn from_boxed(root: Box<dyn GraphNode>) -> Self {
+        Self {
+            root,
+        }
+    }
+
+    pub fn root(&self) -> &dyn GraphNode {
+        &*self.root
+    }
+
+    pub fn run(&self) -> Result<()> {
+        let mut q = VecDeque::new();
+        let mut next_nodes = Vec::new();
+
+        loop {
+            let (_, done) = self.run_one(None, &mut q, &mut next_nodes)?;
+            if done {
+                break;
+            }
+        }
+
+        Ok(())
+    }
+
+    // TODO: 64 read chunks, qual in expr nodes
+
+    pub fn run_one(&self, mut curr: Option<Read>, q: &mut VecDeque<&dyn GraphNode>, next_nodes: &mut Vec<&dyn GraphNode>) -> Result<(Option<Read>, bool)> {
+        q.clear();
+        q.push_back(&*self.root);
+
+        while let Some(node) = q.pop_front() {
+            if let Some(read) = curr {
+                if !read.has_names(node.required_names()) {
+                    continue;
+                }
+                if let Some(cond) = node.cond() {
+                    let cond = cond.eval_bool(&read)
+                        .map_err(|e| Error::NameError {
+                            source: e,
+                            read: read.clone(),
+                            context: node.name(),
+                        })?;
+                    if !cond {
+                        continue;
+                    }
+                }
+            }
+
+            let (c, done) = node.run(curr, &mut next_nodes)?;
+            curr = c;
+
+            if done {
+                return Ok((curr, done));
+            }
+            if curr.is_none() {
+                continue;
+            }
+
+            q.extend(next_nodes.drain(..));
+        }
+
+        unreachable!()
+    }
+}
+
+/*
 /// Shared interface for all read iterators.
 ///
 /// Many operations allow a select expression to be specified as the first parameter.
@@ -639,6 +736,7 @@ impl<R: Reads + ?Sized> Reads for Box<R> {
         (**self).finish()
     }
 }
+*/
 
 pub use MatchType::*;
 pub use Threshold::*;

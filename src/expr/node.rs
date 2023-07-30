@@ -98,7 +98,7 @@ pub trait ExprNode {
 
 macro_rules! bool_binary_ops {
     ($struct_name:ident, $bool_expr:expr) => {
-        pub struct $struct_name {
+        struct $struct_name {
             left: Node,
             right: Node,
         }
@@ -130,7 +130,7 @@ bool_binary_ops!(XorNode, |l, r| Bool(l ^ r));
 
 macro_rules! num_binary_ops {
     ($struct_name:ident, $int_expr:expr, $float_expr:expr) => {
-        pub struct $struct_name {
+        struct $struct_name {
             left: Node,
             right: Node,
         }
@@ -167,7 +167,7 @@ num_binary_ops!(LtNode, |l, r| Bool(l < r), |l, r| Bool(l < r));
 num_binary_ops!(GeNode, |l, r| Bool(l >= r), |l, r| Bool(l >= r));
 num_binary_ops!(LeNode, |l, r| Bool(l <= r), |l, r| Bool(l <= r));
 
-pub struct NotNode {
+struct NotNode {
     boolean: Node,
 }
 
@@ -186,7 +186,7 @@ impl ExprNode for NotNode {
     }
 }
 
-pub struct EqNode {
+struct EqNode {
     left: Node,
     right: Node,
 }
@@ -212,7 +212,7 @@ impl ExprNode for EqNode {
     }
 }
 
-pub struct LenNode {
+struct LenNode {
     string: Node,
 }
 
@@ -231,7 +231,7 @@ impl ExprNode for LenNode {
     }
 }
 
-pub struct IntNode {
+struct IntNode {
     convert: Node,
 }
 
@@ -255,7 +255,7 @@ impl ExprNode for IntNode {
     }
 }
 
-pub struct FloatNode {
+struct FloatNode {
     convert: Node,
 }
 
@@ -281,7 +281,7 @@ impl ExprNode for FloatNode {
     }
 }
 
-pub struct BytesNode {
+struct BytesNode {
     convert: Node,
 }
 
@@ -306,7 +306,7 @@ impl ExprNode for BytesNode {
     }
 }
 
-pub struct RepeatNode {
+struct RepeatNode {
     string: Node,
     times: Node,
 }
@@ -329,7 +329,7 @@ impl ExprNode for RepeatNode {
     }
 }
 
-pub struct ConcatNode {
+struct ConcatNode {
     left: Node,
     right: Node,
 }
@@ -355,7 +355,7 @@ impl ExprNode for ConcatNode {
     }
 }
 
-pub struct InBoundsNode<R: RangeBounds<Node>> {
+struct InBoundsNode<R: RangeBounds<Node>> {
     num: Node,
     range: R,
 }
@@ -445,7 +445,7 @@ pub fn label_exists(name: impl AsRef<str>) -> Node {
     }
 }
 
-pub struct LabelExistsNode {
+struct LabelExistsNode {
     label: Label,
 }
 
@@ -469,7 +469,7 @@ pub fn attr_exists(name: impl AsRef<str>) -> Node {
     }
 }
 
-pub struct AttrExistsNode {
+struct AttrExistsNode {
     attr: Attr,
 }
 

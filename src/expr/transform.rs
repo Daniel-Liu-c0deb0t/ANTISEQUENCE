@@ -1,27 +1,14 @@
 use crate::errors::*;
-use crate::expr::{Label, LabelOrAttr};
+use crate::expr::{Label, Attr, LabelOrAttr};
 use crate::parse_utils::*;
 
-pub trait Transform {
-    fn to<const N: usize>(after: [Option<impl AsRef<str>>; N]) -> TransformExpr {
-        todo!()
-    }
-}
-
-pub fn tr<const IN: usize, const OUT: usize>(
-    input: [Label; IN],
-    output: [Option<LabelOrAttr>; OUT],
-) -> TransformExpr<{ IN }, { OUT }> {
-    todo!()
-}
-
 #[derive(Debug, Clone)]
-pub struct TransformExpr<const IN: usize = 1, const OUT: usize = 1> {
+pub struct TransformExpr {
     before: Vec<Label>,
     after: Vec<Option<LabelOrAttr>>,
 }
 
-impl<const IN: usize, const OUT: usize> TransformExpr<{ IN }, { OUT }> {
+impl TransformExpr {
     pub fn new(expr: &[u8]) -> Result<Self> {
         let (before, after) = parse(expr)?;
         Ok(Self { before, after })
@@ -56,12 +43,24 @@ impl<const IN: usize, const OUT: usize> TransformExpr<{ IN }, { OUT }> {
         );
     }
 
-    pub fn before(&self) -> &[Label] {
-        &self.before
+    pub fn before(&self, i: usize) -> Label {
+        self.before[i].clone()
     }
 
-    pub fn after(&self) -> &[Option<LabelOrAttr>] {
-        &self.after
+    pub fn after_label(&self, i: usize, context: &'static str) -> Option<Label> {
+        self.after[i].clone().map(|a| if let LabelOrAttr::Label(l) = a {
+            l
+        } else {
+            panic!("Expected type.label after the \"->\" in the transform expression when {context}")
+        })
+    }
+
+    pub fn after_attr(&self, i: usize, context: &'static str) -> Option<Attr> {
+        self.after[i].clone().map(|a| if let LabelOrAttr::Attr(a) = a {
+            a
+        } else {
+            panic!("Expected type.label.attr after the \"->\" in the transform expression when {context}")
+        })
     }
 }
 

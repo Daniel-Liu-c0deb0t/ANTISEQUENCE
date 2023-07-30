@@ -91,11 +91,12 @@ impl StrMappings {
     }
 
     pub fn mapping(&self, label: InlineString) -> Option<&Mapping> {
-        self.mappings.iter().find(|m| m.label == label)
+        // iterate in reverse since recently added labels likely to be at the end
+        self.mappings.iter().rev().find(|m| m.label == label)
     }
 
     pub fn mapping_mut(&mut self, label: InlineString) -> Option<&mut Mapping> {
-        self.mappings.iter_mut().find(|m| m.label == label)
+        self.mappings.iter_mut().rev().find(|m| m.label == label)
     }
 
     pub fn add_mapping(&mut self, label: Option<InlineString>, start: usize, len: usize) {
@@ -448,6 +449,31 @@ impl Mapping {
 }
 
 impl Read {
+    pub fn has_names(&self, names: &[crate::expr::LabelOrAttr]) -> bool {
+        for name in names {
+            match name {
+                crate::expr::LabelOrAttr::Label(l) => {
+                    if let Some(s) = self.str_mappings(l.str_type) {
+                        if let Some(_) = s.mapping(l.label) {
+                            continue;
+                        }
+                    }
+                    return false;
+                },
+                crate::expr::LabelOrAttr::Attr(a) => {
+                    if let Some(s) = self.str_mappings(a.str_type) {
+                        if let Some(_) = s.data(a.label, a.attr) {
+                            continue;
+                        }
+                    }
+                    return false;
+                },
+            }
+        }
+
+        return true;
+    }
+
     pub fn from_fastq1(
         name: &[u8],
         seq: &[u8],

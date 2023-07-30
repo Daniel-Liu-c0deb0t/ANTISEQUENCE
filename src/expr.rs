@@ -1,8 +1,8 @@
 pub mod selector;
 pub use selector::*;
 
-pub mod format;
-pub use format::*;
+//pub mod format;
+//pub use format::*;
 
 pub mod transform;
 pub use transform::*;
@@ -152,18 +152,6 @@ impl From<Attr> for LabelOrAttr {
     fn from(attr: Attr) -> Self {
         LabelOrAttr::Attr(attr)
     }
-}
-
-/// Create a selector expression.
-#[macro_export]
-macro_rules! sel {
-    ($($t:tt)*) => {
-        {
-            let s = stringify!($($t)*);
-            $crate::expr::SelectorExpr::new(s.as_bytes())
-                .unwrap_or_else(|e| panic!("Error constructing selector expression:\n{e}\non line {} column {} in file {}", line!(), column!(), file!()))
-        }
-    };
 }
 
 /// Create a transform expression.
