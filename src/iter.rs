@@ -111,7 +111,7 @@ impl Graph {
         Ok(())
     }
 
-    // TODO: 64 read chunks, qual in expr nodes
+    // TODO: 64 read chunks
 
     pub fn run_one(&self, mut curr: Option<Read>, q: &mut VecDeque<&dyn GraphNode>, next_nodes: &mut Vec<&dyn GraphNode>) -> Result<(Option<Read>, bool)> {
         q.clear();
