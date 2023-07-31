@@ -4,6 +4,8 @@ use crate::errors::NameError;
 use crate::expr::*;
 use crate::read::*;
 
+// TODO: use copy on write for bytes
+
 const UNKNOWN_QUAL: u8 = b'I';
 
 pub struct Node {

@@ -32,7 +32,7 @@ impl CutNode {
 }
 
 impl GraphNode for CutNode {
-    fn run(&self, read: Option<Read>, next_nodes: &mut Vec<&dyn GraphNode>) -> Result<(Option<Read>, bool)> {
+    fn run<'a>(&'a self, read: Option<Read>, next_nodes: &mut Vec<&'a dyn GraphNode>) -> Result<(Option<Read>, bool)> {
         let Some(mut read) = read else { panic!("Expected some read!") };
 
         read.cut(

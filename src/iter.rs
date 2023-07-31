@@ -73,7 +73,7 @@ pub trait GraphNode {
         self.set_next(Box::new(CutNode::new(transform_expr, cut_idx)))
     }
 
-    fn run(&self, read: Option<Read>, next_nodes: &mut Vec<&dyn GraphNode>) -> Result<(Option<Read>, bool)>;
+    fn run<'a>(&'a self, read: Option<Read>, next_nodes: &mut Vec<&'a dyn GraphNode>) -> Result<(Option<Read>, bool)>;
     fn required_names(&self) -> &[LabelOrAttr];
     fn cond(&self) -> Option<Node>;
     fn set_next(&mut self, node: Box<dyn GraphNode>) -> &mut dyn GraphNode;
@@ -81,13 +81,7 @@ pub trait GraphNode {
 }
 
 impl Graph {
-    pub fn new<N: GraphNode>(root: N) -> Self {
-        Self {
-            root: Box::new(root),
-        }
-    }
-
-    pub fn from_boxed(root: Box<dyn GraphNode>) -> Self {
+    pub fn new(root: Box<dyn GraphNode>) -> Self {
         Self {
             root,
         }
@@ -95,6 +89,10 @@ impl Graph {
 
     pub fn root(&self) -> &dyn GraphNode {
         &*self.root
+    }
+
+    pub fn root_mut(&mut self) -> &mut dyn GraphNode {
+        &mut *self.root
     }
 
     pub fn run(&self) -> Result<()> {
@@ -111,14 +109,12 @@ impl Graph {
         Ok(())
     }
 
-    // TODO: 64 read chunks
-
-    pub fn run_one(&self, mut curr: Option<Read>, q: &mut VecDeque<&dyn GraphNode>, next_nodes: &mut Vec<&dyn GraphNode>) -> Result<(Option<Read>, bool)> {
+    pub fn run_one<'a>(&'a self, mut curr: Option<Read>, q: &mut VecDeque<&'a dyn GraphNode>, next_nodes: &mut Vec<&'a dyn GraphNode>) -> Result<(Option<Read>, bool)> {
         q.clear();
         q.push_back(&*self.root);
 
         while let Some(node) = q.pop_front() {
-            if let Some(read) = curr {
+            if let Some(read) = &curr {
                 if !read.has_names(node.required_names()) {
                     continue;
                 }
@@ -135,7 +131,7 @@ impl Graph {
                 }
             }
 
-            let (c, done) = node.run(curr, &mut next_nodes)?;
+            let (c, done) = node.run(curr, next_nodes)?;
             curr = c;
 
             if done {
