@@ -38,6 +38,32 @@ impl<R: Reads> MatchRegexReads<R> {
     }
 }
 
+impl GraphNode for CountNode {
+    fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
+        let Some(read) = read else { panic!("Expected some read!") };
+
+        for (c, n) in self.counts.iter().zip(&self.selector_exprs) {
+            if n.eval_bool(&read).map_err(|e| Error::NameError {
+                source: e,
+                read: read.clone(),
+                context: Self::NAME,
+            })? {
+                c.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+
+        Ok((Some(read), false))
+    }
+
+    fn required_names(&self) -> &[LabelOrAttr] {
+        &self.required_names
+    }
+
+    fn name(&self) -> &'static str {
+        Self::NAME
+    }
+}
+
 impl<R: Reads> Reads for MatchRegexReads<R> {
     fn next_chunk(&self) -> Result<Vec<Read>> {
         let mut reads = self.reads.next_chunk()?;

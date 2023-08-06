@@ -1,9 +1,7 @@
 use crate::iter::*;
 
 pub struct CutNode {
-    next_node: Option<Box<dyn GraphNode>>,
     required_names: Vec<LabelOrAttr>,
-
     cut_label: Label,
     new_label1: Option<Label>,
     new_label2: Option<Label>,
@@ -21,7 +19,6 @@ impl CutNode {
         transform_expr.check_same_str_type(Self::NAME);
 
         Self {
-            next_node: None,
             required_names: vec![transform_expr.before(0).into()],
             cut_label: transform_expr.before(0),
             new_label1: transform_expr.after_label(0, Self::NAME),
@@ -32,7 +29,7 @@ impl CutNode {
 }
 
 impl GraphNode for CutNode {
-    fn run<'a>(&'a self, read: Option<Read>, next_nodes: &mut Vec<&'a dyn GraphNode>) -> Result<(Option<Read>, bool)> {
+    fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
         let Some(mut read) = read else { panic!("Expected some read!") };
 
         read.cut(
@@ -48,23 +45,11 @@ impl GraphNode for CutNode {
             context: self.name(),
         })?;
 
-        if let Some(node) = &self.next_node {
-            next_nodes.push(&**node);
-        }
         Ok((Some(read), false))
     }
 
     fn required_names(&self) -> &[LabelOrAttr] {
         &self.required_names
-    }
-
-    fn cond(&self) -> Option<Node> {
-        None
-    }
-
-    fn set_next(&mut self, node: Box<dyn GraphNode>) -> &mut dyn GraphNode {
-        self.next_node = Some(node);
-        &mut **self.next_node.as_mut().unwrap()
     }
 
     fn name(&self) -> &'static str {

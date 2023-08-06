@@ -18,8 +18,6 @@ type ReadBuf = ThreadLocal<RefCell<VecDeque<Read>>>;
 const CHUNK_SIZE: usize = 256;
 
 pub struct Fastq1Node<'reader> {
-    next_node: Option<Box<dyn GraphNode>>,
-
     reader: Mutex<Box<dyn FastxReader + 'reader>>,
     buf: ReadBuf,
     origin: Arc<Origin>,
@@ -28,7 +26,7 @@ pub struct Fastq1Node<'reader> {
 }
 
 impl<'reader> GraphNode for Fastq1Node<'reader> {
-    fn run<'a>(&'a self, read: Option<Read>, next_nodes: &mut Vec<&'a dyn GraphNode>) -> Result<(Option<Read>, bool)> {
+    fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
         assert!(read.is_none(), "Expected no input reads when {}", self.name());
 
         let buf = self.buf.get_or(|| RefCell::new(VecDeque::with_capacity(CHUNK_SIZE)));
@@ -101,23 +99,11 @@ impl<'reader> GraphNode for Fastq1Node<'reader> {
             return Ok((None, true));
         }
 
-        if let Some(node) = &self.next_node {
-            next_nodes.push(&**node);
-        }
         Ok((b.pop_front(), false))
     }
 
     fn required_names(&self) -> &[LabelOrAttr] {
         &[]
-    }
-
-    fn cond(&self) -> Option<Node> {
-        None
-    }
-
-    fn set_next(&mut self, node: Box<dyn GraphNode>) -> &mut dyn GraphNode {
-        self.next_node = Some(node);
-        &mut **self.next_node.as_mut().unwrap()
     }
 
     fn name(&self) -> &'static str {
@@ -126,8 +112,6 @@ impl<'reader> GraphNode for Fastq1Node<'reader> {
 }
 
 pub struct Fastq2Node {
-    next_node: Option<Box<dyn GraphNode>>,
-
     reader1: Mutex<Box<dyn FastxReader>>,
     reader2: Mutex<Box<dyn FastxReader>>,
     buf: ReadBuf,
@@ -137,7 +121,7 @@ pub struct Fastq2Node {
 }
 
 impl GraphNode for Fastq2Node {
-    fn run<'a>(&'a self, read: Option<Read>, next_nodes: &mut Vec<&'a dyn GraphNode>) -> Result<(Option<Read>, bool)> {
+    fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
         assert!(read.is_none(), "Expected no input reads when {}", self.name());
 
         let buf = self.buf.get_or(|| RefCell::new(VecDeque::with_capacity(CHUNK_SIZE)));
@@ -186,23 +170,11 @@ impl GraphNode for Fastq2Node {
             return Ok((None, true));
         }
 
-        if let Some(node) = &self.next_node {
-            next_nodes.push(&**node);
-        }
         Ok((b.pop_front(), false))
     }
 
     fn required_names(&self) -> &[LabelOrAttr] {
         &[]
-    }
-
-    fn cond(&self) -> Option<Node> {
-        None
-    }
-
-    fn set_next(&mut self, node: Box<dyn GraphNode>) -> &mut dyn GraphNode {
-        self.next_node = Some(node);
-        &mut **self.next_node.as_mut().unwrap()
     }
 
     fn name(&self) -> &'static str {
@@ -221,7 +193,6 @@ pub fn iter_fastq1(file: impl AsRef<str>) -> Result<Box<dyn GraphNode + 'static>
         source: Box::new(e),
     })?);
     Ok(Box::new(Fastq1Node::<'static> {
-        next_node: None,
         reader,
         buf: ReadBuf::new(),
         origin: Arc::new(Origin::File(file.as_ref().to_owned())),
@@ -243,7 +214,6 @@ pub fn iter_fastq_interleaved(
         source: Box::new(e),
     })?);
     Ok(Box::new(Fastq1Node::<'static> {
-        next_node: None,
         reader,
         buf: ReadBuf::new(),
         origin: Arc::new(Origin::File(file.as_ref().to_owned())),
@@ -270,7 +240,6 @@ pub fn iter_fastq2(
         source: Box::new(e),
     })?);
     Ok(Box::new(Fastq2Node {
-        next_node: None,
         reader1,
         reader2,
         buf: ReadBuf::new(),
@@ -285,7 +254,6 @@ pub fn iter_fastq2(
 pub fn iter_fastq1_bytes<'reader>(bytes: &'reader [u8]) -> Result<Box<dyn GraphNode + 'reader>> {
     let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
     Ok(Box::new(Fastq1Node::<'reader> {
-        next_node: None,
         reader,
         buf: ReadBuf::new(),
         origin: Arc::new(Origin::Bytes),
@@ -299,7 +267,6 @@ pub fn iter_fastq1_bytes<'reader>(bytes: &'reader [u8]) -> Result<Box<dyn GraphN
 pub fn iter_fastq_interleaved_bytes<'reader>(bytes: &'reader [u8]) -> Result<Box<dyn GraphNode + 'reader>> {
     let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
     Ok(Box::new(Fastq1Node::<'reader> {
-        next_node: None,
         reader,
         buf: ReadBuf::new(),
         origin: Arc::new(Origin::Bytes),
