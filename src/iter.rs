@@ -6,7 +6,6 @@ use std::collections::VecDeque;
 
 use crate::errors::*;
 use crate::expr::*;
-//use crate::patterns::*;
 use crate::read::*;
 
 pub mod cut_node;
@@ -30,53 +29,29 @@ use take_node::*;
 pub mod set_node;
 use set_node::*;
 
-/*pub mod trim_reads;
-use trim_reads::*;
+pub mod for_each_node;
+use for_each_node::*;
 
-pub mod collect_fastq_reads;
-use collect_fastq_reads::*;
+pub mod retain_node;
+use retain_node::*;
 
-pub mod for_each_reads;
-use for_each_reads::*;
+pub mod intersect_union_node;
+use intersect_union_node::*;
 
-pub mod cut_reads;
-use cut_reads::*;
+pub mod fork_node;
+use fork_node::*;
 
-pub mod set_reads;
-use set_reads::*;
+pub mod match_polyx_node;
+use match_polyx_node::*;
 
-pub mod length_in_bounds_reads;
-use length_in_bounds_reads::*;
+pub mod match_regex_node;
+use match_regex_node::*;
 
-pub mod retain_reads;
-use retain_reads::*;
+pub mod match_any_node;
+use match_any_node::*;
 
-pub mod match_regex_reads;
-use match_regex_reads::*;
-
-pub mod match_any_reads;
-use match_any_reads::*;
-
-pub mod count_reads;
-use count_reads::*;
-
-pub mod bernoulli_reads;
-use bernoulli_reads::*;
-
-pub mod take_reads;
-use take_reads::*;
-
-pub mod match_polyx_reads;
-use match_polyx_reads::*;
-
-pub mod intersect_union_reads;
-use intersect_union_reads::*;
-
-pub mod fork_reads;
-use fork_reads::*;
-
-pub mod time_reads;
-use time_reads::*;*/
+pub mod collect_fastq_node;
+use collect_fastq_node::*;
 
 pub struct Graph {
     nodes: Vec<Arc<dyn GraphNode>>,

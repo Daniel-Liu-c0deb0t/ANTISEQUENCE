@@ -90,7 +90,7 @@ pub mod errors;
 pub mod expr;
 pub mod fastq;
 pub mod iter;
-//pub mod patterns;
+pub mod patterns;
 pub mod read;
 
 mod inline_string;
@@ -100,5 +100,5 @@ mod parse_utils;
 
 pub use crate::fastq::*;
 pub use crate::iter::*;
-//pub use crate::patterns::*;
+pub use crate::patterns::*;
 pub use crate::read::*;
