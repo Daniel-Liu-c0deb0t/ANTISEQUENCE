@@ -23,7 +23,7 @@ impl MatchPolyXNode {
         transform_expr.check_same_str_type(Self::NAME);
 
         Self {
-            required_names: vec![transform_expr.before(0)],
+            required_names: vec![transform_expr.before(0).into()],
             label: transform_expr.before(0),
             new_label1: transform_expr.after_label(0, Self::NAME),
             new_label2: transform_expr.after_label(1, Self::NAME),

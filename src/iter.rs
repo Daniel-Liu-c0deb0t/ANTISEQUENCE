@@ -2,56 +2,55 @@ use std::marker::{Send, Sync};
 use std::ops::RangeBounds;
 use std::sync::Arc;
 use std::thread;
-use std::collections::VecDeque;
 
 use crate::errors::*;
 use crate::expr::*;
 use crate::read::*;
 
 pub mod cut_node;
-use cut_node::*;
+pub use cut_node::*;
 
 pub mod bernoulli_node;
-use bernoulli_node::*;
+pub use bernoulli_node::*;
 
 pub mod time_node;
-use time_node::*;
+pub use time_node::*;
 
 pub mod trim_node;
-use trim_node::*;
+pub use trim_node::*;
 
 pub mod count_node;
-use count_node::*;
+pub use count_node::*;
 
 pub mod take_node;
-use take_node::*;
+pub use take_node::*;
 
 pub mod set_node;
-use set_node::*;
+pub use set_node::*;
 
 pub mod for_each_node;
-use for_each_node::*;
+pub use for_each_node::*;
 
 pub mod retain_node;
-use retain_node::*;
+pub use retain_node::*;
 
 pub mod intersect_union_node;
-use intersect_union_node::*;
+pub use intersect_union_node::*;
 
 pub mod fork_node;
-use fork_node::*;
+pub use fork_node::*;
 
 pub mod match_polyx_node;
-use match_polyx_node::*;
+pub use match_polyx_node::*;
 
 pub mod match_regex_node;
-use match_regex_node::*;
+pub use match_regex_node::*;
 
 pub mod match_any_node;
-use match_any_node::*;
+pub use match_any_node::*;
 
 pub mod collect_fastq_node;
-use collect_fastq_node::*;
+pub use collect_fastq_node::*;
 
 pub struct Graph {
     nodes: Vec<Arc<dyn GraphNode>>,

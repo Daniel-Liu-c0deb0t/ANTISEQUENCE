@@ -11,6 +11,8 @@ pub struct TimeNode {
 }
 
 impl TimeNode {
+    const NAME: &'static str = "timing read operations";
+
     pub fn new(graph: Graph) -> Self {
         Self {
             duration: ThreadLocal::new(),

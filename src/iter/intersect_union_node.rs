@@ -18,7 +18,7 @@ impl IntersectNode {
             required_names: vec![transform_expr.before(0).into(), transform_expr.before(1).into()],
             label1: transform_expr.before(0),
             label2: transform_expr.before(1),
-            new_label: transform_expr.after(0, Self::NAME),
+            new_label: transform_expr.after_label(0, Self::NAME),
         }
     }
 }
@@ -69,7 +69,7 @@ impl UnionNode {
             required_names: vec![transform_expr.before(0).into(), transform_expr.before(1).into()],
             label1: transform_expr.before(0),
             label2: transform_expr.before(1),
-            new_label: transform_expr.after(0, Self::NAME),
+            new_label: transform_expr.after_label(0, Self::NAME),
         }
     }
 }

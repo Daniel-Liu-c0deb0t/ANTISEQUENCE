@@ -14,9 +14,9 @@ impl<F: Fn(&mut Read) + Send + Sync> ForEachNode<F> {
     }
 }
 
-impl GraphNode for ForEachNode {
+impl<F: Fn(&mut Read) + Send + Sync> GraphNode for ForEachNode<F> {
     fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
-        let Some(read) = read else { panic!("Expected some read!") };
+        let Some(mut read) = read else { panic!("Expected some read!") };
         (self.func)(&mut read);
         Ok((Some(read), false))
     }
@@ -27,5 +27,21 @@ impl GraphNode for ForEachNode {
 
     fn name(&self) -> &'static str {
         Self::NAME
+    }
+}
+
+pub struct DbgNode;
+
+impl DbgNode {
+    pub fn new() -> ForEachNode<impl Fn(&mut Read) + Send + Sync> {
+        ForEachNode::new(|read| eprintln!("{read}"))
+    }
+}
+
+pub struct RemoveInternalNode;
+
+impl RemoveInternalNode {
+    pub fn new() -> ForEachNode<impl Fn(&mut Read) + Send + Sync> {
+        ForEachNode::new(|read| read.remove_internal())
     }
 }

@@ -11,7 +11,7 @@ pub struct BernoulliNode {
 }
 
 impl BernoulliNode {
-    const NAME: 'static str = "generating bernoulli random samples";
+    const NAME: &'static str = "generating bernoulli random samples";
 
     pub fn new(attr: Attr, prob: f64, seed: u32) -> Self {
         Self {
@@ -29,7 +29,7 @@ impl GraphNode for BernoulliNode {
 
         // use the index of the read in the seed for determinism when multithreading
         let seed = (self.seed << 32)
-            .wrapping_add(reads.first().map(|r| r.first_idx() as u64).unwrap_or(0u64));
+            .wrapping_add(read.first_idx() as u64);
         let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
         let rand_bool = self.bernoulli.sample(&mut rng);
 

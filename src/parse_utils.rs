@@ -14,20 +14,3 @@ pub fn check_valid_name(b: &[u8]) -> Option<&[u8]> {
 
     Some(b)
 }
-
-pub fn find_skip_quotes(s: &[u8], c: u8) -> Option<usize> {
-    let mut escape = false;
-    let mut in_quotes = false;
-
-    for (i, &b) in s.iter().enumerate() {
-        match b {
-            b'\'' if !escape && !in_quotes => in_quotes = true,
-            b'\'' if !escape && in_quotes => in_quotes = false,
-            b'\\' if !escape => escape = true,
-            _ if !in_quotes && b == c => return Some(i),
-            _ => escape = false,
-        }
-    }
-
-    None
-}

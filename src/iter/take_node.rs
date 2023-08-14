@@ -20,9 +20,10 @@ impl<B: RangeBounds<usize> + Send + Sync> GraphNode for TakeNode<B> {
         if self.bounds.contains(&first_idx) {
             Ok((Some(read), false))
         } else {
-            let done = match self.bounds.upper_bound() {
-                Include(hi) => first_idx > hi,
-                Exclude(hi) => first_idx >= hi,
+            use std::ops::Bound::*;
+            let done = match self.bounds.end_bound() {
+                Included(hi) => first_idx > *hi,
+                Excluded(hi) => first_idx >= *hi,
                 Unbounded => false,
             };
             Ok((None, done))
@@ -30,7 +31,7 @@ impl<B: RangeBounds<usize> + Send + Sync> GraphNode for TakeNode<B> {
     }
 
     fn required_names(&self) -> &[LabelOrAttr] {
-        &self.required_names
+        &[]
     }
 
     fn name(&self) -> &'static str {

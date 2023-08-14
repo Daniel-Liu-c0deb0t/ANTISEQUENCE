@@ -12,7 +12,7 @@ impl CountNode {
     const NAME: &'static str = "counting reads";
 
     pub fn new(selector_exprs: Vec<Node>) -> Self {
-        let required_names = selector_exprs.iter().map(|n| n.required_names()).cloned().collect();
+        let required_names = selector_exprs.iter().flat_map(|n| n.required_names()).collect();
         let counts = (0..selector_exprs.len())
             .map(|_| AtomicUsize::new(0))
             .collect();

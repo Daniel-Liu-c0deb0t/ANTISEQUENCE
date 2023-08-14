@@ -18,7 +18,7 @@ impl TrimNode {
 
 impl GraphNode for TrimNode {
     fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
-        let Some(read) = read else { panic!("Expected some read!") };
+        let Some(mut read) = read else { panic!("Expected some read!") };
 
         self.labels
             .iter()

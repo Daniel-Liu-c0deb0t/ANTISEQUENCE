@@ -12,7 +12,7 @@ use std::collections::VecDeque;
 use crate::errors::*;
 use crate::iter::*;
 use crate::read::*;
-use crate::expr::{LabelOrAttr, Node};
+use crate::expr::LabelOrAttr;
 
 type ReadBuf = ThreadLocal<RefCell<VecDeque<Read>>>;
 const CHUNK_SIZE: usize = 256;

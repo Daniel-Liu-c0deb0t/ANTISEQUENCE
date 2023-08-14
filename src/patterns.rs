@@ -1,11 +1,9 @@
-use serde::{Deserialize, Serialize};
-use serde_yaml;
-
-use std::collections::{BTreeMap, BTreeSet};
+use std::borrow::Cow;
 
 use crate::errors::*;
 use crate::inline_string::*;
 use crate::read::*;
+use crate::expr::Node;
 
 pub struct Patterns {
     pattern_name: Option<InlineString>,
@@ -45,7 +43,7 @@ impl Patterns {
     pub fn new(pattern_name: impl AsRef<[u8]>, attr_names: Vec<impl AsRef<[u8]>>, patterns: Vec<Pattern>) -> Self {
         Self {
             pattern_name: Some(InlineString::new(pattern_name.as_ref())),
-            attr_names: attr_names.into_iter().map(|v| InlineString::new(v.as_ref().to_owned())).collect(),
+            attr_names: attr_names.into_iter().map(|v| InlineString::new(v.as_ref())).collect(),
             patterns,
         }
     }
@@ -79,14 +77,16 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub fn get(read: &Read) -> Result<Cow<[u8]>, NameError> {
+    pub fn get(&self, read: &Read) -> std::result::Result<Cow<[u8]>, NameError> {
+        use Pattern::*;
         match self {
-            Literal { bytes, .. } => Cow::Borrowed(bytes),
-            Expr { expr, .. } => Cow::Owned(expr.eval_bytes(read, false)?),
+            Literal { bytes, .. } => Ok(Cow::Borrowed(bytes)),
+            Expr { expr, .. } => Ok(Cow::Owned(expr.eval_bytes(read, false)?)),
         }
     }
 
     pub fn attrs(&self) -> &[Data] {
+        use Pattern::*;
         match self {
             Literal { attrs, .. } => attrs,
             Expr { attrs, .. } => attrs,

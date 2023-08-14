@@ -6,17 +6,17 @@ pub struct SetNode {
     expr: Node,
 }
 
-impl SetReads {
+impl SetNode {
     const NAME: &'static str = "setting reads";
 
     pub fn new(
         label_or_attr: LabelOrAttr,
-        format_expr: Node,
+        expr: Node,
     ) -> Self {
         Self {
             required_names: vec![label_or_attr.clone()],
             label_or_attr,
-            format_expr,
+            expr,
         }
     }
 }
