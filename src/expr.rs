@@ -1,8 +1,8 @@
 pub mod transform;
 pub use transform::*;
 
-pub mod node;
-pub use node::*;
+pub mod expr_node;
+pub use expr_node::*;
 
 use crate::errors::*;
 use crate::inline_string::*;
@@ -160,10 +160,10 @@ macro_rules! tr {
     };
 }
 
-pub fn label(s: impl AsRef<str>) -> Label {
-    Label::new(s.as_ref().as_bytes()).unwrap_or_else(|e| panic!("Error creating label:\n{e}"))
+pub fn label(s: impl AsRef<[u8]>) -> Label {
+    Label::new(s.as_ref()).unwrap_or_else(|e| panic!("Error creating label:\n{e}"))
 }
 
-pub fn attr(s: impl AsRef<str>) -> Attr {
-    Attr::new(s.as_ref().as_bytes()).unwrap_or_else(|e| panic!("Error creating attr:\n{e}"))
+pub fn attr(s: impl AsRef<[u8]>) -> Attr {
+    Attr::new(s.as_ref()).unwrap_or_else(|e| panic!("Error creating attr:\n{e}"))
 }

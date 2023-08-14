@@ -1,4 +1,4 @@
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct ForkNode {
     graph: Graph,

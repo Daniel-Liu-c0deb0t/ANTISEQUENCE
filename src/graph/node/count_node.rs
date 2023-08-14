@@ -1,17 +1,17 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct CountNode {
     required_names: Vec<LabelOrAttr>,
-    selector_exprs: Vec<Node>,
+    selector_exprs: Vec<Expr>,
     counts: Vec<AtomicUsize>,
 }
 
 impl CountNode {
     const NAME: &'static str = "counting reads";
 
-    pub fn new(selector_exprs: Vec<Node>) -> Self {
+    pub fn new(selector_exprs: Vec<Expr>) -> Self {
         let required_names = selector_exprs.iter().flat_map(|n| n.required_names()).collect();
         let counts = (0..selector_exprs.len())
             .map(|_| AtomicUsize::new(0))

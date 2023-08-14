@@ -7,19 +7,19 @@ use rustc_hash::FxHashMap;
 use flate2::{write::GzEncoder, Compression};
 
 use crate::fastq::*;
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct CollectFastqNode {
     required_names: Vec<LabelOrAttr>,
-    file_expr1: Node,
-    file_expr2: Option<Node>,
+    file_expr1: Expr,
+    file_expr2: Option<Expr>,
     file_writers: Mutex<FxHashMap<Vec<u8>, Arc<Mutex<dyn Write + Send>>>>,
 }
 
 impl CollectFastqNode {
     const NAME: &'static str = "collecting reads into fastq files";
 
-    pub fn new1(file_expr: Node) -> Self {
+    pub fn new1(file_expr: Expr) -> Self {
         Self {
             required_names: file_expr.required_names(),
             file_expr1: file_expr,
@@ -29,8 +29,8 @@ impl CollectFastqNode {
     }
 
     pub fn new2(
-        file_expr1: Node,
-        file_expr2: Node,
+        file_expr1: Expr,
+        file_expr2: Expr,
     ) -> Self {
         let mut required_names = file_expr1.required_names();
         required_names.extend(file_expr2.required_names());

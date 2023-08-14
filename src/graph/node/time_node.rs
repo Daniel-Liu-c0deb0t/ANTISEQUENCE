@@ -3,7 +3,7 @@ use thread_local::*;
 use std::cell::Cell;
 use std::time::{Duration, Instant};
 
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct TimeNode {
     duration: ThreadLocal<Cell<Duration>>,

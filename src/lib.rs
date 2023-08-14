@@ -89,7 +89,7 @@
 pub mod errors;
 pub mod expr;
 pub mod fastq;
-pub mod iter;
+pub mod graph;
 pub mod patterns;
 pub mod read;
 
@@ -99,6 +99,6 @@ mod parse_utils;
 // commonly used functions and types
 
 pub use crate::fastq::*;
-pub use crate::iter::*;
+pub use crate::graph::*;
 pub use crate::patterns::*;
 pub use crate::read::*;

@@ -1,14 +1,14 @@
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct RetainNode {
     required_names: Vec<LabelOrAttr>,
-    selector_expr: Node,
+    selector_expr: Expr,
 }
 
 impl RetainNode {
     const NAME: &'static str = "retaining reads";
 
-    pub fn new(selector_expr: Node) -> Self {
+    pub fn new(selector_expr: Expr) -> Self {
         Self {
             required_names: selector_expr.required_names(),
             selector_expr,

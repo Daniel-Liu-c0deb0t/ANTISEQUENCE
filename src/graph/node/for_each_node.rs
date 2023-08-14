@@ -1,4 +1,4 @@
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct ForEachNode<F: Fn(&mut Read) + Send + Sync> {
     func: F,

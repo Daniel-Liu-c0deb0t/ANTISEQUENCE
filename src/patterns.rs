@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::errors::*;
 use crate::inline_string::*;
 use crate::read::*;
-use crate::expr::Node;
+use crate::expr::*;
 
 pub struct Patterns {
     pattern_name: Option<InlineString>,
@@ -26,7 +26,7 @@ impl Patterns {
         }
     }
 
-    pub fn from_exprs(patterns: Vec<Node>) -> Self {
+    pub fn from_exprs(patterns: Vec<Expr>) -> Self {
         Self {
             pattern_name: None,
             attr_names: Vec::new(),
@@ -73,7 +73,7 @@ impl Patterns {
 
 pub enum Pattern {
     Literal { bytes: Vec<u8>, attrs: Vec<Data> },
-    Expr { expr: Node, attrs: Vec<Data> },
+    Expr { expr: Expr, attrs: Vec<Data> },
 }
 
 impl Pattern {

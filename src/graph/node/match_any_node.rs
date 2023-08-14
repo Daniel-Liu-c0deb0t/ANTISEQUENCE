@@ -7,7 +7,7 @@ use thread_local::*;
 use std::cell::RefCell;
 use std::marker::Send;
 
-use crate::iter::*;
+use crate::graph::*;
 use crate::Patterns;
 
 pub struct MatchAnyNode {

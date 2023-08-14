@@ -1,4 +1,4 @@
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct CutNode {
     required_names: Vec<LabelOrAttr>,

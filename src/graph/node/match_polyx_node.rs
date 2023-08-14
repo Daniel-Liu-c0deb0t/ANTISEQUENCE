@@ -1,4 +1,4 @@
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct MatchPolyXNode {
     required_names: Vec<LabelOrAttr>,

@@ -1,9 +1,9 @@
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct SetNode {
     required_names: Vec<LabelOrAttr>,
     label_or_attr: LabelOrAttr,
-    expr: Node,
+    expr: Expr,
 }
 
 impl SetNode {
@@ -11,7 +11,7 @@ impl SetNode {
 
     pub fn new(
         label_or_attr: LabelOrAttr,
-        expr: Node,
+        expr: Expr,
     ) -> Self {
         Self {
             required_names: vec![label_or_attr.clone()],

@@ -8,14 +8,14 @@ use crate::read::*;
 
 const UNKNOWN_QUAL: u8 = b'I';
 
-pub struct Node {
+pub struct Expr {
     node: Box<dyn ExprNode>,
 }
 
 macro_rules! binary_fn {
     ($fn_name:ident, $struct_name:ident) => {
-        pub fn $fn_name(self, o: Node) -> Node {
-            Node {
+        pub fn $fn_name(self, o: Expr) -> Expr {
+            Expr {
                 node: Box::new($struct_name {
                     left: self,
                     right: o,
@@ -27,15 +27,15 @@ macro_rules! binary_fn {
 
 macro_rules! unary_fn {
     ($fn_name:ident, $struct_name:ident, $field_name:ident) => {
-        pub fn $fn_name(self) -> Node {
-            Node {
+        pub fn $fn_name(self) -> Expr {
+            Expr {
                 node: Box::new($struct_name { $field_name: self }),
             }
         }
     };
 }
 
-impl Node {
+impl Expr {
     binary_fn!(and, AndNode);
     binary_fn!(or, OrNode);
     binary_fn!(xor, XorNode);
@@ -60,8 +60,8 @@ impl Node {
     unary_fn!(float, FloatNode, convert);
     unary_fn!(bytes, BytesNode, convert);
 
-    pub fn repeat(self, times: Node) -> Node {
-        Node {
+    pub fn repeat(self, times: Expr) -> Expr {
+        Expr {
             node: Box::new(RepeatNode {
                 string: self,
                 times,
@@ -69,8 +69,8 @@ impl Node {
         }
     }
 
-    pub fn in_bounds(self, range: impl RangeBounds<Node> + 'static) -> Node {
-        Node {
+    pub fn in_bounds(self, range: impl RangeBounds<Expr> + 'static) -> Expr {
+        Expr {
             node: Box::new(InBoundsNode { num: self, range }),
         }
     }
@@ -112,8 +112,8 @@ pub trait ExprNode {
 macro_rules! bool_binary_ops {
     ($struct_name:ident, $bool_expr:expr) => {
         struct $struct_name {
-            left: Node,
-            right: Node,
+            left: Expr,
+            right: Expr,
         }
 
         impl ExprNode for $struct_name {
@@ -144,8 +144,8 @@ bool_binary_ops!(XorNode, |l, r| Bool(l ^ r));
 macro_rules! num_binary_ops {
     ($struct_name:ident, $int_expr:expr, $float_expr:expr) => {
         struct $struct_name {
-            left: Node,
-            right: Node,
+            left: Expr,
+            right: Expr,
         }
 
         impl ExprNode for $struct_name {
@@ -181,7 +181,7 @@ num_binary_ops!(GeNode, |l, r| Bool(l >= r), |l, r| Bool(l >= r));
 num_binary_ops!(LeNode, |l, r| Bool(l <= r), |l, r| Bool(l <= r));
 
 struct NotNode {
-    boolean: Node,
+    boolean: Expr,
 }
 
 impl ExprNode for NotNode {
@@ -200,8 +200,8 @@ impl ExprNode for NotNode {
 }
 
 struct EqNode {
-    left: Node,
-    right: Node,
+    left: Expr,
+    right: Expr,
 }
 
 impl ExprNode for EqNode {
@@ -226,7 +226,7 @@ impl ExprNode for EqNode {
 }
 
 struct LenNode {
-    string: Node,
+    string: Expr,
 }
 
 impl ExprNode for LenNode {
@@ -245,7 +245,7 @@ impl ExprNode for LenNode {
 }
 
 struct IntNode {
-    convert: Node,
+    convert: Expr,
 }
 
 impl ExprNode for IntNode {
@@ -269,7 +269,7 @@ impl ExprNode for IntNode {
 }
 
 struct FloatNode {
-    convert: Node,
+    convert: Expr,
 }
 
 impl ExprNode for FloatNode {
@@ -295,7 +295,7 @@ impl ExprNode for FloatNode {
 }
 
 struct BytesNode {
-    convert: Node,
+    convert: Expr,
 }
 
 impl ExprNode for BytesNode {
@@ -320,8 +320,8 @@ impl ExprNode for BytesNode {
 }
 
 struct RepeatNode {
-    string: Node,
-    times: Node,
+    string: Expr,
+    times: Expr,
 }
 
 impl ExprNode for RepeatNode {
@@ -343,8 +343,8 @@ impl ExprNode for RepeatNode {
 }
 
 struct ConcatNode {
-    left: Node,
-    right: Node,
+    left: Expr,
+    right: Expr,
 }
 
 impl ExprNode for ConcatNode {
@@ -368,8 +368,8 @@ impl ExprNode for ConcatNode {
     }
 }
 
-pub fn concat_all(nodes: impl IntoIterator<Item = Node>) -> Node {
-    Node {
+pub fn concat_all(nodes: impl IntoIterator<Item = Expr>) -> Expr {
+    Expr {
         node: Box::new(ConcatAllNode {
             nodes: nodes.into_iter().collect(),
         }),
@@ -377,7 +377,7 @@ pub fn concat_all(nodes: impl IntoIterator<Item = Node>) -> Node {
 }
 
 struct ConcatAllNode {
-    nodes: Vec<Node>,
+    nodes: Vec<Expr>,
 }
 
 impl ExprNode for ConcatAllNode {
@@ -402,12 +402,12 @@ impl ExprNode for ConcatAllNode {
     }
 }
 
-struct InBoundsNode<R: RangeBounds<Node>> {
-    num: Node,
+struct InBoundsNode<R: RangeBounds<Expr>> {
+    num: Expr,
     range: R,
 }
 
-impl<R: RangeBounds<Node>> ExprNode for InBoundsNode<R> {
+impl<R: RangeBounds<Expr>> ExprNode for InBoundsNode<R> {
     fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
         let num = self.num.eval(read, use_qual)?;
 
@@ -498,8 +498,8 @@ impl ExprNode for Attr {
     }
 }
 
-pub fn label_exists(name: impl AsRef<str>) -> Node {
-    Node {
+pub fn label_exists(name: impl AsRef<str>) -> Expr {
+    Expr {
         node: Box::new(LabelExistsNode {
             label: Label::new(name.as_ref().as_bytes()).unwrap_or_else(|e| panic!("{e}")),
         }),
@@ -522,8 +522,8 @@ impl ExprNode for LabelExistsNode {
     }
 }
 
-pub fn attr_exists(name: impl AsRef<str>) -> Node {
-    Node {
+pub fn attr_exists(name: impl AsRef<str>) -> Expr {
+    Expr {
         node: Box::new(AttrExistsNode {
             attr: Attr::new(name.as_ref().as_bytes()).unwrap_or_else(|e| panic!("{e}")),
         }),

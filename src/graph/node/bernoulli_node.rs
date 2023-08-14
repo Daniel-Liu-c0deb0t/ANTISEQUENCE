@@ -2,7 +2,7 @@ use rand::distributions::Bernoulli;
 use rand::prelude::*;
 use rand_xoshiro::Xoshiro256PlusPlus;
 
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct BernoulliNode {
     attr: Attr,

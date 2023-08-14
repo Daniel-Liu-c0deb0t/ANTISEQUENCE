@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 
 use crate::errors::*;
-use crate::iter::*;
+use crate::graph::*;
 use crate::read::*;
 use crate::expr::LabelOrAttr;
 

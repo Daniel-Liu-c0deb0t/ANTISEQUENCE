@@ -1,4 +1,4 @@
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct IntersectNode {
     required_names: Vec<LabelOrAttr>,

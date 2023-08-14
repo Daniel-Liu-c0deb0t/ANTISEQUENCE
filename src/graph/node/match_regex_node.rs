@@ -3,7 +3,7 @@ use regex::bytes::*;
 use thread_local::*;
 
 use crate::inline_string::*;
-use crate::iter::*;
+use crate::graph::*;
 
 pub struct MatchRegexNode {
     required_names: Vec<LabelOrAttr>,
