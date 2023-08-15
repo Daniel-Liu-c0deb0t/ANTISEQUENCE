@@ -1,4 +1,5 @@
 use std::ops::{Bound, RangeBounds};
+use std::marker::{Send, Sync};
 
 use crate::errors::NameError;
 use crate::expr::*;
@@ -9,7 +10,7 @@ use crate::read::*;
 const UNKNOWN_QUAL: u8 = b'I';
 
 pub struct Expr {
-    node: Box<dyn ExprNode>,
+    node: Box<dyn ExprNode + Send + Sync>,
 }
 
 macro_rules! binary_fn {
@@ -69,7 +70,7 @@ impl Expr {
         }
     }
 
-    pub fn in_bounds(self, range: impl RangeBounds<Expr> + 'static) -> Expr {
+    pub fn in_bounds(self, range: impl RangeBounds<Expr> + Send + Sync + 'static) -> Expr {
         Expr {
             node: Box::new(InBoundsNode { num: self, range }),
         }
@@ -402,12 +403,12 @@ impl ExprNode for ConcatAllNode {
     }
 }
 
-struct InBoundsNode<R: RangeBounds<Expr>> {
+struct InBoundsNode<R: RangeBounds<Expr> + Send + Sync> {
     num: Expr,
     range: R,
 }
 
-impl<R: RangeBounds<Expr>> ExprNode for InBoundsNode<R> {
+impl<R: RangeBounds<Expr> + Send + Sync> ExprNode for InBoundsNode<R> {
     fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
         let num = self.num.eval(read, use_qual)?;
 

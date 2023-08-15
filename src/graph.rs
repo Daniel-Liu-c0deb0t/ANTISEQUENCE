@@ -9,21 +9,26 @@ use crate::read::*;
 
 pub mod node;
 
+// TODO: add select, while nodes
+
+/// Computation graph of read operations, where each operation is a node.
 pub struct Graph {
     nodes: Vec<Arc<dyn GraphNode>>,
 }
 
-pub trait GraphNode {
+pub trait GraphNode: Send + Sync {
     fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)>;
     fn required_names(&self) -> &[LabelOrAttr];
     fn name(&self) -> &'static str;
 }
 
 impl Graph {
+    /// Create a new empty graph.
     pub fn new() -> Self {
         Self { nodes: Vec::new() }
     }
 
+    /// Add a read operation node to the graph and return the node.
     pub fn add<G: GraphNode + 'static>(&mut self, node: G) -> Arc<G> {
         let a = Arc::new(node);
         let b = Arc::clone(&a);
@@ -31,6 +36,7 @@ impl Graph {
         b
     }
 
+    /// Run a graph until all reads processed.
     pub fn run(&self) -> Result<()> {
         loop {
             let (_, done) = self.run_one(None)?;
@@ -42,6 +48,18 @@ impl Graph {
         Ok(())
     }
 
+    /// Run a graph in parallel (multithreading) until all reads processed.
+    pub fn run_with_threads(&self, threads: usize) {
+        assert!(threads >= 1, "Number of threads must be greater than zero");
+
+        thread::scope(|s| {
+            for _ in 0..threads {
+                s.spawn(|| self.run().unwrap_or_else(|e| panic!("{e}")));
+            }
+        });
+    }
+
+    /// Run a single read through the graph.
     pub fn run_one(&self, mut curr: Option<Read>) -> Result<(Option<Read>, bool)> {
         for node in &self.nodes {
             if let Some(read) = &curr {
@@ -65,103 +83,20 @@ impl Graph {
     }
 }
 
+// TODO: update docs
 /*
-/// Shared interface for all read iterators.
-///
-/// Many operations allow a select expression to be specified as the first parameter.
-/// This ensures that the operation is only be applied on the selected reads.
-pub trait Reads: Send + Sync {
-    /// Run a `Reads` iterator until there are no more reads left.
-    fn run(mut self) -> Result<()>
-    where
-        Self: Sized,
-    {
-        while !self.next_chunk()?.is_empty() {}
-        self.finish()
-    }
-
-    /// Run a `Reads` iterator in parallel with multithreading.
-    fn run_with_threads(mut self, threads: usize)
-    where
-        Self: Sized,
-    {
-        assert!(threads >= 1, "Number of threads must be greater than zero");
-
-        thread::scope(|s| {
-            for _ in 0..threads {
-                s.spawn(|| {
-                    while !self
-                        .next_chunk()
-                        .unwrap_or_else(|e| panic!("Error when running: {e}"))
-                        .is_empty()
-                    {}
-                });
-            }
-        });
-
-        self.finish()
-            .unwrap_or_else(|e| panic!("Error when running: {e}"));
-    }
-
-    /// Run a `Reads` iterator and collect the resulting `Read`s into a `Vec`.
-    fn run_collect_reads(mut self) -> Result<Vec<Read>>
-    where
-        Self: Sized,
-    {
-        let mut res = Vec::new();
-
-        loop {
-            let reads = self.next_chunk()?;
-
-            if reads.is_empty() {
-                break;
-            }
-
-            res.extend(reads);
-        }
-
-        self.finish()?;
-        Ok(res)
-    }
-
     /// Apply an arbitrary function on each read.
-    #[must_use]
     fn for_each<F>(self, selector_expr: SelectorExpr, func: F) -> ForEachReads<Self, F>
-    where
-        F: Fn(&mut Read) + Send + Sync,
-        Self: Sized,
-    {
-        ForEachReads::new(self, selector_expr, func)
-    }
 
     /// Print each read to standard error.
-    #[must_use]
     fn dbg(self, selector_expr: SelectorExpr) -> ForEachReads<Self, fn(&mut Read)>
-    where
-        Self: Sized,
-    {
-        ForEachReads::new(self, selector_expr, |read| eprintln!("{}", read))
-    }
 
     /// Remove mappings with labels that start with `_` ("internal" mappings).
-    #[must_use]
     fn remove_internal(self, selector_expr: SelectorExpr) -> ForEachReads<Self, fn(&mut Read)>
-    where
-        Self: Sized,
-    {
-        ForEachReads::new(self, selector_expr, |read| read.remove_internal())
-    }
 
     /// Count the number of reads that are selected with each selector and apply an arbitrary
     /// function on the counts at the end.
-    #[must_use]
     fn count<F>(self, selector_exprs: impl Into<Vec<SelectorExpr>>, func: F) -> CountReads<Self, F>
-    where
-        F: Fn(&[usize]) + Send + Sync,
-        Self: Sized,
-    {
-        CountReads::new(self, selector_exprs.into(), func)
-    }
 
     /// Check whether a mapping length is within the specified bounds.
     ///
@@ -170,24 +105,16 @@ pub trait Reads: Send + Sync {
     /// Example `transform_expr`: `tr!(seq1.* -> seq1.*.in_bounds)`.
     /// This will set `seq1.*.in_bounds` to a boolean indicating whether the length of `seq1.*`
     /// is in the specified bounds.
-    #[must_use]
     fn length_in_bounds<B>(
         self,
         selector_expr: SelectorExpr,
         transform_expr: TransformExpr,
         bounds: B,
     ) -> LengthInBoundsReads<Self, B>
-    where
-        B: RangeBounds<usize> + Send + Sync,
-        Self: Sized,
-    {
-        LengthInBoundsReads::new(self, selector_expr, transform_expr, bounds)
-    }
 
     /// Set an attribute to true with some probability.
     ///
     /// This is deterministic, even with multithreading.
-    #[must_use]
     fn bernoulli(
         self,
         selector_expr: SelectorExpr,
@@ -195,46 +122,29 @@ pub trait Reads: Send + Sync {
         prob: f64,
         seed: u32,
     ) -> BernoulliReads<Self>
-    where
-        Self: Sized,
-    {
-        BernoulliReads::new(self, selector_expr, attr, prob, seed)
-    }
 
     /// Cut a mapping at an index to create two new mappings.
     ///
     /// The transform expression must have one input mapping and two output mappings.
     ///
     /// Example `transform_expr`: `tr!(seq1.* -> seq1.left, seq1.right)`.
-    #[must_use]
     fn cut(
         self,
         selector_expr: SelectorExpr,
         transform_expr: TransformExpr,
         cut_idx: EndIdx,
     ) -> CutReads<Self>
-    where
-        Self: Sized,
-    {
-        CutReads::new(self, selector_expr, transform_expr, cut_idx)
-    }
 
     /// Intersect two mapping intervals and create a new mapping of the intersection, if it is not empty.
     ///
     /// The transform expression must have two input mappings and one output mapping.
     ///
     /// Example `transform_expr`: `tr!(seq1.a, seq1.b -> seq1.c)`.
-    #[must_use]
     fn intersect(
         self,
         selector_expr: SelectorExpr,
         transform_expr: TransformExpr,
     ) -> IntersectReads<Self>
-    where
-        Self: Sized,
-    {
-        IntersectReads::new(self, selector_expr, transform_expr)
-    }
 
     /// Union two mapping intervals and create a new mapping of the union.
     ///
@@ -244,49 +154,24 @@ pub trait Reads: Send + Sync {
     /// The transform expression must have two input mappings and one output mapping.
     ///
     /// Example `transform_expr`: `tr!(seq1.a, seq1.b -> seq1.c)`.
-    #[must_use]
     fn union(self, selector_expr: SelectorExpr, transform_expr: TransformExpr) -> UnionReads<Self>
-    where
-        Self: Sized,
-    {
-        UnionReads::new(self, selector_expr, transform_expr)
-    }
 
     /// Trim the mappings corresponding to the specified labels by modifying the underlying strings.
     ///
     /// When a mapping is trimmed, its length will be set to zero. All intersecting
     /// mappings will also be adjusted accordingly for the shortening.
-    #[must_use]
     fn trim(self, selector_expr: SelectorExpr, labels: impl Into<Vec<Label>>) -> TrimReads<Self>
-    where
-        Self: Sized,
-    {
-        TrimReads::new(self, selector_expr, labels.into())
-    }
 
     /// Set a label or attribute to the result of a format expression.
     ///
     /// After a label is set, its mapping and all other intersecting mappings will be adjusted accordingly
     /// for any shortening or lengthening.
-    #[must_use]
     fn set(
         self,
         selector_expr: SelectorExpr,
         label_or_attr: impl Into<LabelOrAttr>,
         format_expr: impl AsRef<str>,
     ) -> SetReads<Self>
-    where
-        Self: Sized,
-    {
-        SetReads::new(
-            self,
-            selector_expr,
-            label_or_attr.into(),
-            FormatExpr::new(format_expr.as_ref().as_bytes()).unwrap_or_else(|e| {
-                panic!("Error in parsing format expression for the set operation: {e}")
-            }),
-        )
-    }
 
     /// Match a regex pattern in a mapping.
     ///
@@ -298,18 +183,12 @@ pub trait Reads: Send + Sync {
     /// Example `transform_expr`: `tr!(seq1.* -> seq1.*.matched)`.
     /// This will match the regex pattern two `seq1.*` and set `seq1.*.matched` to a boolean
     /// indicating whether the regex matches.
-    #[must_use]
     fn match_regex(
         self,
         selector_expr: SelectorExpr,
         transform_expr: TransformExpr,
         regex: impl AsRef<str>,
     ) -> MatchRegexReads<Self>
-    where
-        Self: Sized,
-    {
-        MatchRegexReads::new(self, selector_expr, transform_expr, regex.as_ref())
-    }
 
     /// Match any one of multiple patterns in a mapping.
     ///
@@ -341,7 +220,6 @@ pub trait Reads: Send + Sync {
     /// that is matched. If no pattern matches, then it will be set to false.
     /// Assuming pattern `AAAA` is matched, `seq1.*.some_extra_data1` will be set to `"all As"` and
     /// `seq1.*.some_extra_data2` will be set to `true`.
-    #[must_use]
     fn match_any(
         self,
         selector_expr: SelectorExpr,
@@ -349,18 +227,6 @@ pub trait Reads: Send + Sync {
         patterns_yaml: impl AsRef<str>,
         match_type: MatchType,
     ) -> MatchAnyReads<Self>
-    where
-        Self: Sized,
-    {
-        MatchAnyReads::new(
-            self,
-            selector_expr,
-            transform_expr,
-            Patterns::from_yaml(patterns_yaml.as_ref().as_bytes())
-                .unwrap_or_else(|e| panic!("Error in parsing patterns: {e}")),
-            match_type,
-        )
-    }
 
     /// Match a pattern in a mapping.
     ///
@@ -372,7 +238,6 @@ pub trait Reads: Send + Sync {
     ///
     /// Example `transform_expr` for local-alignment-based pattern matching:
     /// `tr!(seq1.* -> seq1.before, seq1.aligned, seq1.after)`.
-    #[must_use]
     fn match_one(
         self,
         selector_expr: SelectorExpr,
@@ -380,27 +245,12 @@ pub trait Reads: Send + Sync {
         pattern: impl AsRef<str>,
         match_type: MatchType,
     ) -> MatchAnyReads<Self>
-    where
-        Self: Sized,
-    {
-        MatchAnyReads::new(
-            self,
-            selector_expr,
-            transform_expr,
-            Patterns::new(vec![FormatExpr::new(pattern.as_ref().as_bytes())
-                .unwrap_or_else(|e| {
-                    panic!("Error in parsing format expression for the match_one operation: {e}")
-                })]),
-            match_type,
-        )
-    }
 
     /// Match repeated characters from the left or right end of a mapping.
     ///
     /// The transform expression must have one input mapping and two output mappings.
     ///
     /// Example `transform_expr`: `tr!(seq1.* -> seq1.sequence, seq1.polya_tail)`.
-    #[must_use]
     fn match_polyx(
         self,
         selector_expr: SelectorExpr,
@@ -409,34 +259,17 @@ pub trait Reads: Send + Sync {
         end: End,
         identity: f64,
     ) -> MatchPolyXReads<Self>
-    where
-        Self: Sized,
-    {
-        MatchPolyXReads::new(self, selector_expr, transform_expr, x as u8, end, identity)
-    }
 
     /// Output reads to a specified file.
     ///
     /// The file path is a format expression.
     ///
     /// Only read 1 is written out.
-    #[must_use]
     fn collect_fastq1(
         self,
         selector_expr: SelectorExpr,
         file_expr: impl AsRef<str>,
     ) -> CollectFastqReads<Self>
-    where
-        Self: Sized,
-    {
-        CollectFastqReads::new1(
-            self,
-            selector_expr,
-            FormatExpr::new(file_expr.as_ref().as_bytes()).unwrap_or_else(|e| {
-                panic!("Error in parsing format expression for the collect_fastq1 operation: {e}")
-            }),
-        )
-    }
 
     /// Output paired-end reads to the specified files.
     ///
@@ -444,211 +277,30 @@ pub trait Reads: Send + Sync {
     ///
     /// Read 1 is written to `file_expr1` and read 2 is written to `file_expr2`.
     /// The reads will be interleaved if the files are the same.
-    #[must_use]
     fn collect_fastq2(
         self,
         selector_expr: SelectorExpr,
         file_expr1: impl AsRef<str>,
         file_expr2: impl AsRef<str>,
     ) -> CollectFastqReads<Self>
-    where
-        Self: Sized,
-    {
-        CollectFastqReads::new2(
-            self,
-            selector_expr,
-            FormatExpr::new(file_expr1.as_ref().as_bytes()).unwrap_or_else(|e| {
-                panic!("Error in parsing format expression for the collect_fastq2 operation: {e}")
-            }),
-            FormatExpr::new(file_expr2.as_ref().as_bytes()).unwrap_or_else(|e| {
-                panic!("Error in parsing format expression for the collect_fastq2 operation: {e}")
-            }),
-        )
-    }
 
     /// Retain only the reads that are selected and discard the rest.
-    #[must_use]
     fn retain(self, selector_expr: SelectorExpr) -> RetainReads<Self>
-    where
-        Self: Sized,
-    {
-        RetainReads::new(self, selector_expr)
-    }
 
     /// Take only the reads that have a record index inside the bounds.
-    #[must_use]
     fn take<B>(self, bounds: B) -> TakeReads<Self, B>
-    where
-        B: RangeBounds<usize> + Send + Sync,
-        Self: Sized,
-    {
-        TakeReads::new(self, bounds)
-    }
 
     /// Create two read iterators by cloning each read.
     ///
     /// You must use the [`run!()`](crate::run!) or [`run_with_threads!()`](crate::run_with_threads!) macros to run all the forks.
-    #[must_use]
     fn fork(self) -> (ForkReads<Self>, ForkReads<Self>)
-    where
-        Self: Sized,
-    {
-        let reads = Arc::new(self);
-        let buf = Arc::new(ForkBuf::new());
-        let left = ForkReads::new(Arc::clone(&reads), Arc::clone(&buf));
-        let right = ForkReads::new(reads, buf);
-        (left, right)
-    }
 
     /// Compute the runtime (in seconds) of all operations before this in the iterator chain.
     ///
     /// The runtime is summed across all threads.
     ///
     /// The function `func` is called at the end with the runtime.
-    #[must_use]
     fn time<F>(self, func: F) -> TimeReads<Self, F>
-    where
-        F: Fn(f64) + Send + Sync,
-        Self: Sized,
-    {
-        TimeReads::new(self, func)
-    }
-
-    /// Box the read iterator by creating a `Box<dyn Reads>`.
-    ///
-    /// This allows iterators to be dynamically chained at runtime.
-    #[must_use]
-    fn boxed(self) -> Box<dyn Reads>
-    where
-        Self: Sized + 'static,
-    {
-        Box::new(self)
-    }
-
-    fn next_chunk(&self) -> Result<Vec<Read>>;
-
-    fn finish(&mut self) -> Result<()>;
-}
-
-/// Run one or more `Reads` iterators until there are no more reads left.
-///
-/// This should be used to run iterators that are forked.
-#[macro_export]
-macro_rules! run {
-    ($($e:expr),+ $(,)*) => {
-        {
-            let mut done = false;
-
-            while !done {
-                done = run!(@next_chunk $($e),+);
-            }
-
-            run!(@finish $($e),+);
-        }
-    };
-    (@next_chunk $first:expr) => {
-        {
-            $first.next_chunk()
-                .unwrap_or_else(|e| panic!("Error when running: {e}")).is_empty()
-        }
-    };
-    (@next_chunk $first:expr, $($e:expr),*) => {
-        {
-            let empty = $first.next_chunk()
-                .unwrap_or_else(|e| panic!("Error when running: {e}")).is_empty();
-            empty & run!(@next_chunk $($e),*)
-        }
-    };
-    (@finish $first:expr) => {
-        {
-            let mut first = $first;
-            first.finish()
-                .unwrap_or_else(|e| panic!("Error when running: {e}"));
-            fn check_type_and_drop<R: Reads>(_reads: R) {}
-            check_type_and_drop(first);
-        }
-    };
-    (@finish $first:expr, $($e:expr),*) => {
-        {
-            let mut first = $first;
-            first.finish()
-                .unwrap_or_else(|e| panic!("Error when running: {e}"));
-            fn check_type_and_drop<R: Reads>(_reads: R) {}
-            check_type_and_drop(first);
-            run!(@finish $($e),*);
-        }
-    };
-}
-
-/// Run one or more `Reads` iterators in parallel with multithreading.
-///
-/// The first parameter is the number of threads to use.
-///
-/// This should be used to run iterators that are forked.
-#[macro_export]
-macro_rules! run_with_threads {
-    ($threads:expr, $($e:expr),+ $(,)*) => {
-        {
-            assert!($threads >= 1, "Number of threads must be greater than zero");
-
-            thread::scope(|s| {
-                for _ in 0..$threads {
-                    s.spawn(|| {
-                        let mut done = false;
-
-                        while !done {
-                            done = run_with_threads!(@next_chunk $($e),+);
-                        }
-                    });
-                }
-            });
-
-            run_with_threads!(@finish $($e),+);
-        }
-    };
-    (@next_chunk $first:expr) => {
-        {
-            $first.next_chunk()
-                .unwrap_or_else(|e| panic!("Error when running: {e}")).is_empty()
-        }
-    };
-    (@next_chunk $first:expr, $($e:expr),*) => {
-        {
-            let empty = $first.next_chunk()
-                .unwrap_or_else(|e| panic!("Error when running: {e}")).is_empty();
-            empty & run_with_threads!(@next_chunk $($e),*)
-        }
-    };
-    (@finish $first:expr) => {
-        {
-            let mut first = $first;
-            first.finish()
-                .unwrap_or_else(|e| panic!("Error when running: {e}"));
-            fn check_type_and_drop<R: Reads>(_reads: R) {}
-            check_type_and_drop(first);
-        }
-    };
-    (@finish $first:expr, $($e:expr),*) => {
-        {
-            let mut first = $first;
-            first.finish()
-                .unwrap_or_else(|e| panic!("Error when running: {e}"));
-            fn check_type_and_drop<R: Reads>(_reads: R) {}
-            check_type_and_drop(first);
-            run_with_threads!(@finish $($e),*);
-        }
-    };
-}
-
-impl<R: Reads + ?Sized> Reads for Box<R> {
-    fn next_chunk(&self) -> Result<Vec<Read>> {
-        (**self).next_chunk()
-    }
-
-    fn finish(&mut self) -> Result<()> {
-        (**self).finish()
-    }
-}
 */
 
 pub use MatchType::*;
