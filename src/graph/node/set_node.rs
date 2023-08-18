@@ -33,7 +33,7 @@ impl GraphNode for SetNode {
                         source: e,
                         read: read.clone(),
                         context: Self::NAME,
-                    })?;
+                    })?.into_owned();
 
                 let str_mappings =
                     read.str_mappings(label.str_type)
@@ -51,7 +51,7 @@ impl GraphNode for SetNode {
                                 source: e,
                                 read: read.clone(),
                                 context: Self::NAME,
-                            })?;
+                            })?.into_owned();
 
                     read.set(label.str_type, label.label, &new_bytes, Some(&new_qual))
                         .map_err(|e| Error::NameError {
@@ -80,7 +80,7 @@ impl GraphNode for SetNode {
                 // panic to make borrow checker happy
                 *read
                     .data_mut(attr.str_type, attr.label, attr.attr)
-                    .unwrap_or_else(|e| panic!("Error {}: {e}", Self::NAME)) = new_val;
+                    .unwrap_or_else(|e| panic!("Error {}: {e}", Self::NAME)) = new_val.to_data();
             }
         }
 

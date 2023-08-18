@@ -1,11 +1,10 @@
 use std::ops::{Bound, RangeBounds};
 use std::marker::{Send, Sync};
+use std::borrow::Cow;
 
 use crate::errors::NameError;
 use crate::expr::*;
 use crate::read::*;
-
-// TODO: use copy on write for bytes
 
 const UNKNOWN_QUAL: u8 = b'I';
 
@@ -76,27 +75,27 @@ impl Expr {
         }
     }
 
-    pub fn eval_bool(&self, read: &Read) -> std::result::Result<bool, NameError> {
+    pub fn eval_bool<'a>(&'a self, read: &'a Read) -> std::result::Result<bool, NameError> {
         let res = self.eval(read, false)?;
 
-        if let Data::Bool(b) = res {
+        if let EvalData::Bool(b) = res {
             Ok(b)
         } else {
-            Err(NameError::Type("bool", vec![res]))
+            Err(NameError::Type("bool", vec![res.to_data()]))
         }
     }
 
-    pub fn eval_bytes(&self, read: &Read, use_qual: bool) -> std::result::Result<Vec<u8>, NameError> {
+    pub fn eval_bytes<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<Cow<'a, [u8]>, NameError> {
         let res = self.eval(read, use_qual)?;
 
-        if let Data::Bytes(b) = res {
+        if let EvalData::Bytes(b) = res {
             Ok(b)
         } else {
-            Err(NameError::Type("bytes", vec![res]))
+            Err(NameError::Type("bytes", vec![res.to_data()]))
         }
     }
 
-    pub fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    pub fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         self.node.eval(read, use_qual)
     }
 
@@ -106,7 +105,7 @@ impl Expr {
 }
 
 pub trait ExprNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError>;
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError>;
     fn required_names(&self) -> Vec<LabelOrAttr>;
 }
 
@@ -118,14 +117,14 @@ macro_rules! bool_binary_ops {
         }
 
         impl ExprNode for $struct_name {
-            fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+            fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
                 let left = self.left.eval(read, use_qual)?;
                 let right = self.right.eval(read, use_qual)?;
 
-                use Data::*;
+                use EvalData::*;
                 match (left, right) {
                     (Bool(l), Bool(r)) => Ok($bool_expr(l, r)),
-                    (l, r) => Err(NameError::Type("bool", vec![l, r])),
+                    (l, r) => Err(NameError::Type("bool", vec![l.to_data(), r.to_data()])),
                 }
             }
 
@@ -150,15 +149,15 @@ macro_rules! num_binary_ops {
         }
 
         impl ExprNode for $struct_name {
-            fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+            fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
                 let left = self.left.eval(read, use_qual)?;
                 let right = self.right.eval(read, use_qual)?;
 
-                use Data::*;
+                use EvalData::*;
                 match (left, right) {
                     (Int(l), Int(r)) => Ok($int_expr(l, r)),
                     (Float(l), Float(r)) => Ok($float_expr(l, r)),
-                    (l, r) => Err(NameError::Type("both int or both float", vec![l, r])),
+                    (l, r) => Err(NameError::Type("both int or both float", vec![l.to_data(), r.to_data()])),
                 }
             }
 
@@ -186,12 +185,12 @@ struct NotNode {
 }
 
 impl ExprNode for NotNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let boolean = self.boolean.eval(read, use_qual)?;
-        use Data::*;
+        use EvalData::*;
         match boolean {
             Bool(b) => Ok(Bool(!b)),
-            b => Err(NameError::Type("bool", vec![b])),
+            b => Err(NameError::Type("bool", vec![b.to_data()])),
         }
     }
 
@@ -206,16 +205,16 @@ struct EqNode {
 }
 
 impl ExprNode for EqNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let left = self.left.eval(read, use_qual)?;
         let right = self.right.eval(read, use_qual)?;
-        use Data::*;
+        use EvalData::*;
         match (left, right) {
             (Int(l), Int(r)) => Ok(Bool(l == r)),
             (Float(l), Float(r)) => Ok(Bool(l == r)),
             (Bool(l), Bool(r)) => Ok(Bool(l == r)),
             (Bytes(l), Bytes(r)) => Ok(Bool(l == r)),
-            (l, r) => Err(NameError::Type("both are the same type", vec![l, r])),
+            (l, r) => Err(NameError::Type("both are the same type", vec![l.to_data(), r.to_data()])),
         }
     }
 
@@ -231,12 +230,12 @@ struct LenNode {
 }
 
 impl ExprNode for LenNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let string = self.string.eval(read, use_qual)?;
-        use Data::*;
+        use EvalData::*;
         match string {
             Bytes(s) => Ok(Int(s.len() as isize)),
-            s => Err(NameError::Type("bytes", vec![s])),
+            s => Err(NameError::Type("bytes", vec![s.to_data()])),
         }
     }
 
@@ -250,9 +249,9 @@ struct IntNode {
 }
 
 impl ExprNode for IntNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let convert = self.convert.eval(read, use_qual)?;
-        use Data::*;
+        use EvalData::*;
         match convert {
             Bool(c) => Ok(Int(if c { 1 } else { 0 })),
             Int(c) => Ok(Int(c)),
@@ -274,9 +273,9 @@ struct FloatNode {
 }
 
 impl ExprNode for FloatNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let convert = self.convert.eval(read, use_qual)?;
-        use Data::*;
+        use EvalData::*;
         match convert {
             Bool(c) => Ok(Float(if c { 1.0 } else { 0.0 })),
             Int(c) => Ok(Float(c as f64)),
@@ -300,17 +299,17 @@ struct BytesNode {
 }
 
 impl ExprNode for BytesNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let convert = self.convert.eval(read, use_qual)?;
-        use Data::*;
+        use EvalData::*;
         match convert {
-            Bool(c) => Ok(Bytes(if c {
-                b"true".to_vec()
+            Bool(c) => Ok(Bytes(Cow::Borrowed(if c {
+                b"true"
             } else {
-                b"false".to_vec()
-            })),
-            Int(c) => Ok(Bytes(c.to_string().into_bytes().to_owned())),
-            Float(c) => Ok(Bytes(c.to_string().into_bytes().to_owned())),
+                b"false"
+            }))),
+            Int(c) => Ok(Bytes(Cow::Owned(c.to_string().into_bytes()))),
+            Float(c) => Ok(Bytes(Cow::Owned(c.to_string().into_bytes()))),
             Bytes(c) => Ok(Bytes(c)),
         }
     }
@@ -326,13 +325,13 @@ struct RepeatNode {
 }
 
 impl ExprNode for RepeatNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let string = self.string.eval(read, use_qual)?;
         let times = self.times.eval(read, use_qual)?;
-        use Data::*;
+        use EvalData::*;
         match (string, times) {
-            (Bytes(s), Int(t)) => Ok(Bytes(s.repeat(t as usize))),
-            (s, t) => Err(NameError::Type("bytes and int", vec![s, t])),
+            (Bytes(s), Int(t)) => Ok(Bytes(Cow::Owned(s.repeat(t as usize)))),
+            (s, t) => Err(NameError::Type("bytes and int", vec![s.to_data(), t.to_data()])),
         }
     }
 
@@ -349,16 +348,16 @@ struct ConcatNode {
 }
 
 impl ExprNode for ConcatNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let left = self.left.eval(read, use_qual)?;
         let right = self.right.eval(read, use_qual)?;
-        use Data::*;
+        use EvalData::*;
         match (left, right) {
-            (Bytes(mut l), Bytes(mut r)) => {
-                l.append(&mut r);
+            (Bytes(mut l), Bytes(r)) => {
+                l.to_mut().extend_from_slice(&r);
                 Ok(Bytes(l))
             }
-            (l, r) => Err(NameError::Type("both bytes", vec![l, r])),
+            (l, r) => Err(NameError::Type("both bytes", vec![l.to_data(), r.to_data()])),
         }
     }
 
@@ -382,20 +381,20 @@ struct ConcatAllNode {
 }
 
 impl ExprNode for ConcatAllNode {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let mut res = Vec::new();
 
         for node in &self.nodes {
             let b = node.eval(read, use_qual)?;
 
-            if let Data::Bytes(mut b) = b {
-                res.append(&mut b);
+            if let EvalData::Bytes(b) = b {
+                res.extend_from_slice(&b);
             } else {
-                return Err(NameError::Type("bytes", vec![b]));
+                return Err(NameError::Type("bytes", vec![b.to_data()]));
             }
         }
 
-        Ok(Data::Bytes(res))
+        Ok(EvalData::Bytes(Cow::Owned(res)))
     }
 
     fn required_names(&self) -> Vec<LabelOrAttr> {
@@ -409,10 +408,10 @@ struct InBoundsNode<R: RangeBounds<Expr> + Send + Sync> {
 }
 
 impl<R: RangeBounds<Expr> + Send + Sync> ExprNode for InBoundsNode<R> {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let num = self.num.eval(read, use_qual)?;
 
-        use Data::*;
+        use EvalData::*;
         let mut start_add1 = false;
         let start = match self.range.start_bound() {
             Bound::Included(s) => s.eval(read, use_qual)?,
@@ -443,7 +442,7 @@ impl<R: RangeBounds<Expr> + Send + Sync> ExprNode for InBoundsNode<R> {
                 }
                 Ok(Bool(s <= n && n <= e))
             }
-            (n, s, e) => Err(NameError::Type("all int", vec![n, s, e])),
+            (n, s, e) => Err(NameError::Type("all int", vec![n.to_data(), s.to_data(), e.to_data()])),
         }
     }
 
@@ -464,16 +463,16 @@ impl<R: RangeBounds<Expr> + Send + Sync> ExprNode for InBoundsNode<R> {
 }
 
 impl ExprNode for Label {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
-        Ok(Data::Bytes(
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
+        Ok(EvalData::Bytes(
             if use_qual {
                 if let Some(qual) = read.substring_qual(self.str_type, self.label)? {
-                    qual.to_owned()
+                    Cow::Borrowed(qual)
                 } else {
-                    vec![UNKNOWN_QUAL; read.mapping(self.str_type, self.label)?.len]
+                    Cow::Owned(vec![UNKNOWN_QUAL; read.mapping(self.str_type, self.label)?.len])
                 }
             } else {
-                read.substring(self.str_type, self.label)?.to_owned()
+                Cow::Borrowed(read.substring(self.str_type, self.label)?)
             }
         ))
     }
@@ -484,14 +483,20 @@ impl ExprNode for Label {
 }
 
 impl ExprNode for Attr {
-    fn eval(&self, read: &Read, use_qual: bool) -> std::result::Result<Data, NameError> {
+    fn eval<'a>(&'a self, read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
         let d = read.data(self.str_type, self.label, self.attr)?;
         if use_qual {
             if let Data::Bytes(b) = d {
-                return Ok(Data::Bytes(vec![UNKNOWN_QUAL; b.len()]));
+                return Ok(EvalData::Bytes(Cow::Owned(vec![UNKNOWN_QUAL; b.len()])));
             }
         }
-        Ok(d.clone())
+
+        match d {
+            Data::Bool(b) => Ok(EvalData::Bool(*b)),
+            Data::Int(i) => Ok(EvalData::Int(*i)),
+            Data::Float(f) => Ok(EvalData::Float(*f)),
+            Data::Bytes(b) => Ok(EvalData::Bytes(Cow::Borrowed(b))),
+        }
     }
 
     fn required_names(&self) -> Vec<LabelOrAttr> {
@@ -512,8 +517,8 @@ struct LabelExistsNode {
 }
 
 impl ExprNode for LabelExistsNode {
-    fn eval(&self, read: &Read, _use_qual: bool) -> std::result::Result<Data, NameError> {
-        Ok(Data::Bool(
+    fn eval<'a>(&'a self, read: &'a Read, _use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
+        Ok(EvalData::Bool(
             read.mapping(self.label.str_type, self.label.label).is_ok(),
         ))
     }
@@ -536,8 +541,8 @@ struct AttrExistsNode {
 }
 
 impl ExprNode for AttrExistsNode {
-    fn eval(&self, read: &Read, _use_qual: bool) -> std::result::Result<Data, NameError> {
-        Ok(Data::Bool(
+    fn eval<'a>(&'a self, read: &'a Read, _use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
+        Ok(EvalData::Bool(
             read.data(self.attr.str_type, self.attr.label, self.attr.attr)
                 .is_ok(),
         ))
@@ -549,11 +554,35 @@ impl ExprNode for AttrExistsNode {
 }
 
 impl ExprNode for Data {
-    fn eval(&self, _read: &Read, _use_qual: bool) -> std::result::Result<Data, NameError> {
-        Ok(self.clone())
+    fn eval<'a>(&'a self, _read: &'a Read, _use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
+        match self {
+            Data::Bool(b) => Ok(EvalData::Bool(*b)),
+            Data::Int(i) => Ok(EvalData::Int(*i)),
+            Data::Float(f) => Ok(EvalData::Float(*f)),
+            Data::Bytes(b) => Ok(EvalData::Bytes(Cow::Borrowed(b))),
+        }
     }
 
     fn required_names(&self) -> Vec<LabelOrAttr> {
         Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub enum EvalData<'a> {
+    Bool(bool),
+    Int(isize),
+    Float(f64),
+    Bytes(Cow<'a, [u8]>),
+}
+
+impl<'a> EvalData<'a> {
+    pub fn to_data(self) -> Data {
+        match self {
+            EvalData::Bool(b) => Data::Bool(b),
+            EvalData::Int(i) => Data::Int(i),
+            EvalData::Float(f) => Data::Float(f),
+            EvalData::Bytes(b) => Data::Bytes(b.into_owned()),
+        }
     }
 }

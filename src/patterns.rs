@@ -77,11 +77,11 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub fn get(&self, read: &Read) -> std::result::Result<Cow<[u8]>, NameError> {
+    pub fn get<'a>(&'a self, read: &'a Read) -> std::result::Result<Cow<'a, [u8]>, NameError> {
         use Pattern::*;
         match self {
             Literal { bytes, .. } => Ok(Cow::Borrowed(bytes)),
-            Expr { expr, .. } => Ok(Cow::Owned(expr.eval_bytes(read, false)?)),
+            Expr { expr, .. } => Ok(expr.eval_bytes(read, false)?),
         }
     }
 

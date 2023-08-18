@@ -206,13 +206,14 @@ impl GraphNode for MatchAnyNode {
             }
         }
 
-        let mapping = read
-            .mapping_mut(self.label.str_type, self.label.label)
-            .unwrap();
-
         if let Some((pattern_str, pattern_attrs)) = max_pattern {
+            let pattern_str = pattern_str.into_owned();
+            let mapping = read
+                .mapping_mut(self.label.str_type, self.label.label)
+                .unwrap();
+
             if let Some(pattern_name) = self.patterns.pattern_name() {
-                *mapping.data_mut(pattern_name) = Data::Bytes(pattern_str.into_owned());
+                *mapping.data_mut(pattern_name) = Data::Bytes(pattern_str);
             }
 
             for (&attr, data) in self.patterns.attr_names().iter().zip(pattern_attrs) {
@@ -264,7 +265,10 @@ impl GraphNode for MatchAnyNode {
             }
         } else {
             if let Some(pattern_name) = self.patterns.pattern_name() {
-                *mapping.data_mut(pattern_name) = Data::Bool(false);
+                *read
+                    .mapping_mut(self.label.str_type, self.label.label)
+                    .unwrap()
+                    .data_mut(pattern_name) = Data::Bool(false);
             }
         }
 
