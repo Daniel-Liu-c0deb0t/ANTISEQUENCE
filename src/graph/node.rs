@@ -44,3 +44,12 @@ pub use match_any_node::*;
 
 pub mod collect_fastq_node;
 pub use collect_fastq_node::*;
+
+pub mod select_node;
+pub use select_node::*;
+
+pub mod try_node;
+pub use try_node::*;
+
+pub mod while_node;
+pub use while_node::*;

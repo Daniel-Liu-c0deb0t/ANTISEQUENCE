@@ -1,12 +1,12 @@
 # ANTISEQUENCE
-Rust library for processing sequencing reads.
+Rust dataflow library for processing sequencing reads.
 
-*Work in progress! Very early stages of the project.*
+*Work in progress!*
 
 ## Goals
 * Robust, flexible, and actually universal primitives for manipulating raw DNA/RNA sequences from fastq files
-* Blazing fast and scalable implementation using SIMD and CPU parallelization
-* Simple interface allowing anyone (even non-Rustaceans) to pick up and use
+* Easily define dataflow graphs of read processing operations
+* Blazing fast and scalable implementation using SIMD parallelization and multithreading
 * Extensible with custom Rust code and embeddable into existing pipelines
 
 ANTISEQUENCE should enable you to build robust, efficient, and production-ready pipeline for your custom sequencing data.

@@ -9,8 +9,6 @@ use crate::read::*;
 
 pub mod node;
 
-// TODO: add select, while nodes
-
 /// Computation graph of read operations, where each operation is a node.
 pub struct Graph {
     nodes: Vec<Arc<dyn GraphNode>>,
@@ -60,6 +58,10 @@ impl Graph {
     }
 
     /// Run a single read through the graph.
+    ///
+    /// Returns an additional boolean indicating whether the graph is done executing.
+    /// If the required label or attribute names for an operation are not available,
+    /// the the operation is skipped.
     pub fn run_one(&self, mut curr: Option<Read>) -> Result<(Option<Read>, bool)> {
         for node in &self.nodes {
             if let Some(read) = &curr {
@@ -80,6 +82,33 @@ impl Graph {
         }
 
         Ok((curr, false))
+    }
+
+    /// Try running a single read through the graph.
+    ///
+    /// Returns two booleans: the first one is whether the read has "failed" (does not have
+    /// a required label or attribute name) and the second one is whether the graph is done
+    /// executing.
+    pub fn try_run_one(&self, mut curr: Option<Read>) -> Result<(Option<Read>, bool, bool)> {
+        for node in &self.nodes {
+            if let Some(read) = &curr {
+                if !read.has_names(node.required_names()) {
+                    return Ok((curr, true, false));
+                }
+            }
+
+            let (c, done) = node.run(curr)?;
+            curr = c;
+
+            if done {
+                return Ok((curr, false, done));
+            }
+            if curr.is_none() {
+                break;
+            }
+        }
+
+        Ok((curr, false, false))
     }
 }
 

@@ -30,11 +30,11 @@ impl TimeNode {
 impl GraphNode for TimeNode {
     fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
         let start = Instant::now();
-        let res = self.graph.run_one(read)?;
+        let res = self.graph.run_one(read);
         let elapsed = start.elapsed();
         let duration = self.duration.get_or(|| Cell::new(Duration::default()));
         duration.set(duration.get() + elapsed);
-        Ok(res)
+        res
     }
 
     fn required_names(&self) -> &[LabelOrAttr] {
