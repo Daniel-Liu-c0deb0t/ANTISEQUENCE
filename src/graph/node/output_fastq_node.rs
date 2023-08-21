@@ -6,7 +6,6 @@ use rustc_hash::FxHashMap;
 
 use flate2::{write::GzEncoder, Compression};
 
-use crate::fastq::*;
 use crate::graph::*;
 
 pub struct OutputFastqNode {
@@ -140,4 +139,17 @@ impl GraphNode for OutputFastqNode {
     fn name(&self) -> &'static str {
         Self::NAME
     }
+}
+
+pub fn write_fastq_record(
+    writer: &mut (dyn Write + std::marker::Send),
+    record: (&[u8], &[u8], &[u8]),
+) {
+    writer.write_all(b"@").unwrap();
+    writer.write_all(&record.0).unwrap();
+    writer.write_all(b"\n").unwrap();
+    writer.write_all(&record.1).unwrap();
+    writer.write_all(b"\n+\n").unwrap();
+    writer.write_all(&record.2).unwrap();
+    writer.write_all(b"\n").unwrap();
 }

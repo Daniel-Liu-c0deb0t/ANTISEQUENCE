@@ -2,8 +2,6 @@ use needletail::*;
 
 use thread_local::*;
 
-use std::fmt;
-use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::cell::RefCell;
@@ -11,23 +9,85 @@ use std::collections::VecDeque;
 
 use crate::errors::*;
 use crate::graph::*;
-use crate::read::*;
 use crate::expr::LabelOrAttr;
 
-type ReadBuf = ThreadLocal<RefCell<VecDeque<Read>>>;
 const CHUNK_SIZE: usize = 256;
 
-pub struct Fastq1Node<'reader> {
+pub struct InputFastq1Node<'reader> {
     reader: Mutex<Box<dyn FastxReader + 'reader>>,
-    buf: ReadBuf,
+    buf: ThreadLocal<RefCell<VecDeque<Read>>>,
     origin: Arc<Origin>,
     idx: AtomicUsize,
     interleaved: bool,
 }
 
-impl<'reader> GraphNode for Fastq1Node<'reader> {
+impl<'reader> InputFastq1Node<'reader> {
+    const NAME: &'static str = "InputFastq1Node";
+
+    /// Stream reads created from fastq records from an input file.
+    pub fn new(file: impl AsRef<str>) -> Result<Self> {
+        let reader = Mutex::new(parse_fastx_file(file.as_ref()).map_err(|e| Error::FileIo {
+            file: file.as_ref().to_owned(),
+            source: Box::new(e),
+        })?);
+
+        Ok(Self {
+            reader,
+            buf: ThreadLocal::new(),
+            origin: Arc::new(Origin::File(file.as_ref().to_owned())),
+            idx: AtomicUsize::new(0),
+            interleaved: false,
+        })
+    }
+
+    /// Stream reads created from interleaved paired-end fastq records from an input file.
+    pub fn new_interleaved(
+        file: impl AsRef<str>,
+    ) -> Result<Self> {
+        let reader = Mutex::new(parse_fastx_file(file.as_ref()).map_err(|e| Error::FileIo {
+            file: file.as_ref().to_owned(),
+            source: Box::new(e),
+        })?);
+
+        Ok(Self {
+            reader,
+            buf: ThreadLocal::new(),
+            origin: Arc::new(Origin::File(file.as_ref().to_owned())),
+            idx: AtomicUsize::new(0),
+            interleaved: true,
+        })
+    }
+
+    /// Stream reads created from fastq records from a byte slice.
+    pub fn from_bytes(bytes: &'reader [u8]) -> Result<Self> {
+        let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
+
+        Ok(Self {
+            reader,
+            buf: ThreadLocal::new(),
+            origin: Arc::new(Origin::Bytes),
+            idx: AtomicUsize::new(0),
+            interleaved: false,
+        })
+    }
+
+    /// Stream reads created from interleaved paired-end fastq records from a byte slice.
+    pub fn from_interleaved_bytes(bytes: &'reader [u8]) -> Result<Self> {
+        let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
+
+        Ok(Self {
+            reader,
+            buf: ThreadLocal::new(),
+            origin: Arc::new(Origin::Bytes),
+            idx: AtomicUsize::new(0),
+            interleaved: true,
+        })
+    }
+}
+
+impl<'reader> GraphNode for InputFastq1Node<'reader> {
     fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
-        assert!(read.is_none(), "Expected no input reads when {}", self.name());
+        assert!(read.is_none(), "Expected no input reads for {}", Self::NAME);
 
         let buf = self.buf.get_or(|| RefCell::new(VecDeque::with_capacity(CHUNK_SIZE)));
         let mut b = buf.borrow_mut();
@@ -107,22 +167,50 @@ impl<'reader> GraphNode for Fastq1Node<'reader> {
     }
 
     fn name(&self) -> &'static str {
-        "iterate reads from one fastq file"
+        Self::NAME
     }
 }
 
-pub struct Fastq2Node {
+pub struct InputFastq2Node {
     reader1: Mutex<Box<dyn FastxReader>>,
     reader2: Mutex<Box<dyn FastxReader>>,
-    buf: ReadBuf,
+    buf: ThreadLocal<RefCell<VecDeque<Read>>>,
     origin1: Arc<Origin>,
     origin2: Arc<Origin>,
     idx: AtomicUsize,
 }
 
-impl GraphNode for Fastq2Node {
+impl InputFastq2Node {
+    const NAME: &'static str = "InputFastq2Node";
+
+    /// Stream reads created from paired-end fastq records from two different input files.
+    pub fn new(
+        file1: impl AsRef<str>,
+        file2: impl AsRef<str>,
+    ) -> Result<Self> {
+        let reader1 = Mutex::new(parse_fastx_file(file1.as_ref()).map_err(|e| Error::FileIo {
+            file: file1.as_ref().to_owned(),
+            source: Box::new(e),
+        })?);
+        let reader2 = Mutex::new(parse_fastx_file(file2.as_ref()).map_err(|e| Error::FileIo {
+            file: file2.as_ref().to_owned(),
+            source: Box::new(e),
+        })?);
+
+        Ok(Self {
+            reader1,
+            reader2,
+            buf: ThreadLocal::new(),
+            origin1: Arc::new(Origin::File(file1.as_ref().to_owned())),
+            origin2: Arc::new(Origin::File(file2.as_ref().to_owned())),
+            idx: AtomicUsize::new(0),
+        })
+    }
+}
+
+impl GraphNode for InputFastq2Node {
     fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
-        assert!(read.is_none(), "Expected no input reads when {}", self.name());
+        assert!(read.is_none(), "Expected no input reads for {}", Self::NAME);
 
         let buf = self.buf.get_or(|| RefCell::new(VecDeque::with_capacity(CHUNK_SIZE)));
         let mut b = buf.borrow_mut();
@@ -178,127 +266,6 @@ impl GraphNode for Fastq2Node {
     }
 
     fn name(&self) -> &'static str {
-        "iterate reads from two fastq files"
-    }
-}
-
-/// Create a read iterator over fastq records from a file.
-///
-/// Larger `chunk_size` uses more memory, but reduces the overhead of allocations, multithreading,
-/// etc.
-#[must_use]
-pub fn iter_fastq1(file: impl AsRef<str>) -> Result<Box<dyn GraphNode + 'static>> {
-    let reader = Mutex::new(parse_fastx_file(file.as_ref()).map_err(|e| Error::FileIo {
-        file: file.as_ref().to_owned(),
-        source: Box::new(e),
-    })?);
-    Ok(Box::new(Fastq1Node::<'static> {
-        reader,
-        buf: ReadBuf::new(),
-        origin: Arc::new(Origin::File(file.as_ref().to_owned())),
-        idx: AtomicUsize::new(0),
-        interleaved: false,
-    }))
-}
-
-/// Create a read iterator over interleaved paired-end fastq records from a file.
-///
-/// Larger `chunk_size` uses more memory, but reduces the overhead of allocations, multithreading,
-/// etc.
-#[must_use]
-pub fn iter_fastq_interleaved(
-    file: impl AsRef<str>,
-) -> Result<Box<dyn GraphNode + 'static>> {
-    let reader = Mutex::new(parse_fastx_file(file.as_ref()).map_err(|e| Error::FileIo {
-        file: file.as_ref().to_owned(),
-        source: Box::new(e),
-    })?);
-    Ok(Box::new(Fastq1Node::<'static> {
-        reader,
-        buf: ReadBuf::new(),
-        origin: Arc::new(Origin::File(file.as_ref().to_owned())),
-        idx: AtomicUsize::new(0),
-        interleaved: true,
-    }))
-}
-
-/// Create a read iterator over paired-end fastq records from two different files.
-///
-/// Larger `chunk_size` uses more memory, but reduces the overhead of allocations, multithreading,
-/// etc.
-#[must_use]
-pub fn iter_fastq2(
-    file1: impl AsRef<str>,
-    file2: impl AsRef<str>,
-) -> Result<Box<dyn GraphNode>> {
-    let reader1 = Mutex::new(parse_fastx_file(file1.as_ref()).map_err(|e| Error::FileIo {
-        file: file1.as_ref().to_owned(),
-        source: Box::new(e),
-    })?);
-    let reader2 = Mutex::new(parse_fastx_file(file2.as_ref()).map_err(|e| Error::FileIo {
-        file: file2.as_ref().to_owned(),
-        source: Box::new(e),
-    })?);
-    Ok(Box::new(Fastq2Node {
-        reader1,
-        reader2,
-        buf: ReadBuf::new(),
-        origin1: Arc::new(Origin::File(file1.as_ref().to_owned())),
-        origin2: Arc::new(Origin::File(file2.as_ref().to_owned())),
-        idx: AtomicUsize::new(0),
-    }))
-}
-
-/// Create a read iterator over fastq records from a byte slice.
-#[must_use]
-pub fn iter_fastq1_bytes<'reader>(bytes: &'reader [u8]) -> Result<Box<dyn GraphNode + 'reader>> {
-    let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
-    Ok(Box::new(Fastq1Node::<'reader> {
-        reader,
-        buf: ReadBuf::new(),
-        origin: Arc::new(Origin::Bytes),
-        idx: AtomicUsize::new(0),
-        interleaved: false,
-    }))
-}
-
-/// Create a read iterator over interleaved paired-end fastq records from a byte slice.
-#[must_use]
-pub fn iter_fastq_interleaved_bytes<'reader>(bytes: &'reader [u8]) -> Result<Box<dyn GraphNode + 'reader>> {
-    let reader = Mutex::new(parse_fastx_reader(bytes).map_err(|e| Error::BytesIo(Box::new(e)))?);
-    Ok(Box::new(Fastq1Node::<'reader> {
-        reader,
-        buf: ReadBuf::new(),
-        origin: Arc::new(Origin::Bytes),
-        idx: AtomicUsize::new(0),
-        interleaved: true,
-    }))
-}
-
-pub fn write_fastq_record(
-    writer: &mut (dyn Write + std::marker::Send),
-    record: (&[u8], &[u8], &[u8]),
-) {
-    writer.write_all(b"@").unwrap();
-    writer.write_all(&record.0).unwrap();
-    writer.write_all(b"\n").unwrap();
-    writer.write_all(&record.1).unwrap();
-    writer.write_all(b"\n+\n").unwrap();
-    writer.write_all(&record.2).unwrap();
-    writer.write_all(b"\n").unwrap();
-}
-
-#[derive(Debug, Clone)]
-pub enum Origin {
-    File(String),
-    Bytes,
-}
-
-impl fmt::Display for Origin {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Origin::File(file) => write!(f, "file: \"{}\"", file),
-            Origin::Bytes => write!(f, "bytes"),
-        }
+        Self::NAME
     }
 }

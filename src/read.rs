@@ -4,7 +4,6 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::errors::{self, Name, NameError};
-use crate::fastq::Origin;
 use crate::inline_string::*;
 
 pub use End::*;
@@ -853,6 +852,21 @@ impl fmt::Display for StrType {
             Seq2 => write!(f, "seq2"),
             Index1 => write!(f, "index1"),
             Index2 => write!(f, "index2"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Origin {
+    File(String),
+    Bytes,
+}
+
+impl fmt::Display for Origin {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Origin::File(file) => write!(f, "file: \"{}\"", file),
+            Origin::Bytes => write!(f, "bytes"),
         }
     }
 }
