@@ -39,7 +39,7 @@ pub enum Error {
     #[error("Could not parse \"{string}\" in \"{context}\". Names must contain one or more alphanumeric characters, '_', or '*'.")]
     InvalidName { string: String, context: String },
 
-    #[error("{source}\nwith read:\n{read}when {context}")]
+    #[error("{source}\nwith read:\n{read}for {context}")]
     NameError {
         source: NameError,
         read: Read,

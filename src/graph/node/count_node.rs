@@ -9,8 +9,10 @@ pub struct CountNode {
 }
 
 impl CountNode {
-    const NAME: &'static str = "counting reads";
+    const NAME: &'static str = "CountNode";
 
+    /// For each selector expression, count the number of reads where the expression evaluates to
+    /// true.
     pub fn new(selector_exprs: Vec<Expr>) -> Self {
         let required_names = selector_exprs.iter().flat_map(|n| n.required_names()).collect();
         let counts = (0..selector_exprs.len())
@@ -23,6 +25,7 @@ impl CountNode {
         }
     }
 
+    /// Returns the counts.
     pub fn counts(&self) -> Vec<usize> {
         self.counts
             .iter()

@@ -7,8 +7,9 @@ pub struct WhileNode {
 }
 
 impl WhileNode {
-    const NAME: &'static str = "while looping";
+    const NAME: &'static str = "WhileNode";
 
+    /// Run a read through the graph multiple times, while the condition expression evaluates to true.
     pub fn new(cond_expr: Expr, graph: Graph) -> Self {
         let required_names = cond_expr.required_names();
         Self {

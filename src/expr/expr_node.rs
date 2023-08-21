@@ -8,6 +8,7 @@ use crate::read::*;
 
 const UNKNOWN_QUAL: u8 = b'I';
 
+/// One node in an expression tree.
 pub struct Expr {
     node: Box<dyn ExprNode + Send + Sync>,
 }
@@ -554,7 +555,13 @@ impl ExprNode for AttrExistsNode {
 }
 
 impl ExprNode for Data {
-    fn eval<'a>(&'a self, _read: &'a Read, _use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
+    fn eval<'a>(&'a self, _read: &'a Read, use_qual: bool) -> std::result::Result<EvalData<'a>, NameError> {
+        if use_qual {
+            if let Data::Bytes(b) = self {
+                return Ok(EvalData::Bytes(Cow::Owned(vec![UNKNOWN_QUAL; b.len()])));
+            }
+        }
+
         match self {
             Data::Bool(b) => Ok(EvalData::Bool(*b)),
             Data::Int(i) => Ok(EvalData::Int(*i)),

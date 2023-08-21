@@ -5,8 +5,9 @@ pub struct TakeNode<B: RangeBounds<usize> + Send + Sync> {
 }
 
 impl<B: RangeBounds<usize> + Send + Sync> TakeNode<B> {
-    const NAME: &'static str = "taking reads";
+    const NAME: &'static str = "TakeNode";
 
+    /// Take only the reads that have a record index inside the specified bounds.
     pub fn new(bounds: B) -> Self {
         Self { bounds }
     }

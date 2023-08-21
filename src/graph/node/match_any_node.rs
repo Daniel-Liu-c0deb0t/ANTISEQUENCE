@@ -20,8 +20,23 @@ pub struct MatchAnyNode {
 }
 
 impl MatchAnyNode {
-    const NAME: &'static str = "matching any patterns";
+    const NAME: &'static str = "MatchAnyNode";
 
+    /// Match any one of multiple patterns in an interval.
+    ///
+    /// Patterns can be arbitrary expressions, so you can use any existing labeled intervals or
+    /// attributes as patterns.
+    ///
+    /// You can also include arbitrary extra attributes for each pattern. The corresponding attributes
+    /// for the matched pattern will be stored into the input labeled interval.
+    ///
+    /// The transform expression must have one input label and the number of output labels is
+    /// determined by the [`MatchType`].
+    ///
+    /// Example `transform_expr` for local-alignment-based pattern matching:
+    /// `tr!(seq1.* -> seq1.before, seq1.aligned, seq1.after)`.
+    /// The input labeled interval will get a new attribute (`seq1.*.my_patterns`) that is set to the pattern
+    /// that is matched. If no pattern matches, then it will be set to false.
     pub fn new(
         transform_expr: TransformExpr,
         patterns: Patterns,
@@ -238,7 +253,7 @@ impl GraphNode for MatchAnyNode {
                         self.new_labels[1].as_ref().map(|l| l.label),
                         LeftEnd(max_cut_pos1),
                     )
-                    .unwrap_or_else(|e| panic!("Error {}: {e}", Self::NAME));
+                    .unwrap_or_else(|e| panic!("Error in {}: {e}", Self::NAME));
                 }
                 3 => {
                     let offset = mapping.start;

@@ -6,8 +6,9 @@ pub struct RetainNode {
 }
 
 impl RetainNode {
-    const NAME: &'static str = "retaining reads";
+    const NAME: &'static str = "RetainNode";
 
+    /// Retain only the reads where the selector expression evaluates to true and discard the rest.
     pub fn new(selector_expr: Expr) -> Self {
         Self {
             required_names: selector_expr.required_names(),

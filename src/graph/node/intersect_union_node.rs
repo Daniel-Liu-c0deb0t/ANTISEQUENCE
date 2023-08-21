@@ -8,8 +8,13 @@ pub struct IntersectNode {
 }
 
 impl IntersectNode {
-    const NAME: &'static str = "intersecting intervals in reads";
+    const NAME: &'static str = "IntersectNode";
 
+    /// Intersect two labeled intervals and create a new interval of the intersection, if it is not empty.
+    ///
+    /// The transform expression must have two input labels and one output label.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.a, seq1.b -> seq1.c)`.
     pub fn new(transform_expr: TransformExpr) -> Self {
         transform_expr.check_size(2, 1, Self::NAME);
         transform_expr.check_same_str_type(Self::NAME);
@@ -59,8 +64,16 @@ pub struct UnionNode {
 }
 
 impl UnionNode {
-    const NAME: &'static str = "unioning intervals in reads";
+    const NAME: &'static str = "UnionNode";
 
+    /// Union two labeled intervals and create a new interval of the union.
+    ///
+    /// If the two intervals are disjoint, then the union will also contain the region
+    /// between the two intervals, which is not inside either intervals.
+    ///
+    /// The transform expression must have two input labels and one output label.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.a, seq1.b -> seq1.c)`.
     pub fn new(transform_expr: TransformExpr) -> Self {
         transform_expr.check_size(2, 1, Self::NAME);
         transform_expr.check_same_str_type(Self::NAME);

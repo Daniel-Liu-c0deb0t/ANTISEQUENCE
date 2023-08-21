@@ -14,8 +14,18 @@ pub struct MatchRegexNode {
 }
 
 impl MatchRegexNode {
-    const NAME: &'static str = "matching regex in reads";
+    const NAME: &'static str = "MatchRegexNode";
 
+    /// Match a regex pattern in an interval.
+    ///
+    /// If named capture groups are used, then intervals are automatically created at the match
+    /// locations, labeled by the names specified in the regex.
+    ///
+    /// The transform expression must have one input label and one output attribute.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.* -> seq1.*.matched)`.
+    /// This will match the regex pattern two `seq1.*` and set `seq1.*.matched` to a boolean
+    /// indicating whether the regex matches.
     pub fn new(
         transform_expr: TransformExpr,
         regex: &str,
@@ -75,7 +85,7 @@ impl GraphNode for MatchRegexNode {
             // panic to make borrow checker happy
             *read
                 .data_mut(attr.str_type, attr.label, attr.attr)
-                .unwrap_or_else(|e| panic!("Error {}: {e}", Self::NAME)) = Data::Bool(matched);
+                .unwrap_or_else(|e| panic!("Error in {}: {e}", Self::NAME)) = Data::Bool(matched);
         }
 
         Ok((Some(read), false))

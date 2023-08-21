@@ -5,8 +5,10 @@ pub struct ForkNode {
 }
 
 impl ForkNode {
-    const NAME: &'static str = "forking reads";
+    const NAME: &'static str = "ForkNode";
 
+    /// Clone each read and run the clone through the specified graph, while leaving
+    /// the original read unchanged.
     pub fn new(graph: Graph) -> Self {
         Self { graph }
     }

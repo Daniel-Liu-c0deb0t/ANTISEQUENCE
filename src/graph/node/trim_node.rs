@@ -6,8 +6,12 @@ pub struct TrimNode {
 }
 
 impl TrimNode {
-    const NAME: &'static str = "trim reads";
+    const NAME: &'static str = "TrimNode";
 
+    /// Trim the intervals of the specified labels by splicing them out of the underlying strings.
+    ///
+    /// When an interval is trimmed, its length will be set to zero. All intersecting
+    /// intervals will also be adjusted accordingly for the shortening.
     pub fn new(labels: Vec<Label>) -> Self {
         Self {
             required_names: labels.iter().cloned().map(|l| l.into()).collect(),

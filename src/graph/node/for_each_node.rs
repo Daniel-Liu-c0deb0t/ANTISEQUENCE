@@ -5,8 +5,9 @@ pub struct ForEachNode<F: Fn(&mut Read) + Send + Sync> {
 }
 
 impl<F: Fn(&mut Read) + Send + Sync> ForEachNode<F> {
-    const NAME: &'static str = "for each read";
+    const NAME: &'static str = "ForEachNode";
 
+    /// Apply an arbitrary function on each read.
     pub fn new(func: F) -> Self {
         Self {
             func,
@@ -33,6 +34,7 @@ impl<F: Fn(&mut Read) + Send + Sync> GraphNode for ForEachNode<F> {
 pub struct DbgNode;
 
 impl DbgNode {
+    /// Print each read to standard error.
     pub fn new() -> ForEachNode<impl Fn(&mut Read) + Send + Sync> {
         ForEachNode::new(|read| eprintln!("{read}"))
     }
@@ -41,6 +43,7 @@ impl DbgNode {
 pub struct RemoveInternalNode;
 
 impl RemoveInternalNode {
+    /// Remove mappings with labels that start with `_` ("internal" mappings).
     pub fn new() -> ForEachNode<impl Fn(&mut Read) + Send + Sync> {
         ForEachNode::new(|read| read.remove_internal())
     }

@@ -9,7 +9,15 @@ pub struct TransformExpr {
 }
 
 impl TransformExpr {
-    pub fn new(expr: &[u8]) -> Result<Self> {
+    pub fn new(before: impl AsRef<[Label]>, after: impl AsRef<[Option<LabelOrAttr>]>) -> Self {
+        Self {
+            before: before.as_ref().to_owned(),
+            after: after.as_ref().to_owned(),
+        }
+    }
+
+    /// Parse a byte string to get a transform expression.
+    pub fn from_bytes(expr: &[u8]) -> Result<Self> {
         let (before, after) = parse(expr)?;
         Ok(Self { before, after })
     }
@@ -51,7 +59,7 @@ impl TransformExpr {
         self.after[i].clone().map(|a| if let LabelOrAttr::Label(l) = a {
             l
         } else {
-            panic!("Expected type.label after the \"->\" in the transform expression when {context}")
+            panic!("Expected type.label after the \"->\" in the transform expression for {context}")
         })
     }
 
@@ -59,7 +67,7 @@ impl TransformExpr {
         self.after[i].clone().map(|a| if let LabelOrAttr::Attr(a) = a {
             a
         } else {
-            panic!("Expected type.label.attr after the \"->\" in the transform expression when {context}")
+            panic!("Expected type.label.attr after the \"->\" in the transform expression for {context}")
         })
     }
 }

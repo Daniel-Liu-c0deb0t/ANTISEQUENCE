@@ -9,16 +9,17 @@ use flate2::{write::GzEncoder, Compression};
 use crate::fastq::*;
 use crate::graph::*;
 
-pub struct CollectFastqNode {
+pub struct OutputFastqNode {
     required_names: Vec<LabelOrAttr>,
     file_expr1: Expr,
     file_expr2: Option<Expr>,
     file_writers: Mutex<FxHashMap<Vec<u8>, Arc<Mutex<dyn Write + Send>>>>,
 }
 
-impl CollectFastqNode {
-    const NAME: &'static str = "collecting reads into fastq files";
+impl OutputFastqNode {
+    const NAME: &'static str = "OutputFastqNode";
 
+    /// Output reads (read 1 only) to a file whose path is specified by an expression.
     pub fn new1(file_expr: Expr) -> Self {
         Self {
             required_names: file_expr.required_names(),
@@ -28,6 +29,9 @@ impl CollectFastqNode {
         }
     }
 
+    /// Output read 1 and read 2 to two separate files whose paths are specified by expressions.
+    ///
+    /// The reads will be interleaved if the file path expressions are the same.
     pub fn new2(
         file_expr1: Expr,
         file_expr2: Expr,
@@ -75,7 +79,7 @@ impl CollectFastqNode {
     }
 }
 
-impl GraphNode for CollectFastqNode {
+impl GraphNode for OutputFastqNode {
     fn run(&self, read: Option<Read>) -> Result<(Option<Read>, bool)> {
         let Some(read) = read else { panic!("Expected some read!") };
 

@@ -11,8 +11,13 @@ pub struct MatchPolyXNode {
 }
 
 impl MatchPolyXNode {
-    const NAME: &'static str = "matching poly(X)";
+    const NAME: &'static str = "MatchPolyXNode";
 
+    /// Match repeated characters from the left or right end of an interval.
+    ///
+    /// The transform expression must have one input label and two output labels.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.* -> seq1.sequence, seq1.polya_tail)`.
     pub fn new(
         transform_expr: TransformExpr,
         x: u8,

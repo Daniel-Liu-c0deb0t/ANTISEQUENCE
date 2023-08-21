@@ -1,4 +1,4 @@
-//! Rust library for preprocessing sequencing reads.
+//! Rust stream processing library for sequencing reads.
 //!
 //! # Overview
 //! ANTISEQUENCE provides efficient and composable operations for manipulating fastq records.
@@ -9,16 +9,14 @@
 //! * Writing fastq processing tools
 //! * Debugging sequencing pipelines
 //!
-//! ## Iterator-like API
-//! ANTISEQUENCE's main API is similar to Rust iterators, but it uses custom operations that
-//! operate on reads and it supports easy multithreading.
+//! ## Computation graph API
+//! To use ANTISEQUENCE, you first specify *operations* (read from fastq, trim reads, output to fastq, etc.)
+//! and add them to a [`Graph`]. Then, you run the graph, which executes all the operations on each
+//! read.
 //!
-//! Typically, you would specify *operations* (read from fastq, trim reads, output to fastq, etc.)
-//! on reads in a chain, and these are executed in order when you call
-//! [`run()`](Reads::run) or [`run_with_threads()`](Reads::run_with_threads).
+//! See [`graph::node`] for all supported operations.
 //!
-//! See [`fastq`] for functions for reading fastq records and
-//! see [`Reads`] for all the supported read iterator operations.
+//! TODO: update docs below
 //!
 //! ## Read structure
 //! Here's an example fastq record:

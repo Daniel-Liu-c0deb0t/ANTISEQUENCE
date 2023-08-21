@@ -7,8 +7,20 @@ pub struct SetNode {
 }
 
 impl SetNode {
-    const NAME: &'static str = "setting reads";
+    const NAME: &'static str = "SetNode";
 
+    /// Set a labeled interval or attribute to the result of an expression.
+    ///
+    /// The expression must return a byte string if a labeled interval is being set.
+    ///
+    /// To generate the quality scores when setting intervals that have corresponding quality
+    /// scores, references to intervals in the expression are directly substituted with the
+    /// corresponding quality scores of the intervals. For references to byte strings without
+    /// quality scores, a sequence of `I`s is used as the quality scores in the expression.
+    /// *This naive substitution may lead to unexpected results for complex expressions!*
+    ///
+    /// If a label is set, then its interval and all other intersecting intervals will be adjusted accordingly
+    /// for any shortening or lengthening.
     pub fn new(
         label_or_attr: LabelOrAttr,
         expr: Expr,
@@ -80,7 +92,7 @@ impl GraphNode for SetNode {
                 // panic to make borrow checker happy
                 *read
                     .data_mut(attr.str_type, attr.label, attr.attr)
-                    .unwrap_or_else(|e| panic!("Error {}: {e}", Self::NAME)) = new_val.to_data();
+                    .unwrap_or_else(|e| panic!("Error in {}: {e}", Self::NAME)) = new_val.to_data();
             }
         }
 

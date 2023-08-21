@@ -11,8 +11,13 @@ pub struct BernoulliNode {
 }
 
 impl BernoulliNode {
-    const NAME: &'static str = "generating bernoulli random samples";
+    const NAME: &'static str = "BernoulliNode";
 
+    /// Set the attribute `attr` to a sampled boolean from a Bernoulli distribution
+    /// with probability `prob` of true.
+    ///
+    /// This is fully deterministic for a chosen seed and ordering of reads, even with
+    /// multiple threads.
     pub fn new(attr: Attr, prob: f64, seed: u32) -> Self {
         Self {
             attr,
@@ -36,7 +41,7 @@ impl GraphNode for BernoulliNode {
         // panic to make borrow checker happy
         *read
             .data_mut(self.attr.str_type, self.attr.label, self.attr.attr)
-            .unwrap_or_else(|e| panic!("Error when {}: {e}", Self::NAME)) =
+            .unwrap_or_else(|e| panic!("Error in {}: {e}", Self::NAME)) =
             Data::Bool(rand_bool);
 
         Ok((Some(read), false))

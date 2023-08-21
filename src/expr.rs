@@ -154,16 +154,18 @@ macro_rules! tr {
     ($($t:tt)+) => {
         {
             let s = stringify!($($t)+);
-            $crate::expr::TransformExpr::new(s.as_bytes())
+            $crate::expr::TransformExpr::from_bytes(s.as_bytes())
                 .unwrap_or_else(|e| panic!("Error constructing transform expression:\n{e}\non line {} column {} in file {}", line!(), column!(), file!()))
         }
     };
 }
 
+/// Create a label by parsing a byte string of the form `type.label`.
 pub fn label(s: impl AsRef<[u8]>) -> Label {
     Label::new(s.as_ref()).unwrap_or_else(|e| panic!("Error creating label:\n{e}"))
 }
 
+/// Create an attribute by parsing a byte string of the form `type.label.attr`.
 pub fn attr(s: impl AsRef<[u8]>) -> Attr {
     Attr::new(s.as_ref()).unwrap_or_else(|e| panic!("Error creating attr:\n{e}"))
 }

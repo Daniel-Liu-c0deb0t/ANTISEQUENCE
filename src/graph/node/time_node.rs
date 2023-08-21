@@ -11,8 +11,9 @@ pub struct TimeNode {
 }
 
 impl TimeNode {
-    const NAME: &'static str = "timing read operations";
+    const NAME: &'static str = "TimeNode";
 
+    /// Track the runtime of the graph.
     pub fn new(graph: Graph) -> Self {
         Self {
             duration: ThreadLocal::new(),
@@ -20,7 +21,7 @@ impl TimeNode {
         }
     }
 
-    /// Total time (in seconds) across all threads.
+    /// Get the total time (in seconds) summed across all threads.
     pub fn total_time(&mut self) -> f64 {
         let duration = self.duration.iter_mut().map(|c| c.get()).sum::<Duration>();
         duration.as_secs_f64()

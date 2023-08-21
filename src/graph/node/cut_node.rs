@@ -9,8 +9,13 @@ pub struct CutNode {
 }
 
 impl CutNode {
-    const NAME: &'static str = "cutting reads";
+    const NAME: &'static str = "CutNode";
 
+    /// Cut a labeled interval at the specified index to create two new intervals.
+    ///
+    /// The transform expression must have one input label and two output labels.
+    ///
+    /// Example `transform_expr`: `tr!(seq1.* -> seq1.left, seq1.right)`.
     pub fn new(
         transform_expr: TransformExpr,
         cut_idx: EndIdx,

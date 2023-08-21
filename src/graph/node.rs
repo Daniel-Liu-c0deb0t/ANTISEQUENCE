@@ -42,8 +42,8 @@ pub use match_regex_node::*;
 pub mod match_any_node;
 pub use match_any_node::*;
 
-pub mod collect_fastq_node;
-pub use collect_fastq_node::*;
+pub mod output_fastq_node;
+pub use output_fastq_node::*;
 
 pub mod select_node;
 pub use select_node::*;
