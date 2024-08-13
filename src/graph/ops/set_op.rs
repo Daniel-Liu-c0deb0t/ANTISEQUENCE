@@ -26,9 +26,12 @@ impl SetOp {
         let expr = expr.into();
 
         Self {
-            required_names: vec![label_or_attr.clone()],
+            required_names: match label_or_attr {
+                LabelOrAttr::Attr(_) => vec![],
+                LabelOrAttr::Label(_) => vec![label_or_attr.clone()]
+            },
             label_or_attr,
-            expr,
+            expr
         }
     }
 }
@@ -41,6 +44,7 @@ impl GraphNode for SetOp {
 
         match &self.label_or_attr {
             LabelOrAttr::Label(label) => {
+                println!("this is another test: {:?}", label);
                 let new_bytes = self
                     .expr
                     .eval_bytes(&read, false)
@@ -86,12 +90,13 @@ impl GraphNode for SetOp {
                 }
             }
             LabelOrAttr::Attr(attr) => {
+                println!("this is a different test: {:?}", attr);
                 let new_val = self.expr.eval(&read, false).map_err(|e| Error::NameError {
                     source: e,
                     read: read.clone(),
                     context: Self::NAME,
                 })?;
-
+                println!("this is a new test: {:?}", new_val);
                 // panic to make borrow checker happy
                 *read
                     .data_mut(attr.str_type, attr.label, attr.attr)
