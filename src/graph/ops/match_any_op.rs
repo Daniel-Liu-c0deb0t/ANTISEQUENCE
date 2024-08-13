@@ -256,7 +256,7 @@ impl GraphNode for MatchAnyOp {
                     };
                     let text_around = &text[text_start..text_end];
                     memmem::find(text_around, pattern_str)
-                        .map(|i| (pattern_len, i, i + pattern_len))
+                        .map(|i| (pattern_len, text_start + i, text_start + i + pattern_len))
                 }
                 Hamming(t) => {
                     let t = t.get(pattern_len);
